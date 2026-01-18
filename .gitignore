@@ -12,6 +12,9 @@ dist-ssr
 vite.config.d.ts
 vite.config.js
 
+# Schema copies (generated during build from canonical schemas/)
+src/frontend/public/schemas/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

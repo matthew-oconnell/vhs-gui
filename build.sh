@@ -8,25 +8,32 @@ echo "======================================"
 echo "Building Vulcan Server"
 echo "======================================"
 
-# Step 1: Build React frontend
+# Step 1: Copy schema to frontend public directory
 echo ""
-echo "Step 1: Building React frontend..."
+echo "Step 1: Copying schema to frontend..."
+mkdir -p src/frontend/public/schemas
+cp schemas/input.schema.json src/frontend/public/schemas/
+
+# Step 2: Build React frontend
+echo ""
+echo "Step 2: Building React frontend..."
 cd src/frontend
 if [ ! -d "node_modules" ]; then
     echo "Installing npm dependencies first..."
     npm install
 fi
 npx vite build --config vite.config.ts
+cd ../..
 
-# Step 2: Build C++ backend
+# Step 3: Build C++ backend
 echo ""
-echo "Step 2: Building C++ backend..."
-cd ../server
+echo "Step 3: Building C++ backend..."
+cd src/server
 ./build.sh
 
-# Step 3: Copy React build to server's public directory
+# Step 4: Copy React build to server's public directory
 echo ""
-echo "Step 3: Copying frontend to server..."
+echo "Step 4: Copying frontend to server..."
 cd build
 rm -rf public
 mkdir -p public
@@ -42,6 +49,8 @@ echo "Frontend files: src/server/build/public/"
 echo ""
 echo "Starting server on http://127.0.0.1:8080"
 echo "Press Ctrl+C to stop"
+echo ""
+echo "Schema location: schemas/input.schema.json (canonical)"
 echo ""
 
 # Open browser (cross-platform)

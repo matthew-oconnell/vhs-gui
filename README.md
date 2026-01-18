@@ -90,17 +90,21 @@ A web-based graphical user interface for setting up and configuring Computationa
 ### Quick Start
 
 ```bash
-# Build everything once
+# Clone and build
+git clone https://github.com/matthew-oconnell/vhs-gui.git
+cd vhs-gui
 ./build-production.sh
 
-# Run the server
+# Launch server and browser
+./launch.sh
+
+# Or manually:
 cd server/build
 ./vulcan_server
-
 # Visit http://127.0.0.1:8080
 ```
 
-**That's it! One server, one URL.**
+**That's it! One server, one URL, zero npm/node required for end users.**
 
 ### Development Workflow
 
@@ -135,19 +139,20 @@ cd server/build
 If you need instant hot reloading:
 
 ```bash
-# Terminal 1: C++ backend (API)
+# Terminal 1: C++ backend (API only)
 cd server/build
 ./vulcan_server
 
 # Terminal 2: Vite dev server (React with HMR)
 npm run dev
 
-# Visit: http://localhost:3000
+# Visit: http://localhost:5173 (Vite dev server)
 ```
 
 **Trade-offs:**
 - ✅ Instant hot reload
 - ✅ React Fast Refresh
+- ⚠️ Must configure VITE_API_URL=http://127.0.0.1:8080 in .env
 - ❌ Two servers to manage
 - ❌ CORS complexity
 
@@ -217,7 +222,7 @@ VITE_API_URL=http://127.0.0.1:8080
               ↓                         ↓
      ┌────────────────┐        ┌───────────────┐
      │ JSON Schema    │        │  Backend API  │
-     │  Validation    │        │  (Optional)   │
+     │  Validation    │        │  (REQUIRED)   │
      └────────────────┘        └───────────────┘
                                         │
                                         ↓
@@ -226,6 +231,7 @@ VITE_API_URL=http://127.0.0.1:8080
                                │  - Mesh Parser  │
                                │  - File Upload  │
                                │  - Conversion   │
+                               │  - Static Files │
                                └─────────────────┘
 ```
 

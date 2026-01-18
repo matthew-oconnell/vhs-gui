@@ -1,6 +1,14 @@
 # Vulcan Server - C++ Backend
 
-HTTP server for Vulcan CFD GUI mesh conversion and configuration management.
+HTTP server for Vulcan CFD GUI - serves React frontend AND provides mesh conversion API.
+
+## Architecture
+
+**Single-Server Design**: This server serves two functions:
+1. **Static File Server**: Serves the compiled React frontend at `/`
+2. **API Server**: Provides mesh processing endpoints at `/api/*`
+
+**Critical**: The frontend **requires** this server for all mesh loading. The browser cannot parse mesh files independently - all mesh processing happens via the backend API.
 
 ## Quick Start
 
@@ -14,6 +22,10 @@ HTTP server for Vulcan CFD GUI mesh conversion and configuration management.
 ### Build
 
 ```bash
+# From project root (builds both backend and frontend)
+./build-production.sh
+
+# Or build backend only
 cd server
 mkdir build && cd build
 cmake ..
@@ -23,13 +35,21 @@ make
 ### Run Server
 
 ```bash
-# From build directory
+# From server/build directory
 ./vulcan_server
+# Server starts on http://127.0.0.1:8080
+# Serves frontend UI + API endpoints
 
 # Custom port and host
 ./vulcan_server --port 3000
 ./vulcan_server --host 0.0.0.0 --port 8080
 ```
+
+**Access:**
+- Frontend UI: `http://127.0.0.1:8080/`
+- API endpoints: `http://127.0.0.1:8080/api/*`
+
+**Note**: The `public/` directory must exist with the compiled React app. Run `build-production.sh` or manually build the frontend with `npm run build`.
 
 ### Run Tests
 

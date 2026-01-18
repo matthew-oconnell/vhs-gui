@@ -500,4 +500,84 @@ npm run build     # Ensure code compiles
 
 ---
 
+## 🎨 UI Consistency Guidelines
+
+### Modal Dialog Button Styling
+
+**All modal dialogs must use consistent button classes for a unified look and feel.**
+
+#### Standard Button Classes
+
+Use these standardized classes for all modal dialog buttons:
+
+```tsx
+// Primary action button (e.g., "Create", "Save", "OK")
+<button className="modal-button modal-button-primary" onClick={handleAction}>
+  Create Boundary Condition
+</button>
+
+// Secondary action button (e.g., "Cancel", "Back")
+<button className="modal-button modal-button-secondary" onClick={onClose}>
+  Cancel
+</button>
+```
+
+#### CSS Definition
+
+Each dialog's CSS file should include these styles (copied from StateWizard.css):
+
+```css
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.modal-button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.modal-button-primary:hover {
+  background-color: #1177bb;
+}
+
+.modal-button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+.modal-button-secondary {
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.modal-button-secondary:hover {
+  background-color: #505050;
+}
+```
+
+#### Key Properties
+
+- **No borders** - Clean, flat design
+- **No box shadows** - Simple visual style
+- **Simple transitions** - Only background color changes on hover
+- **Consistent sizing** - 8px vertical, 16px horizontal padding
+- **VS Code theme colors** - Matches editor color scheme
+
+#### Examples
+
+Dialogs following this pattern:
+- ✅ StateWizard (EditorPanel/StateWizard.tsx)
+- ✅ BoundaryConditionDialog
+- ✅ Other modal dialogs
+
+**Why This Matters:** Consistent button styling creates a professional, cohesive user experience. Users should not have to relearn button interactions across different dialogs.
+
+---
+
 **Remember: If you hardcode it, document it. Future maintainers (human or AI) will thank you.**

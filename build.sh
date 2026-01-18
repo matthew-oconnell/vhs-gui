@@ -40,15 +40,20 @@ echo ""
 echo "Server binary: src/server/build/vulcan_server"
 echo "Frontend files: src/server/build/public/"
 echo ""
-echo "To run server:"
-echo "  cd src/server/build"
-echo "  ./vulcan_server"
+echo "Starting server on http://127.0.0.1:8080"
+echo "Press Ctrl+C to stop"
 echo ""
-echo "Then visit: http://127.0.0.1:8080"
-echo ""
-echo "For development:"
-echo "  1. Edit React files in src/frontend/"
-echo "  2. Run: npx vite build"
-echo "  3. Run: cd src/server/build && ./vulcan_server"
-echo "  (No need for npm dev server!)"
-echo "======================================"
+
+# Open browser (cross-platform)
+sleep 1
+if command -v xdg-open > /dev/null; then
+    xdg-open http://127.0.0.1:8080 &
+elif command -v open > /dev/null; then
+    open http://127.0.0.1:8080 &
+elif command -v start > /dev/null; then
+    start http://127.0.0.1:8080 &
+fi
+
+# Launch server
+cd ../../src/server/build
+./vulcan_server

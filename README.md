@@ -32,14 +32,14 @@ A web-based graphical user interface for setting up and configuring Computationa
   - Left-click + drag to rotate (orbit)
   - Right-click + drag to pan
   - Scroll to zoom
-- STL mesh file loading and visualization
+- Multi-format mesh loading via backend (OBJ, STL, meshb, egads, csm)
 - Surface selection via mouse clicking
 - Visual highlighting of selected surfaces
 - Color-coded mesh regions based on boundary conditions
 - Camera presets and reset functionality
 
 ✅ **Mesh & Surface Management**
-- Load STL mesh files (ASCII and binary formats)
+- Load mesh files via C++ backend (.obj, .stl, .meshb, .egads, .csm)
 - Automatic surface detection and naming
 - Visual surface highlighting on selection
 - Boundary condition assignment workflow
@@ -68,18 +68,29 @@ A web-based graphical user interface for setting up and configuring Computationa
 - **react-resizable-panels** for resizable layout
 - **Lucide React** for icons
 
+## Architecture
+
+**Single-Server Design**: The C++ backend serves both the React frontend (static files) AND the mesh processing API. Users run one server on port 8080.
+
+**Critical Requirement**: The C++ server is **required** for all mesh loading. The browser cannot parse mesh files - all mesh processing happens via the backend API.
+
+**Supported Formats**:
+- `.obj` - Wavefront OBJ (implemented, tested)
+- `.stl` - STereoLithography (implemented, tested)
+- `.meshb`, `.egads`, `.csm` - Proprietary CFD formats (placeholders for future implementation)
+
 ## Getting Started
 
 ### Prerequisites
 
-- **Node.js 18+** and npm (for building frontend)
-- **CMake 3.15+** and C++17 compiler (for backend server)
+- **Node.js 18+** and npm (for building frontend only)
+- **CMake 3.15+** and C++17 compiler (for server)
 - **Git** for version control
 
-### Quick Start (Production - Single Server)
+### Quick Start
 
 ```bash
-# Build everything (React + C++)
+# Build everything once
 ./build-production.sh
 
 # Run the server
@@ -89,61 +100,78 @@ cd server/build
 # Visit http://127.0.0.1:8080
 ```
 
-That's it! One command, one server, one URL.
+**That's it! One server, one URL.**
 
-### Installation & Running
+### Development Workflow
 
-#### Production Mode (Recommended)
+#### Simple Development (Recommended)
+
+Use one server for everything:
 
 ```bash
-# 1. Build production bundle
+# 1. Build (first time or after changes)
 ./build-production.sh
 
-# 2. Start server (serves both frontend + API on port 8080)
+# 2. Run server
 cd server/build
 ./vulcan_server
 
-# Open browser: http://127.0.0.1:8080
+# 3. Edit React code in src/
+
+# 4. Rebuild frontend only (fast!)
+./rebuild-frontend.sh
+
+# 5. Restart server (Ctrl+C, then ./vulcan_server)
 ```
 
-**What it does:**
-- Builds optimized React bundle
-- Compiles C++ server
-- Copies frontend to `server/build/public/`
-- Single server serves everything
+**Workflow:**
+- ✅ One server (port 8080)
+- ✅ Fast rebuilds (~2-3 seconds)
+- ✅ No port juggling
+- ❌ No hot module reload (must manually refresh browser)
 
-#### Development Mode
+#### Advanced Development (Hot Reload)
 
-When actively developing, run both servers for hot module reloading:
+If you need instant hot reloading:
 
 ```bash
-# Terminal 1: C++ backend (API only)
+# Terminal 1: C++ backend (API)
 cd server/build
 ./vulcan_server
 
-# Terminal 2: Vite dev server (frontend with HMR)
-npm install
+# Terminal 2: Vite dev server (React with HMR)
 npm run dev
 
-# Frontend: http://localhost:3000
-# Backend:  http://127.0.0.1:8080
+# Visit: http://localhost:3000
 ```
 
-**Development benefits:**
-- Instant hot reloading on code changes
-- React Fast Refresh
-- Source maps for debugging
+**Trade-offs:**
+- ✅ Instant hot reload
+- ✅ React Fast Refresh
+- ❌ Two servers to manage
+- ❌ CORS complexity
 
-#### API-Only Mode (No Frontend)
+### Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `./build-production.sh` | Full build (React + C++) |
+| `./rebuild-frontend.sh` | Quick React-only rebuild |
+| `npm run dev` | Vite dev server (optional) |
+
+### Typical Session
 
 ```bash
-cd server
-./build.sh
-cd build
+# First time setup
+./build-production.sh
+cd server/build
 ./vulcan_server
-```
 
-Server runs on port 8080 serving only API endpoints.
+# Open http://127.0.0.1:8080
+# Edit src/App.tsx
+# Rebuild + restart:
+./rebuild-frontend.sh && pkill vulcan_server && ./vulcan_server
+```
 
 ### Backend Server Features
 

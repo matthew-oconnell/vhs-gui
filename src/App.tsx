@@ -9,7 +9,7 @@ import NewProjectWizard, { ProjectConfig } from './components/MenuBar/NewProject
 import SettingsDialog from './components/SettingsDialog/SettingsDialog'
 import ValidationErrorDialog from './components/ValidationErrorDialog/ValidationErrorDialog'
 import { useAppStore } from './store/appStore'
-import { pickMeshFile, parseMeshFileWithBackend } from './utils/meshParser'
+import { pickMeshFile, parseMeshFile } from './utils/meshParser'
 import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fileUtils'
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
@@ -60,7 +60,7 @@ function App() {
           meshLoaded = await loadMeshFromDirectory(
             typeof meshFilename === 'string' ? meshFilename : meshFilename[0],
             directoryHandle,
-            parseMeshFileWithBackend, // Use backend for parsing
+            parseMeshFile,
             loadMesh,
             (parsedMesh, filename) => {
               // Mesh has duplicates - will show lump dialog
@@ -212,7 +212,7 @@ function App() {
       }
       
       console.log('[App] Parsing mesh file...')
-      const parsedMesh = await parseMeshFileWithBackend(file) // Use backend for parsing
+      const parsedMesh = await parseMeshFile(file)
       console.log('[App] Mesh parsed successfully:', {
         regions: parsedMesh.regions.length,
         totalVertices: parsedMesh.totalVertices,

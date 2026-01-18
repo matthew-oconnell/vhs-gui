@@ -31,3 +31,4 @@ public/wasm/*.wasm
 public/wasm/*.js
 *.wasm
 *.bc
+dist-package/

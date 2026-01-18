@@ -194,6 +194,45 @@ int main(int argc, char* argv[]) {
         }
     });
     
+    // ========================================================================
+    // Static File Serving
+    // ========================================================================
+    
+    // Serve static files from public/ directory
+    // This allows serving the React app from the same server
+    namespace fs = std::filesystem;
+    fs::path publicDir = fs::current_path() / "public";
+    
+    if (fs::exists(publicDir)) {
+        std::cout << "Static files directory found: " << publicDir << "\n";
+        
+        // Mount static file handler
+        // API routes have priority, then static files
+        svr.set_mount_point("/", publicDir.string());
+        
+        // Serve index.html for any non-API route (SPA fallback)
+        svr.set_file_request_handler([publicDir](const httplib::Request& req, httplib::Response& res) {
+            // Don't interfere with API routes
+            if (req.path.find("/api/") == 0) {
+                return;
+            }
+            
+            // For SPA routing, serve index.html for any path that doesn't have a file extension
+            if (req.path.find('.') == std::string::npos) {
+                fs::path indexPath = publicDir / "index.html";
+                if (fs::exists(indexPath)) {
+                    std::ifstream file(indexPath);
+                    std::string content((std::istreambuf_iterator<char>(file)),
+                                      std::istreambuf_iterator<char>());
+                    res.set_content(content, "text/html");
+                }
+            }
+        });
+    } else {
+        std::cout << "Static files directory not found: " << publicDir << "\n";
+        std::cout << "Serving API endpoints only.\n";
+    }
+    
     // Log server startup
     std::cout << "\n=================================================\n"
               << "  Vulcan CFD GUI Server v1.0.0\n"
@@ -202,7 +241,28 @@ int main(int argc, char* argv[]) {
               << "  Host: " << host << "\n"
               << "  Port: " << port << "\n"
               << "  URL:  http://" << host << ":" << port << "\n"
-              << "=================================================\n\n";
+              << "-------------------------------------------------\n";
+    
+    if (fs::exists(publicDir)) {
+        std::cout << "  Mode: Full Stack (API + Frontend)\n";
+        std::cout << "  Static: " << publicDir << "\n";
+    } else {
+        std::cout << "  Mode: API Only\n";
+    }
+    
+    std::cout << "=================================================\n\n"
+              << "API Endpoints:\n"
+              << "  - GET  /api/health\n"
+              << "  - GET  /api/info\n"
+              << "  - POST /api/mesh/upload\n"
+              << "  - GET  /api/mesh/convert/{sessionId}\n\n";
+    
+    if (fs::exists(publicDir)) {
+        std::cout << "Frontend:\n"
+                  << "  - /             (React app)\n"
+                  << "  - /*            (SPA routing)\n\n";
+    }
+    
     std::cout << "Press Ctrl+C to stop the server.\n\n";
     
     // Start server

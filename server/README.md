@@ -222,7 +222,8 @@ TEST_CASE("Your test", "[tag]") {
 ## Next Steps
 
 - [x] Add mesh upload endpoint (`POST /api/mesh/upload`)
-- [ ] Integrate mesh conversion libraries
+- [x] Integrate mesh conversion libraries (OBJ parser implemented)
+- [ ] Add support for .meshb, .egads, .csm formats (placeholder ready)
 - [ ] Add static file serving for React frontend
 - [ ] Implement caching layer
 - [ ] Add configuration file support

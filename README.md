@@ -72,11 +72,66 @@ A web-based graphical user interface for setting up and configuring Computationa
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or yarn
+- **Node.js 18+** and npm or yarn
+- **CMake 3.15+** and C++17 compiler (for backend server)
+- **Git** for version control
 
-### Installation
-Architecture
+### Installation & Running
+
+#### Option 1: Full Stack (Frontend + Backend)
+
+**1. Build and start the C++ backend server:**
+
+```bash
+# Build the backend
+cd server
+./build.sh
+
+# Start the server (runs on http://127.0.0.1:8080)
+cd build
+./vulcan_server
+```
+
+**2. In a new terminal, start the frontend:**
+
+```bash
+npm install
+npm run dev
+```
+
+Frontend will be available at `http://localhost:3000` and will automatically connect to the backend server.
+
+#### Option 2: Frontend Only (Browser-Side Mesh Parsing)
+
+If you don't need the backend (limited to .stl and .obj formats):
+
+```bash
+npm install
+npm run dev
+```
+
+The app will automatically fall back to browser-side parsing if the backend is not available.
+
+### Backend Server Features
+
+The C++ backend provides:
+- **Fast mesh parsing** for large files (C++ performance vs JavaScript)
+- **Support for additional formats**: .meshb, .egads, .csm (placeholders ready for integration)
+- **Session-based uploads** for managing multiple mesh files
+- **RESTful API** for mesh operations
+
+See [server/README.md](server/README.md) for full API documentation.
+
+### Environment Configuration
+
+Create a `.env` file (or copy `.env.example`):
+
+```bash
+# Backend API URL (default: http://127.0.0.1:8080)
+VITE_API_URL=http://127.0.0.1:8080
+```
+
+## Architecture
 
 ### Component Overview
 
@@ -97,11 +152,20 @@ Architecture
                   │   (Zustand)    │
                   └────────────────┘
                            │
-                           ↓
-                  ┌────────────────┐
-                  │ JSON Schema    │
-                  │  Validation    │
-                  └────────────────┘
+              ┌────────────┴────────────┐
+              ↓                         ↓
+     ┌────────────────┐        ┌───────────────┐
+     │ JSON Schema    │        │  Backend API  │
+     │  Validation    │        │  (Optional)   │
+     └────────────────┘        └───────────────┘
+                                        │
+                                        ↓
+                               ┌─────────────────┐
+                               │  C++ Server     │
+                               │  - Mesh Parser  │
+                               │  - File Upload  │
+                               │  - Conversion   │
+                               └─────────────────┘
 ```
 
 ### Data Model

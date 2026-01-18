@@ -1,7 +1,14 @@
 /**
  * Utility functions for parsing mesh files (STL and OBJ)
  * Supports multi-region OBJ files with groups
+ * 
+ * NOTE: This module provides both browser-side parsing and backend API parsing.
+ * Use parseMeshFileWithBackend() for production (supports all formats via C++ server).
+ * Use parseMeshFile() for local testing or as fallback.
  */
+
+import { uploadAndConvertMesh, checkBackendHealth } from './backendApi'
+import { convertBackendMeshToInternal } from './meshAdapter'
 
 export interface MeshData {
   vertices: Float32Array
@@ -22,6 +29,48 @@ export interface ParsedMesh {
   globalScale: number
 }
 
+/**
+ * Parse mesh file using backend C++ server (preferred method)
+ * 
+ * Uploads file to backend and receives parsed mesh data.
+ * Supports: .obj, .stl, .meshb, .egads, .csm
+ * 
+ * Falls back to browser-side parsing if backend is unavailable.
+ */
+export const parseMeshFileWithBackend = async (file: File): Promise<ParsedMesh> => {
+  console.log('[Mesh Parser] Parsing with backend:', file.name)
+  
+  try {
+    // Check if backend is available
+    const isBackendAvailable = await checkBackendHealth()
+    
+    if (!isBackendAvailable) {
+      console.warn('[Mesh Parser] Backend unavailable, falling back to browser parsing')
+      return await parseMeshFile(file)
+    }
+    
+    // Upload and convert using backend
+    const backendMesh = await uploadAndConvertMesh(file)
+    
+    // Convert to internal format
+    const internalMesh = convertBackendMeshToInternal(backendMesh)
+    
+    console.log('[Mesh Parser] Backend parsing successful:', internalMesh.totalVertices, 'vertices')
+    return internalMesh
+    
+  } catch (error) {
+    console.error('[Mesh Parser] Backend parsing failed:', error)
+    console.warn('[Mesh Parser] Falling back to browser parsing')
+    return await parseMeshFile(file)
+  }
+}
+
+/**
+ * Parse mesh file in browser (fallback method)
+ * 
+ * Limited to .stl and .obj formats only.
+ * Use parseMeshFileWithBackend() for full format support.
+ */
 export const parseMeshFile = async (file: File): Promise<ParsedMesh> => {
   console.log('[Mesh Parser] Starting to parse file:', file.name)
   const ext = file.name.toLowerCase().split('.').pop()

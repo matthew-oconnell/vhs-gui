@@ -1,4 +1,5 @@
-import { X, Maximize2 } from 'lucide-react'
+import { X, Maximize2, Settings } from 'lucide-react'
+import { useState } from 'react'
 import { TreeNode } from '../../utils/schemaParser'
 import './PropertyEditorDialog.css'
 
@@ -14,6 +15,7 @@ interface SchemaProperty {
   allOf?: SchemaProperty[]
   enum?: any[]
   required?: string[]
+  'only for'?: string[] | string
 }
 
 interface Schema {
@@ -39,6 +41,8 @@ export default function PropertyEditorDialog({
   configData,
   onUpdate
 }: PropertyEditorDialogProps) {
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  
   if (!isOpen || !node) return null
 
   // Helper function to get value from configData based on node path
@@ -152,24 +156,37 @@ export default function PropertyEditorDialog({
     return false
   }
 
-  // Get POD properties from a schema object
-  const getPODProperties = (objSchema: SchemaProperty | null): Array<{key: string, prop: SchemaProperty, required: boolean}> => {
-    if (!objSchema?.properties) return []
+  // Get POD properties from a schema object, separated into normal and advanced
+  const getPODProperties = (objSchema: SchemaProperty | null): { normal: Array<{key: string, prop: SchemaProperty, required: boolean}>, advanced: Array<{key: string, prop: SchemaProperty, required: boolean}> } => {
+    if (!objSchema?.properties) return { normal: [], advanced: [] }
     
-    const podProps: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
+    const normalProps: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
+    const advancedProps: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
     const requiredFields = objSchema.required || []
     
     for (const [key, prop] of Object.entries(objSchema.properties)) {
       if (isPropertyPOD(prop)) {
-        podProps.push({
+        const isAdvanced = prop['only for'] && (
+          Array.isArray(prop['only for']) 
+            ? prop['only for'].includes('advanced')
+            : prop['only for'] === 'advanced'
+        )
+        
+        const propEntry = {
           key,
           prop,
           required: requiredFields.includes(key)
-        })
+        }
+        
+        if (isAdvanced) {
+          advancedProps.push(propEntry)
+        } else {
+          normalProps.push(propEntry)
+        }
       }
     }
     
-    return podProps
+    return { normal: normalProps, advanced: advancedProps }
   }
 
   const handleInputChange = (key: string, value: any) => {
@@ -188,148 +205,159 @@ export default function PropertyEditorDialog({
     }
 
     const objSchema = getSchemaForPath(node.id)
-    const podProps = getPODProperties(objSchema)
+    const { normal: normalProps, advanced: advancedProps } = getPODProperties(objSchema)
     const objValue = getValueFromPath(node.id) || {}
     
-    if (podProps.length === 0) {
+    if (normalProps.length === 0 && advancedProps.length === 0) {
       return (
         <div className="info-box">
           This object has no primitive properties. Expand it in the tree to edit nested objects.
         </div>
       )
     }
+    
+    const renderPropertyInput = ({ key, prop, required }: {key: string, prop: SchemaProperty, required: boolean}) => {
+      const value = objValue[key]
+      const displayValue = value !== undefined ? value : prop.default
+      const propType = Array.isArray(prop.type) ? prop.type[0] : prop.type
+      
+      return (
+        <div key={key} className="property-grid-item">
+          <label className="property-grid-label">
+            {key}
+            {required && <span className="property-required-marker">*</span>}
+          </label>
+          {prop.description && (
+            <div className="property-grid-description">
+              {prop.description}
+            </div>
+          )}
+          
+          {propType === 'boolean' ? (
+            <label style={{ 
+              position: 'relative',
+              display: 'inline-block',
+              width: '50px',
+              height: '24px',
+              cursor: 'pointer'
+            }}>
+              <input 
+                type="checkbox"
+                checked={displayValue === true}
+                style={{ 
+                  position: 'absolute',
+                  opacity: 0,
+                  width: '100%',
+                  height: '100%',
+                  cursor: 'pointer',
+                  zIndex: 1
+                }}
+                onChange={(e) => {
+                  handleInputChange(key, e.target.checked)
+                  const toggle = e.target.nextElementSibling as HTMLElement
+                  const knob = toggle?.firstChild as HTMLElement
+                  if (toggle && knob) {
+                    if (e.target.checked) {
+                      toggle.style.backgroundColor = '#4da6ff'
+                      knob.style.left = '28px'
+                    } else {
+                      toggle.style.backgroundColor = '#444'
+                      knob.style.left = '4px'
+                    }
+                  }
+                }}
+              />
+              <span style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: displayValue ? '#4da6ff' : '#444',
+                borderRadius: '24px',
+                transition: 'background-color 0.2s',
+                pointerEvents: 'none'
+              }}>
+                <span style={{
+                  position: 'absolute',
+                  content: '""',
+                  height: '18px',
+                  width: '18px',
+                  left: displayValue ? '28px' : '4px',
+                  bottom: '3px',
+                  backgroundColor: 'white',
+                  borderRadius: '50%',
+                  transition: 'left 0.2s'
+                }} />
+              </span>
+            </label>
+          ) : prop.enum ? (
+            <select 
+              className="property-grid-input"
+              value={displayValue || ''}
+              onChange={(e) => handleInputChange(key, e.target.value)}
+            >
+              <option value="">-- Select --</option>
+              {prop.enum.map((enumValue: any) => (
+                <option key={enumValue} value={enumValue}>
+                  {enumValue}
+                </option>
+              ))}
+            </select>
+          ) : propType === 'array' ? (
+            <textarea 
+              className="property-grid-input"
+              rows={3}
+              value={Array.isArray(displayValue) ? JSON.stringify(displayValue, null, 2) : '[]'}
+              onChange={(e) => {
+                try {
+                  const parsed = JSON.parse(e.target.value)
+                  handleInputChange(key, parsed)
+                } catch {
+                  // Invalid JSON, ignore
+                }
+              }}
+              placeholder="[...]"
+            />
+          ) : (
+            <input 
+              type={propType === 'integer' || propType === 'number' ? 'number' : 'text'}
+              className="property-grid-input"
+              value={displayValue !== undefined ? displayValue : ''}
+              onChange={(e) => {
+                const val = e.target.value
+                if (propType === 'integer' || propType === 'number') {
+                  handleInputChange(key, parseFloat(val))
+                } else {
+                  handleInputChange(key, val)
+                }
+              }}
+              placeholder={prop.default !== undefined ? String(prop.default) : ''}
+              step={propType === 'number' ? 'any' : undefined}
+            />
+          )}
+          
+          {prop.default !== undefined && (
+            <div className="property-grid-description">
+              Default: {String(prop.default)}
+            </div>
+          )}
+        </div>
+      )
+    }
 
     return (
       <div className="property-grid">
-        {podProps.map(({ key, prop, required }) => {
-          const value = objValue[key]
-          const displayValue = value !== undefined ? value : prop.default
-          const propType = Array.isArray(prop.type) ? prop.type[0] : prop.type
-          
-          return (
-            <div key={key} className="property-grid-item">
-              <label className="property-grid-label">
-                {key}
-                {required && <span className="property-required-marker">*</span>}
-              </label>
-              {prop.description && (
-                <div className="property-grid-description">
-                  {prop.description}
-                </div>
-              )}
-              
-              {propType === 'boolean' ? (
-                <label style={{ 
-                  position: 'relative',
-                  display: 'inline-block',
-                  width: '50px',
-                  height: '24px',
-                  cursor: 'pointer'
-                }}>
-                  <input 
-                    type="checkbox"
-                    checked={displayValue === true}
-                    style={{ 
-                      position: 'absolute',
-                      opacity: 0,
-                      width: '100%',
-                      height: '100%',
-                      cursor: 'pointer',
-                      zIndex: 1
-                    }}
-                    onChange={(e) => {
-                      handleInputChange(key, e.target.checked)
-                      const toggle = e.target.nextElementSibling as HTMLElement
-                      const knob = toggle?.firstChild as HTMLElement
-                      if (toggle && knob) {
-                        if (e.target.checked) {
-                          toggle.style.backgroundColor = '#4da6ff'
-                          knob.style.left = '28px'
-                        } else {
-                          toggle.style.backgroundColor = '#444'
-                          knob.style.left = '4px'
-                        }
-                      }
-                    }}
-                  />
-                  <span style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    backgroundColor: displayValue ? '#4da6ff' : '#444',
-                    borderRadius: '24px',
-                    transition: 'background-color 0.2s',
-                    pointerEvents: 'none'
-                  }}>
-                    <span style={{
-                      position: 'absolute',
-                      content: '""',
-                      height: '18px',
-                      width: '18px',
-                      left: displayValue ? '28px' : '4px',
-                      bottom: '3px',
-                      backgroundColor: 'white',
-                      borderRadius: '50%',
-                      transition: 'left 0.2s'
-                    }} />
-                  </span>
-                </label>
-              ) : prop.enum ? (
-                <select 
-                  className="property-grid-input"
-                  value={displayValue || ''}
-                  onChange={(e) => handleInputChange(key, e.target.value)}
-                >
-                  <option value="">-- Select --</option>
-                  {prop.enum.map((enumValue: any) => (
-                    <option key={enumValue} value={enumValue}>
-                      {enumValue}
-                    </option>
-                  ))}
-                </select>
-              ) : propType === 'array' ? (
-                <textarea 
-                  className="property-grid-input"
-                  rows={3}
-                  value={Array.isArray(displayValue) ? JSON.stringify(displayValue, null, 2) : '[]'}
-                  onChange={(e) => {
-                    try {
-                      const parsed = JSON.parse(e.target.value)
-                      handleInputChange(key, parsed)
-                    } catch {
-                      // Invalid JSON, ignore
-                    }
-                  }}
-                  placeholder="[...]"
-                />
-              ) : (
-                <input 
-                  type={propType === 'integer' || propType === 'number' ? 'number' : 'text'}
-                  className="property-grid-input"
-                  value={displayValue !== undefined ? displayValue : ''}
-                  onChange={(e) => {
-                    const val = e.target.value
-                    if (propType === 'integer' || propType === 'number') {
-                      handleInputChange(key, parseFloat(val))
-                    } else {
-                      handleInputChange(key, val)
-                    }
-                  }}
-                  placeholder={prop.default !== undefined ? String(prop.default) : ''}
-                  step={propType === 'number' ? 'any' : undefined}
-                />
-              )}
-              
-              {prop.default !== undefined && (
-                <div className="property-grid-description">
-                  Default: {String(prop.default)}
-                </div>
-              )}
+        {normalProps.map(renderPropertyInput)}
+        {showAdvanced && advancedProps.length > 0 && (
+          <>
+            <div className="property-divider-container">
+              <hr className="property-divider" />
+              <span className="property-divider-label">Advanced Settings</span>
             </div>
-          )
-        })}
+            {advancedProps.map(renderPropertyInput)}
+          </>
+        )}
       </div>
     )
   }
@@ -343,13 +371,22 @@ export default function PropertyEditorDialog({
             <span>{node.label}</span>
             <span className="property-editor-dialog-type-badge">{node.type}</span>
           </div>
-          <button 
-            className="property-editor-dialog-close"
-            onClick={onClose}
-            title="Close"
-          >
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <button 
+              className={`property-editor-dialog-gear ${showAdvanced ? 'active' : ''}`}
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              title={showAdvanced ? "Hide advanced options" : "Show advanced options"}
+            >
+              <Settings size={18} />
+            </button>
+            <button 
+              className="property-editor-dialog-close"
+              onClick={onClose}
+              title="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
         </div>
         
         <div className="property-editor-dialog-content">

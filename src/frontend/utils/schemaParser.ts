@@ -56,20 +56,28 @@ function hasObjectItems(node: TreeNode): boolean {
   return schemaType === 'object' || (typeof schemaType === 'string' && schemaType.includes('object'))
 }
 
+import { isCategoryHidden } from './featureFlags';
+
+let currentShowAdvanced = false;
+
 export function buildTreeFromSchema(
   schema: Schema,
-  requiredFields: string[] = []
+  requiredFields: string[] = [],
+  showAdvanced: boolean = false
 ): TreeNode[] {
   // Cache the full schema for reference resolution
   cachedSchema = schema
+  currentShowAdvanced = showAdvanced
   
   if (!schema || !schema.properties) {
     return []
   }
 
   const properties = schema.properties
-  const nodes: TreeNode[] = []
-  const globalPODFields: TreeNode[] = []
+  const normalNodes: TreeNode[] = []
+  const advancedNodes: TreeNode[] = []
+  const normalGlobalPODFields: TreeNode[] = []
+  const advancedGlobalPODFields: TreeNode[] = []
 
   for (const [key, prop] of Object.entries(properties)) {
     const property = prop as SchemaProperty
@@ -83,27 +91,58 @@ export function buildTreeFromSchema(
     const node = createNodeFromProperty(key, property, `root.${key}`, isRequired, true)
     
     if (node) {
+      // Check if this property is marked as advanced
+      const isAdvanced = property['only for'] && (
+        Array.isArray(property['only for']) 
+          ? property['only for'].includes('advanced')
+          : property['only for'] === 'advanced'
+      )
+      
       // Check if this is a POD field at root level
       if (isPODNode(node)) {
-        globalPODFields.push(node)
+        if (isAdvanced) {
+          advancedGlobalPODFields.push(node)
+        } else {
+          normalGlobalPODFields.push(node)
+        }
       } else {
-        nodes.push(node)
+        if (isAdvanced) {
+          advancedNodes.push(node)
+        } else {
+          normalNodes.push(node)
+        }
       }
     }
   }
 
-  // If there are global POD fields, create a "Global" node to contain them
-  if (globalPODFields.length > 0) {
+  // Build final nodes array: normal first, then advanced
+  const nodes: TreeNode[] = []
+  
+  // If there are normal global POD fields, create a "Global" node
+  if (normalGlobalPODFields.length > 0 || (showAdvanced && advancedGlobalPODFields.length > 0)) {
+    const globalChildren = [
+      ...normalGlobalPODFields,
+      ...(showAdvanced ? advancedGlobalPODFields : [])
+    ]
+    
     const globalNode: TreeNode = {
       id: 'root.global',
       label: 'Global',
       type: 'object',
       description: 'Global configuration options',
-      children: globalPODFields,
+      children: globalChildren,
       expanded: false,
       required: false
     }
-    nodes.unshift(globalNode) // Add at the beginning
+    nodes.push(globalNode)
+  }
+  
+  // Add normal nodes
+  nodes.push(...normalNodes)
+  
+  // Add advanced nodes if showing advanced
+  if (showAdvanced) {
+    nodes.push(...advancedNodes)
   }
 
   return nodes
@@ -118,24 +157,24 @@ function resolveReference(ref: string): SchemaProperty | null {
   return cachedSchema.definitions?.[defName] || null
 }
 
-import { getFeatureFlags, isCategoryHidden } from './featureFlags';
-
 // Function to check if a property should be hidden based on "only for"
 function shouldHideProperty(property: SchemaProperty): boolean {
   if (!property['only for']) return false;
-  
-  // Get current feature flags to check what categories to hide
-  const { showAdvancedFeatures } = getFeatureFlags();
-  
-  // If showing advanced features, don't hide anything based on category
-  if (showAdvancedFeatures) return false;
   
   // Convert to array if it's a single string
   const onlyFor = Array.isArray(property['only for']) ? 
     property['only for'] : [property['only for']];
   
-  // Check if any category should be hidden
-  return onlyFor.some(category => isCategoryHidden(category));
+  // Check if it's marked as 'advanced' and we're not showing advanced
+  if (!currentShowAdvanced && onlyFor.includes('advanced')) {
+    return true;
+  }
+  
+  // Filter out 'advanced' from category check - it's handled above via local state
+  const otherCategories = onlyFor.filter(cat => cat !== 'advanced');
+  
+  // Check if any other category should be hidden (developer, experimental, etc.)
+  return otherCategories.some(category => isCategoryHidden(category));
 }
 
 function createNodeFromProperty(
@@ -220,7 +259,8 @@ function createNodeFromProperty(
 
   // Handle object type
   if (propType === 'object') {
-    const children: TreeNode[] = []
+    const normalChildren: TreeNode[] = []
+    const advancedChildren: TreeNode[] = []
     
     if (property.properties) {
       const childRequired = property.required || []
@@ -238,12 +278,26 @@ function createNodeFromProperty(
             // Only add non-POD children to the tree
             // POD fields will be shown in the property editor instead
             if (!isPODNode(childNode)) {
-              children.push(childNode)
+              // Check if this child is advanced
+              const isAdvanced = childProperty['only for'] && (
+                Array.isArray(childProperty['only for']) 
+                  ? childProperty['only for'].includes('advanced')
+                  : childProperty['only for'] === 'advanced'
+              )
+              
+              if (isAdvanced) {
+                advancedChildren.push(childNode)
+              } else {
+                normalChildren.push(childNode)
+              }
             }
           }
         }
       }
     }
+
+    // Combine children: normal first, then advanced
+    const children = [...normalChildren, ...advancedChildren]
 
     return {
       id: path,

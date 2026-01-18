@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { KNOWN_CATEGORIES, getFeatureFlags, toggleCategory } from '../../utils/featureFlags'
 import './SettingsDialog.css'
 
 interface SettingsDialogProps {
@@ -9,6 +10,11 @@ interface SettingsDialogProps {
 function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState('general')
   const { cameraSettings, updateCameraSettings } = useAppStore()
+  
+  // Feature flags state
+  const [enabledCategories, setEnabledCategories] = useState<Set<string>>(() => {
+    return getFeatureFlags().enabledCategories
+  })
   
   // Camera settings local state
   const [rotateSpeed, setRotateSpeed] = useState(cameraSettings.rotateSpeed)
@@ -108,6 +114,12 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
               onClick={() => setActiveTab('appearance')}
             >
               Appearance
+            </button>
+            <button
+              className={`settings-tab ${activeTab === 'features' ? 'active' : ''}`}
+              onClick={() => setActiveTab('features')}
+            >
+              Features
             </button>
           </div>
 
@@ -365,6 +377,47 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
                       <span className="settings-unit">px</span>
                     </div>
                   </label>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'features' && (
+              <div className="settings-section">
+                <h3>Feature Categories</h3>
+                <p className="settings-description">
+                  Control which feature categories are visible in the configuration schema.
+                  By default, only "vulcan" features are shown. Enable additional categories as needed.
+                </p>
+                
+                <div className="feature-toggles">
+                  {Array.from(KNOWN_CATEGORIES).map(category => (
+                    <div key={category} className="settings-item feature-toggle-item">
+                      <label htmlFor={`feature-${category}`} className="feature-toggle-label">
+                        <input
+                          type="checkbox"
+                          id={`feature-${category}`}
+                          checked={enabledCategories.has(category)}
+                          onChange={() => {
+                            const newCategories = new Set(enabledCategories)
+                            if (newCategories.has(category)) {
+                              newCategories.delete(category)
+                            } else {
+                              newCategories.add(category)
+                            }
+                            setEnabledCategories(newCategories)
+                            toggleCategory(category)
+                          }}
+                        />
+                        <span className="feature-category-name">{category}</span>
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                
+                <div className="settings-info-box">
+                  <strong>Note:</strong> Changes to feature categories will take effect immediately.
+                  The configuration tree and property editors will update to show/hide properties
+                  based on your selections.
                 </div>
               </div>
             )}

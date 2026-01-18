@@ -1,7 +1,8 @@
-import { FolderTree, ChevronRight, ChevronDown, File, Folder, List, FileCode } from 'lucide-react'
+import { FolderTree, ChevronRight, ChevronDown, File, Folder, List, FileCode, Settings } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { TreeNode, buildTreeFromSchema } from '../../utils/schemaParser'
 import { useAppStore } from '../../store/appStore'
+import { subscribeToFeatureFlags } from '../../utils/featureFlags'
 import PropertyEditorDialog from '../PropertyEditorDialog/PropertyEditorDialog'
 import './TreePanel.css'
 
@@ -10,6 +11,8 @@ function TreePanel() {
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
   const [dialogNode, setDialogNode] = useState<TreeNode | null>(null)
   const [schema, setSchema] = useState<any>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [refreshKey, setRefreshKey] = useState(0)
   const { selectedNode, setSelectedNode, selectedBC, setSelectedBC, selectedState, setSelectedState, selectedViz, setSelectedViz, selectedInitRegion, setSelectedInitRegion, configData } = useAppStore()
   const selectedId = selectedNode?.id || null
 
@@ -17,19 +20,27 @@ function TreePanel() {
     console.log('TreePanel - Current configData:', configData)
   }, [configData])
 
+  // Subscribe to feature flag changes
+  useEffect(() => {
+    const unsubscribe = subscribeToFeatureFlags(() => {
+      setRefreshKey(prev => prev + 1)
+    })
+    return unsubscribe
+  }, [])
+
   useEffect(() => {
     // Fetch and build tree from schema on mount
     fetch('/schemas/input.schema.json')
       .then(response => response.json())
       .then(inputSchema => {
         setSchema(inputSchema)
-        const tree = buildTreeFromSchema(inputSchema, inputSchema.required || [])
+        const tree = buildTreeFromSchema(inputSchema, inputSchema.required || [], showAdvanced)
         setTreeData(tree)
       })
       .catch(error => {
         console.error('Failed to load schema:', error)
       })
-  }, [])
+  }, [showAdvanced, refreshKey])
 
   const toggleNode = (id: string) => {
     const toggleRecursive = (nodes: TreeNode[]): TreeNode[] => {
@@ -238,6 +249,13 @@ function TreePanel() {
       <div className="panel-header">
         <FolderTree size={16} />
         <span>Configuration Tree</span>
+        <button 
+          className={`tree-panel-gear ${showAdvanced ? 'active' : ''}`}
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          title={showAdvanced ? "Hide advanced options" : "Show advanced options"}
+        >
+          <Settings size={16} />
+        </button>
       </div>
       <div className="panel-content">
         {renderTree(treeData)}

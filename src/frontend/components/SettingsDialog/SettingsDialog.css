@@ -15,7 +15,7 @@
   background-color: #292929;
   border-radius: 4px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  width: 400px;
+  width: 550px;
   max-width: 90%;
   max-height: 90vh;
   overflow: hidden;
@@ -363,4 +363,62 @@ input:checked + .settings-switch-slider:before {
   color: #999;
   font-size: 12px;
   min-width: 20px;
+}
+
+/* Feature toggles */
+.settings-description {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.feature-toggles {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.feature-toggle-item {
+  margin: 0 !important;
+}
+
+.feature-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 8px 12px;
+  background: #333;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.feature-toggle-label:hover {
+  background: #3d3d3d;
+}
+
+.feature-toggle-label input[type="checkbox"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+.feature-category-name {
+  font-size: 13px;
+  color: #e0e0e0;
+  text-transform: capitalize;
+}
+
+.settings-info-box {
+  background: #2a2a2a;
+  border-left: 3px solid #0e639c;
+  padding: 12px;
+  font-size: 12px;
+  color: #aaa;
+  line-height: 1.5;
+}
+
+.settings-info-box strong {
+  color: #0e639c;
 }

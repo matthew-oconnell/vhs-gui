@@ -41,15 +41,11 @@ function ClickableSurface({
 }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const edgesRef = useRef<THREE.LineSegments>(null)
-  // Track right-click position and time to differentiate click from drag
-  const rightClickStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
+  // Track right-click position to differentiate click from drag (use ref for immediate access)
+  const rightClickStartRef = useRef<{ x: number; y: number } | null>(null)
   
   const { selectedSurface, setSelectedSurface, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings } = useAppStore()
   const [hovered, setHovered] = useState(false)
-  
-  // Click vs Drag thresholds (standard UX pattern)
-  const CLICK_TIME_THRESHOLD = 250 // ms - clicks must be faster than this
-  const CLICK_DISTANCE_THRESHOLD = 5 // px - clicks must move less than this
   
   const isSelected = selectedSurface?.id === surface.id
   const isVisible = surfaceVisibility[surface.id] ?? true
@@ -120,43 +116,34 @@ function ClickableSurface({
   }
   
   const handlePointerDown = (e: any) => {
-    // Track right-click start position and timestamp
+    // Track right-click start position
     if (e.button === 2) {
-      e.stopPropagation() // Prevent OrbitControls from interfering
-      rightClickStartRef.current = { 
-        x: e.clientX, 
-        y: e.clientY,
-        time: Date.now()
-      }
+      console.log('Right click down on surface:', surface.metadata.tagName, e.clientX, e.clientY)
+      rightClickStartRef.current = { x: e.clientX, y: e.clientY }
     }
   }
-
-  const handlePointerUp = (e: any) => {
-    // Check if this was a right-click and if it qualifies as a "click" (not drag)
-    if (e.button === 2 && rightClickStartRef.current) {
-      e.stopPropagation()
-      
-      const elapsedTime = Date.now() - rightClickStartRef.current.time
+  
+  const handleContextMenu = (e: any) => {
+    e.stopPropagation()
+    
+    console.log('Context menu event on surface:', surface.metadata.tagName, 'rightClickStart:', rightClickStartRef.current)
+    
+    // Check if mouse moved significantly from click start (drag threshold = 5px)
+    if (rightClickStartRef.current) {
       const dx = e.clientX - rightClickStartRef.current.x
       const dy = e.clientY - rightClickStartRef.current.y
       const distance = Math.sqrt(dx * dx + dy * dy)
       
-      // Click = released within time threshold AND moved less than distance threshold
-      const isClick = elapsedTime < CLICK_TIME_THRESHOLD && distance < CLICK_DISTANCE_THRESHOLD
+      console.log('Distance moved:', distance)
       
-      if (isClick) {
-        // Manually trigger context menu
+      if (distance < 5) {
+        // It was a click, not a drag - show context menu
+        console.log('Calling onContextMenu')
         onContextMenu(e, surface)
       }
       
       rightClickStartRef.current = null
     }
-  }
-  
-  const handleContextMenu = (e: any) => {
-    // Always prevent native context menu
-    e.stopPropagation()
-    e.preventDefault()
   }
   
   // Determine display color (highlight overrides custom color)
@@ -178,7 +165,6 @@ function ClickableSurface({
             geometry={geometry}
             onClick={handleClick}
             onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
             onContextMenu={handleContextMenu}
             onPointerOver={() => setHovered(true)}
             onPointerOut={() => setHovered(false)}
@@ -200,7 +186,6 @@ function ClickableSurface({
           <lineSegments
             ref={edgesRef}
             onClick={handleClick}
-            onPointerUp={handlePointerUp}
             onPointerDown={handlePointerDown}
             onContextMenu={handleContextMenu}
             onPointerOver={() => setHovered(true)}
@@ -234,7 +219,6 @@ function ClickableSurface({
           ref={meshRef}
           onClick={handleClick}
           onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
           onContextMenu={handleContextMenu}
           onPointerOver={() => setHovered(true)}
           onPointerOut={() => setHovered(false)}
@@ -255,7 +239,6 @@ function ClickableSurface({
         <lineSegments
           onClick={handleClick}
           onPointerDown={handlePointerDown}
-          onPointerUp={handlePointerUp}
           onContextMenu={handleContextMenu}
           onPointerOver={() => setHovered(true)}
           onPointerOut={() => setHovered(false)}

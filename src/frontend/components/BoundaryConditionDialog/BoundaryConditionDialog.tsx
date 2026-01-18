@@ -378,11 +378,11 @@ export default function BoundaryConditionDialog({
         </div>
 
         <div className="modal-footer">
-          <button className="modal-button modal-button-secondary" onClick={onClose}>
+          <button className="button button-secondary" onClick={onClose}>
             Cancel
           </button>
           <button 
-            className="modal-button modal-button-primary" 
+            className="button button-primary" 
             onClick={handleCreate}
             disabled={selectedSurfaceTags.length === 0}
           >

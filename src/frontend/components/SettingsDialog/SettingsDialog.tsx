@@ -92,6 +92,12 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
               General
             </button>
             <button
+              className={`settings-tab ${activeTab === 'editor' ? 'active' : ''}`}
+              onClick={() => setActiveTab('editor')}
+            >
+              Editor
+            </button>
+            <button
               className={`settings-tab ${activeTab === 'camera' ? 'active' : ''}`}
               onClick={() => setActiveTab('camera')}
             >
@@ -119,6 +125,24 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
                   <label htmlFor="auto-validate">
                     <input type="checkbox" id="auto-validate" />
                     Auto-validate on change
+                  </label>
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'editor' && (
+              <div className="settings-section">
+                <h3>Editor Settings</h3>
+                <div className="settings-item">
+                  <label htmlFor="line-numbers">
+                    <input type="checkbox" id="line-numbers" defaultChecked />
+                    Show line numbers
+                  </label>
+                </div>
+                <div className="settings-item">
+                  <label htmlFor="word-wrap">
+                    <input type="checkbox" id="word-wrap" />
+                    Enable word wrap
                   </label>
                 </div>
               </div>
@@ -225,7 +249,19 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
 
             {activeTab === 'appearance' && (
               <div className="settings-section">
-                <h3>Font Sizes</h3>
+                <h3>Appearance Settings</h3>
+                <div className="settings-item">
+                  <label htmlFor="theme">
+                    Theme
+                    <select id="theme" className="settings-select">
+                      <option value="dark">Dark</option>
+                      <option value="light">Light</option>
+                      <option value="auto">Auto</option>
+                    </select>
+                  </label>
+                </div>
+
+                <h3 style={{ marginTop: '24px' }}>Font Sizes</h3>
                 
                 <div className="settings-item">
                   <label htmlFor="editor-font-size" className="settings-label-column">

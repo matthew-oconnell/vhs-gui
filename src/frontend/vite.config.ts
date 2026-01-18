@@ -1,20 +1,16 @@
-/// <reference types="vitest" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  root: '.',
-  publicDir: './public',
-  build: {
-    outDir: '../../dist',
-    emptyOutDir: true
-  },
   plugins: [react()],
+  publicDir: path.resolve(__dirname, '../../public'),
   server: {
     port: 3000,
     open: true
   },
+  // @ts-ignore - test config is for vitest
   test: {
     globals: true,
     environment: 'jsdom',

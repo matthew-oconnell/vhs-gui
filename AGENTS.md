@@ -581,3 +581,73 @@ Dialogs following this pattern:
 ---
 
 **Remember: If you hardcode it, document it. Future maintainers (human or AI) will thank you.**
+
+---
+
+## 📁 Static File Handling (Schemas, Assets)
+
+### Schema File Distribution
+
+The JSON schema file (`input.schema.json`) must be accessible to the frontend at runtime. Here's the proper setup:
+
+**Directory Structure:**
+```
+/home/matthew/Projects/vulcan-gui/
+├── schemas/input.schema.json          # Source of truth (maintained by upstream)
+├── public/schemas/input.schema.json   # Copy for Vite publicDir
+├── src/frontend/
+│   ├── vite.config.ts                 # Configured with publicDir
+│   └── dist/schemas/input.schema.json # Build output (copied by Vite)
+└── src/server/build/public/
+    └── schemas/input.schema.json      # Final server location (copied by build.sh)
+```
+
+**Build Flow:**
+1. **Source:** `schemas/input.schema.json` (upstream maintained)
+2. **Copy to public:** Manual copy or build script: `cp schemas/input.schema.json public/schemas/`
+3. **Vite publicDir:** In `vite.config.ts`, configure `publicDir: path.resolve(__dirname, '../../public')`
+4. **Build output:** `npm run build` copies `public/` → `dist/`
+5. **Server deployment:** `build.sh` copies `dist/` → `src/server/build/public/`
+6. **Runtime access:** Frontend fetches from `/schemas/input.schema.json`
+
+**Critical Configuration (vite.config.ts):**
+```typescript
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+
+export default defineConfig({
+  plugins: [react()],
+  publicDir: path.resolve(__dirname, '../../public'), // ⚠️ ESSENTIAL for schema files
+  server: {
+    port: 3000,
+    open: true
+  },
+  // ... rest of config
+})
+```
+
+**What NOT to do:**
+- ❌ Don't rely on bundler to include JSON files automatically
+- ❌ Don't use dynamic imports for large schema files (slow, bundler issues)
+- ❌ Don't hardcode schema content in source code
+- ❌ Don't forget to copy schema to `public/` directory
+
+**Checklist when schema updates:**
+1. ✅ Copy updated schema from `schemas/` to `public/schemas/`
+2. ✅ Rebuild frontend: `npm run build` (in `src/frontend/`)
+3. ✅ Rebuild server: `./build.sh` (from project root)
+4. ✅ Verify file exists: `src/server/build/public/schemas/input.schema.json`
+5. ✅ Test in browser: Open network tab, confirm schema loads
+
+**Troubleshooting:**
+- **Empty configuration tree?** → Schema not being served by backend
+  - Check: `ls src/server/build/public/schemas/input.schema.json`
+  - Fix: Run `./build.sh` to rebuild and copy files
+  
+- **404 on schema fetch?** → Vite publicDir misconfigured
+  - Check: `vite.config.ts` has `publicDir: path.resolve(__dirname, '../../public')`
+  - Check: `dist/schemas/input.schema.json` exists after `npm run build`
+  
+- **Schema out of date?** → Forgot to copy from source
+  - Fix: `cp schemas/input.schema.json public/schemas/input.schema.json`

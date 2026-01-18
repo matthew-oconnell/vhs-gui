@@ -199,35 +199,36 @@
   gap: 12px;
 }
 
-.modal-button {
+.button {
   padding: 8px 16px;
-  border: none;
   border-radius: 3px;
   font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
   transition: background-color 0.1s ease;
+  border: none;
 }
 
-.modal-button-primary {
-  background-color: #0e639c;
-  color: #ffffff;
-}
-
-.modal-button-primary:hover {
-  background-color: #1177bb;
-}
-
-.modal-button-primary:disabled {
-  background-color: #3e3e42;
-  color: #858585;
-  cursor: not-allowed;
-}
-
-.modal-button-secondary {
+.button-secondary {
   background-color: #3e3e42;
   color: #cccccc;
 }
 
-.modal-button-secondary:hover {
+.button-secondary:hover {
   background-color: #505050;
+}
+
+.button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.button-primary:hover {
+  background-color: #1177bb;
+}
+
+.button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
 }

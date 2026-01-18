@@ -651,3 +651,91 @@ export default defineConfig({
   
 - **Schema out of date?** → Forgot to copy from source
   - Fix: `cp schemas/input.schema.json public/schemas/input.schema.json`
+
+---
+
+## 📝 Commit Message Guidelines
+
+**Keep commit messages SHORT and focused on WHY, not WHAT.**
+
+### Format
+
+```
+type: brief summary of why this change was needed
+
+Optional: One-line explanation if the "why" isn't obvious.
+```
+
+### Rules
+
+1. **First line ≤ 72 characters** - Should be a complete summary
+2. **Focus on WHY, not WHAT** - Git diff shows what changed
+3. **No bullet lists** - If you need bullets, your commit is too big
+4. **No test results** - Tests pass or the commit doesn't happen
+5. **No file lists** - Git tracks this automatically
+6. **No documentation** - The code/docs speak for themselves
+
+### Good Examples
+
+```
+fix: schema files not served by backend
+
+The configuration tree was empty because Vite wasn't copying
+public/ directory to dist. Configured publicDir in vite.config.ts.
+```
+
+```
+refactor: move package-lock.json to src/frontend/
+
+Keeps config files with their corresponding source code.
+```
+
+```
+feat: add backend health check before mesh upload
+
+Prevents upload errors when server is down.
+```
+
+### Bad Examples (from our history)
+
+```
+❌ feat: integrate React frontend with C++ backend API
+
+Frontend Integration Complete:
+- Created backend API client (backendApi.ts) with upload/convert functions
+- Created mesh adapter (meshAdapter.ts) to convert backend format to internal format
+...
+(30+ more lines)
+```
+
+**Why it's bad:** 
+- Novel-length commit message
+- Lists implementation details (visible in diff)
+- Includes test results (should be automatic)
+- Duplicates documentation
+
+**Better version:**
+```
+✅ feat: integrate frontend with C++ backend for mesh parsing
+
+Removes browser-side STL parsing. All mesh loading now uses
+backend API for consistent format support.
+```
+
+### When to Commit
+
+- ✅ One logical change per commit
+- ✅ All tests passing
+- ✅ Code is self-documenting or has inline comments
+- ❌ Don't commit work-in-progress with "WIP" messages
+- ❌ Don't bundle unrelated changes together
+
+### Commit Types
+
+- `feat:` - New feature for users
+- `fix:` - Bug fix
+- `refactor:` - Code restructuring without behavior change
+- `docs:` - Documentation only
+- `test:` - Adding/fixing tests
+- `chore:` - Build process, dependencies, tooling
+

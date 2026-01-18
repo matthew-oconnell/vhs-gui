@@ -3,16 +3,17 @@
 # Use this during development when you only changed React code
 
 echo "Rebuilding React frontend..."
-npx vite build
+cd src/frontend
+npx vite build --config vite.config.ts
 
 echo "Copying to server..."
-cd server/build
+cd ../server/build
 rm -rf public
 mkdir -p public
-cp -r ../../dist/* public/
+cp -r ../../../dist/* public/
 
 echo "✅ Frontend rebuilt!"
 echo ""
 echo "Restart server:"
-echo "  cd server/build"
+echo "  cd src/server/build"
 echo "  pkill vulcan_server && ./vulcan_server"

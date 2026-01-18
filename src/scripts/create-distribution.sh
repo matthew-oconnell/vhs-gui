@@ -14,7 +14,7 @@ echo "======================================"
 # Step 1: Build everything
 echo ""
 echo "Step 1: Building application..."
-./build-production.sh
+../../build.sh
 
 # Step 2: Create distribution directory
 echo ""
@@ -24,11 +24,11 @@ mkdir -p dist-package/$DIST_NAME
 
 # Step 3: Copy server binary
 echo "Copying server binary..."
-cp server/build/vulcan_server dist-package/$DIST_NAME/
+cp ../server/build/vulcan_server dist-package/$DIST_NAME/
 
 # Step 4: Copy public files  
 echo "Copying frontend files..."
-cp -r server/build/public dist-package/$DIST_NAME/
+cp -r ../server/build/public dist-package/$DIST_NAME/
 
 # Step 5: Create README for end users
 cat > dist-package/$DIST_NAME/README.txt << 'EOF'

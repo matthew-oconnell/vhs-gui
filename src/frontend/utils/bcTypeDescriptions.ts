@@ -31,7 +31,7 @@ export async function loadBCTypeInfo(): Promise<Record<string, BCTypeInfo>> {
   }
 
   try {
-    const response = await fetch('/input.schema.json')
+    const response = await fetch('/schemas/input.schema.json')
     const schema = await response.json()
 
     const typeInfo: Record<string, BCTypeInfo> = {}

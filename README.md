@@ -90,13 +90,13 @@ A web-based graphical user interface for setting up and configuring Computationa
 ### Quick Start
 
 ```bash
-# Clone and build
+# Clone and build everything
 git clone https://github.com/matthew-oconnell/vhs-gui.git
 cd vhs-gui
-./build-production.sh
+./build.sh
 
-# Launch server and browser
-./launch.sh
+# Start the server
+npm run start
 
 # Or manually:
 cd server/build
@@ -104,29 +104,47 @@ cd server/build
 # Visit http://127.0.0.1:8080
 ```
 
-**That's it! One server, one URL, zero npm/node required for end users.**
+**That's it! One build script, one server, zero hassle.**
 
 ### Development Workflow
 
-#### Simple Development (Recommended)
-
-Use one server for everything:
+#### Common Commands
 
 ```bash
-# 1. Build (first time or after changes)
-./build-production.sh
+# Build everything from scratch
+./build.sh
+# OR: npm run build:full
 
-# 2. Run server
+# Start the server (after building)
+npm run start
+
+# Quick frontend rebuild (after React changes)
+npm run build:frontend
+
+# Create distribution package for end users
+npm run dist
+
+# Run tests
+npm test
+npm run test:run      # Run once (CI mode)
+npm run test:coverage # With coverage report
+```
+
+#### Development Mode
+
+For active development, you can use hot-reload:
+
+```bash
+# Terminal 1: Start backend server
 cd server/build
 ./vulcan_server
 
-# 3. Edit React code in src/
-
-# 4. Rebuild frontend only (fast!)
-./rebuild-frontend.sh
-
-# 5. Restart server (Ctrl+C, then ./vulcan_server)
+# Terminal 2: Start Vite dev server with hot-reload
+npm run dev
+# Visit http://localhost:5173
 ```
+
+**Note:** Dev mode (`npm run dev`) uses Vite's dev server with hot-reload but requires the backend running separately for mesh loading.
 
 **Workflow:**
 - ✅ One server (port 8080)
@@ -248,7 +266,7 @@ VITE_API_URL=http://127.0.0.1:8080
 - Surface names and IDs
 - Visual properties
 
-**Schema Files**: JSON Schema definitions (input.schema.json)
+**Schema Files**: JSON Schema definitions (src/frontend/public/schemas/input.schema.json)
 - Configuration structure validation
 - Default values specification
 - UDevelopment
@@ -274,13 +292,9 @@ npm run test:ui
 ### Schema Maintenance
 
 The GUI is driven by `input.schema.json`. When the schema changes:
-- See [whenSchemaChanges.md](whenSchemaChanges.md) for maintenance checklist
+- See [docs/whenSchemaChanges.md](docs/whenSchemaChanges.md) for maintenance checklist
 - Update hardcoded type arrays (BC types, init region types, viz types)
 - See [AGENTS.md](AGENTS.md) for AI collaboration guidelines
-
-### Wizard Format
-
-For creating new configuration wizards, see [WIZARD_FORMAT.md](WIZARD_FORMAT.md) for the declarative JSON format specification.
 
 ## User Workflows
 
@@ -324,25 +338,7 @@ For creating new configuration wizards, see [WIZARD_FORMAT.md](WIZARD_FORMAT.md)
 - [ ] Mesh quality visualization
 - [ ] Multi-mesh support
 - [ ] Solver integration and job monitoring
-- [ ] Results preview and post-processing             # Toast notifications
-│   ├── store/
-│   │   └── appStore.ts                   # Zustand state management
-│   ├── utils/
-│   │   ├── fileUtils.ts                  # File I/O operations
-│   │   ├── meshLoader.ts                 # STL mesh loading
-│   │   ├── schemaParser.ts               # Schema parsing utilities
-│   │   ├── schemaValidator.ts            # JSON validation
-│   │   ├── configTransform.ts            # Data transformations
-│   │   └── __tests__/                    # Unit tests
-│   ├── types/                            # TypeScript type definitions
-│   ├── App.tsx                           # Main app with resizable layout
-│   ├── main.tsx                          # Entry point
-│   └── index.css                         # Global styles
-├── public/
-│   └── input.schema.json                 # CFD configuration schema
-├── AGENTS.md                             # AI development guidelines
-├── whenSchemaChanges.md                  # Schema maintenance checklist
-├── WIZARD_FORMAT.md                      # Wizard JSON specification
+- [ ] Results preview and post-processing
 
 ### Build
 
@@ -359,18 +355,31 @@ npm run preview
 ```
 vulcan-gui/
 ├── src/
-│   ├── components/
-│   │   ├── TreePanel/          # Configuration tree view
-│   │   ├── EditorPanel/        # Property editor
-│   │   └── Viewport3D/         # 3D mesh viewer
-│   ├── App.tsx                 # Main app with layout
-│   ├── App.css                 # Layout styles
-│   ├── main.tsx                # Entry point
-│   └── index.css               # Global styles
-├── public/                     # Static assets
-├── package.json
-├── vite.config.ts
-└── tsconfig.json
+│   ├── frontend/               # React application
+│   │   ├── components/         # UI components
+│   │   ├── store/             # State management
+│   │   ├── utils/             # Helper functions & tests
+│   │   ├── types/             # TypeScript definitions
+│   │   ├── App.tsx            # Main app
+│   │   ├── main.tsx           # Entry point
+│   │   ├── index.html         # Vite entry point
+│   │   ├── package.json       # npm dependencies
+│   │   ├── vite.config.ts     # Vite build config
+│   │   ├── tsconfig.json      # TypeScript config
+│   │   └── tsconfig.node.json # TypeScript config for Vite
+│   ├── server/                # C++ backend
+│   │   ├── src/               # C++ source
+│   │   ├── tests/             # C++ tests
+│   │   ├── build/             # CMake build output
+│   │   └── CMakeLists.txt     # Build configuration
+│   └── scripts/               # Build scripts
+│       ├── rebuild-frontend.sh
+│       └── create-distribution.sh
+├── public/                    # Static assets
+├── docs/                      # Documentation
+├── build.sh                   # Main build script
+├── AGENTS.md                  # AI development guidelines
+└── README.md
 ```
 
 ## Next Steps

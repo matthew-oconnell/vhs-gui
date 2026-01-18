@@ -12,20 +12,20 @@ When implementing features or making changes, you must consider:
 1. **Will this work if the schema changes?**
 2. **Does this introduce hardcoded values that depend on the schema?**
 
-## ⚠️ Critical Rule: Update whenSchemaChanges.md
+## ⚠️ Critical Rule: Update docs/whenSchemaChanges.md
 
-**WHENEVER you add code that will break or need updates when the schema changes, you MUST update `whenSchemaChanges.md`.**
+**WHENEVER you add code that will break or need updates when the schema changes, you MUST update `docs/whenSchemaChanges.md`.**
 
 ### Examples That Require Documentation
 
-#### ✅ DO update whenSchemaChanges.md when you:
+#### ✅ DO update docs/whenSchemaChanges.md when you:
 
 1. **Add hardcoded arrays of enum values from the schema**
    ```typescript
    // BAD: This list needs manual updates if schema adds new types
    const VISUALIZATION_TYPES = ['point', 'line', 'plane', 'sphere']
    ```
-   → Add a new section to whenSchemaChanges.md documenting this array
+   → Add a new section to docs/whenSchemaChanges.md documenting this array
 
 2. **Create type-specific conditional logic**
    ```typescript
@@ -48,7 +48,7 @@ When implementing features or making changes, you must consider:
    ```typescript
    const BC_TYPES_REQUIRING_STATE = ['dirichlet', 'riemann']
    ```
-   → Document this mapping in whenSchemaChanges.md
+   → Document this mapping in docs/whenSchemaChanges.md
 
 #### ❌ DON'T need to document when you:
 
@@ -67,7 +67,7 @@ When implementing features or making changes, you must consider:
    - Layout changes
    - Icon changes
 
-## 📝 How to Update whenSchemaChanges.md
+## 📝 How to Update docs/whenSchemaChanges.md
 
 When you add schema-dependent code:
 
@@ -115,14 +115,14 @@ Ask yourself these questions when adding new code:
 ### Question 1: Is this value in the schema?
 - **YES** → Will it change if schema updates?
   - **YES** → Is it auto-loaded from schema at runtime?
-    - **NO** → **Document it in whenSchemaChanges.md**
+    - **NO** → **Document it in docs/whenSchemaChanges.md**
     - **YES** → No documentation needed
   - **NO** → No documentation needed
 - **NO** → No documentation needed
 
 ### Question 2: Does this assume specific schema structure?
 - **YES** → Will it break if schema structure changes?
-  - **YES** → **Document it in whenSchemaChanges.md**
+  - **YES** → **Document it in docs/whenSchemaChanges.md**
   - **NO** → No documentation needed
 - **NO** → No documentation needed
 
@@ -147,7 +147,7 @@ const BC_TYPES = [
   'riemann',
   'no slip'
 ]
-// ⚠️ Must be documented in whenSchemaChanges.md
+// ⚠️ Must be documented in docs/whenSchemaChanges.md
 ```
 
 ### Good: Making it semi-automatic
@@ -164,7 +164,7 @@ const BC_TYPES = ['dirichlet', 'riemann', 'no slip']
 
 1. **Before implementing**: Consider schema change impact
 2. **While implementing**: Note any schema dependencies
-3. **After implementing**: Update whenSchemaChanges.md if needed
+3. **After implementing**: Update docs/whenSchemaChanges.md if needed
 4. **Before committing**: Review your changes against this checklist
 
 ## 💡 Future Vision
@@ -174,7 +174,7 @@ The ultimate goal is to minimize manual schema tracking by:
 - Creating schema-aware utilities that adapt automatically
 - Using TypeScript code generation from schema
 
-Until then, **whenSchemaChanges.md is our safety net** to ensure the project doesn't silently break when the upstream team updates the schema.
+Until then, **docs/whenSchemaChanges.md is our safety net** to ensure the project doesn't silently break when the upstream team updates the schema.
 
 ---
 

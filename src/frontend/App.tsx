@@ -163,7 +163,7 @@ function App() {
     
     // Load and validate against schema
     try {
-      const schemaResponse = await fetch('/input.schema.json')
+      const schemaResponse = await fetch('/schemas/input.schema.json')
       const schema = await schemaResponse.json()
       
       const { valid, errors } = validateAgainstSchema(schema, configToSave)

@@ -3,6 +3,12 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  root: '.',
+  publicDir: './public',
+  build: {
+    outDir: '../../dist',
+    emptyOutDir: true
+  },
   plugins: [react()],
   server: {
     port: 3000,
@@ -11,6 +17,6 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './src/test/setup.ts',
+    setupFiles: './test/setup.ts',
   },
 })

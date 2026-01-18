@@ -66,7 +66,12 @@ server/build/
     ├── assets/
     │   ├── index-DYNVlEL8.js    (1.3MB)
     │   └── index-DU3e6mmS.css   (40KB)
-    └── input.schema.json
+    └── schemas/
+        └── input.schema.json
+
+src/frontend/public/
+└── schemas/
+    └── input.schema.json   # Source schema (copied to build)
 ```
 
 ## Testing

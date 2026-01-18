@@ -19,7 +19,7 @@ function TreePanel() {
 
   useEffect(() => {
     // Fetch and build tree from schema on mount
-    fetch('/input.schema.json')
+    fetch('/schemas/input.schema.json')
       .then(response => response.json())
       .then(inputSchema => {
         setSchema(inputSchema)

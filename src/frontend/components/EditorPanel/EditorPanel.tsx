@@ -85,7 +85,7 @@ function EditorPanel() {
   
   useEffect(() => {
     // Load the schema
-    fetch('/input.schema.json')
+    fetch('/schemas/input.schema.json')
       .then(response => response.json())
       .then(loadedSchema => setSchema(loadedSchema))
       .catch(error => console.error('Failed to load schema:', error))

@@ -11,16 +11,17 @@ echo "======================================"
 # Step 1: Build React frontend
 echo ""
 echo "Step 1: Building React frontend..."
+cd src/frontend
 if [ ! -d "node_modules" ]; then
     echo "Installing npm dependencies first..."
     npm install
 fi
-npx vite build
+npx vite build --config vite.config.ts
 
 # Step 2: Build C++ backend
 echo ""
 echo "Step 2: Building C++ backend..."
-cd server
+cd ../server
 ./build.sh
 
 # Step 3: Copy React build to server's public directory
@@ -36,18 +37,18 @@ echo "======================================"
 echo "✅ Build Complete!"
 echo "======================================"
 echo ""
-echo "Server binary: server/build/vulcan_server"
-echo "Frontend files: server/build/public/"
+echo "Server binary: src/server/build/vulcan_server"
+echo "Frontend files: src/server/build/public/"
 echo ""
 echo "To run server:"
-echo "  cd server/build"
+echo "  cd src/server/build"
 echo "  ./vulcan_server"
 echo ""
 echo "Then visit: http://127.0.0.1:8080"
 echo ""
 echo "For development:"
-echo "  1. Edit React files in src/"
+echo "  1. Edit React files in src/frontend/"
 echo "  2. Run: npx vite build"
-echo "  3. Run: cd server/build && ./vulcan_server"
+echo "  3. Run: cd src/server/build && ./vulcan_server"
 echo "  (No need for npm dev server!)"
 echo "======================================"

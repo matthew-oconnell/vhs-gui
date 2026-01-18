@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:full": "../../build.sh",
+    "build:frontend": "../scripts/rebuild-frontend.sh",
+    "start": "cd ../server/build && ./launch.sh",
+    "dist": "../scripts/create-distribution.sh",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",

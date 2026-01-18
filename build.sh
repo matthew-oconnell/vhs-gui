@@ -54,6 +54,5 @@ elif command -v start > /dev/null; then
     start http://127.0.0.1:8080 &
 fi
 
-# Launch server
-cd ../../src/server/build
+# Launch server (we're already in src/server/build from Step 3)
 ./vulcan_server

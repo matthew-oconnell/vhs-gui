@@ -1,4 +1,4 @@
-import { X, Maximize2, Settings } from 'lucide-react'
+import { X, Maximize2, Settings, ChevronRight } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from '../../utils/schemaParser'
 import { isCategoryHidden } from '../../utils/featureFlags'
@@ -43,6 +43,7 @@ export default function PropertyEditorDialog({
   onUpdate
 }: PropertyEditorDialogProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const [nestedDialog, setNestedDialog] = useState<{key: string, prop: SchemaProperty} | null>(null)
   
   if (!isOpen || !node) return null
 
@@ -157,12 +158,19 @@ export default function PropertyEditorDialog({
     return false
   }
 
-  // Get POD properties from a schema object, separated into normal and advanced
-  const getPODProperties = (objSchema: SchemaProperty | null): { normal: Array<{key: string, prop: SchemaProperty, required: boolean}>, advanced: Array<{key: string, prop: SchemaProperty, required: boolean}> } => {
-    if (!objSchema?.properties) return { normal: [], advanced: [] }
+  // Get all properties from a schema object, separated into POD, nested objects, normal and advanced
+  const getAllProperties = (objSchema: SchemaProperty | null): { 
+    normalPOD: Array<{key: string, prop: SchemaProperty, required: boolean}>, 
+    advancedPOD: Array<{key: string, prop: SchemaProperty, required: boolean}>,
+    normalNested: Array<{key: string, prop: SchemaProperty, required: boolean}>,
+    advancedNested: Array<{key: string, prop: SchemaProperty, required: boolean}>
+  } => {
+    if (!objSchema?.properties) return { normalPOD: [], advancedPOD: [], normalNested: [], advancedNested: [] }
     
-    const normalProps: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
-    const advancedProps: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
+    const normalPOD: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
+    const advancedPOD: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
+    const normalNested: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
+    const advancedNested: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
     const requiredFields = objSchema.required || []
     
     for (const [key, prop] of Object.entries(objSchema.properties)) {
@@ -177,28 +185,36 @@ export default function PropertyEditorDialog({
         }
       }
       
+      const isAdvanced = prop['only for'] && (
+        Array.isArray(prop['only for']) 
+          ? prop['only for'].includes('advanced')
+          : prop['only for'] === 'advanced'
+      )
+      
+      const propEntry = {
+        key,
+        prop,
+        required: requiredFields.includes(key)
+      }
+      
       if (isPropertyPOD(prop)) {
-        const isAdvanced = prop['only for'] && (
-          Array.isArray(prop['only for']) 
-            ? prop['only for'].includes('advanced')
-            : prop['only for'] === 'advanced'
-        )
-        
-        const propEntry = {
-          key,
-          prop,
-          required: requiredFields.includes(key)
-        }
-        
+        // POD property
         if (isAdvanced) {
-          advancedProps.push(propEntry)
+          advancedPOD.push(propEntry)
         } else {
-          normalProps.push(propEntry)
+          normalPOD.push(propEntry)
+        }
+      } else if (prop.type === 'object' || prop.properties || prop.$ref || prop.allOf) {
+        // Nested object property
+        if (isAdvanced) {
+          advancedNested.push(propEntry)
+        } else {
+          normalNested.push(propEntry)
         }
       }
     }
     
-    return { normal: normalProps, advanced: advancedProps }
+    return { normalPOD, advancedPOD, normalNested, advancedNested }
   }
 
   const handleInputChange = (key: string, value: any) => {
@@ -217,13 +233,36 @@ export default function PropertyEditorDialog({
     }
 
     const objSchema = getSchemaForPath(node.id)
-    const { normal: normalProps, advanced: advancedProps } = getPODProperties(objSchema)
+    const { normalPOD, advancedPOD, normalNested, advancedNested } = getAllProperties(objSchema)
     const objValue = getValueFromPath(node.id) || {}
     
-    if (normalProps.length === 0 && advancedProps.length === 0) {
+    if (normalPOD.length === 0 && advancedPOD.length === 0 && normalNested.length === 0 && advancedNested.length === 0) {
       return (
         <div className="info-box">
-          This object has no primitive properties. Expand it in the tree to edit nested objects.
+          This object has no editable properties.
+        </div>
+      )
+    }
+    
+    const renderNestedPropertyRow = ({ key, prop, required }: {key: string, prop: SchemaProperty, required: boolean}) => {
+      return (
+        <div key={key} className="property-grid-item">
+          <div className="property-row">
+            <label className="property-grid-label" title={prop.description}>
+              {key}
+              {required && <span className="property-required-marker">*</span>}
+            </label>
+            <div className="property-input-wrapper">
+              <button 
+                className="nested-object-button"
+                onClick={() => setNestedDialog({ key, prop })}
+                title={`Edit ${key} properties`}
+              >
+                <ChevronRight size={16} />
+                <span>Edit</span>
+              </button>
+            </div>
+          </div>
         </div>
       )
     }
@@ -352,21 +391,39 @@ export default function PropertyEditorDialog({
 
     return (
       <div className="property-grid">
-        {normalProps.map(renderPropertyInput)}
-        {showAdvanced && advancedProps.length > 0 && (
+        {normalPOD.map(renderPropertyInput)}
+        {normalNested.map(renderNestedPropertyRow)}
+        {showAdvanced && (advancedPOD.length > 0 || advancedNested.length > 0) && (
           <>
             <div className="property-divider-container">
               <hr className="property-divider" />
               <span className="property-divider-label">Advanced Settings</span>
             </div>
-            {advancedProps.map(renderPropertyInput)}
+            {advancedPOD.map(renderPropertyInput)}
+            {advancedNested.map(renderNestedPropertyRow)}
           </>
         )}
       </div>
     )
   }
 
+  // Create nested node for nested dialog
+  const createNestedNode = (key: string, prop: SchemaProperty): TreeNode | null => {
+    if (!node || !nestedDialog) return null
+    
+    return {
+      id: `${node.id}.${key}`,
+      label: key,
+      type: 'object',
+      children: [],
+      path: `${node.path}.${key}`,
+      description: prop.description,
+      schemaType: prop
+    }
+  }
+
   return (
+    <>
     <div className="property-editor-dialog-overlay" onClick={onClose}>
       <div className="property-editor-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="property-editor-dialog-header">
@@ -411,5 +468,17 @@ export default function PropertyEditorDialog({
         </div>
       </div>
     </div>
+    
+    {nestedDialog && (
+      <PropertyEditorDialog
+        isOpen={true}
+        onClose={() => setNestedDialog(null)}
+        node={createNestedNode(nestedDialog.key, nestedDialog.prop)}
+        schema={schema}
+        configData={configData}
+        onUpdate={onUpdate}
+      />
+    )}
+    </>
   )
 }

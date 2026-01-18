@@ -286,3 +286,27 @@ textarea.property-grid-input {
   color: #ff6b6b;
   margin-left: 2px;
 }
+
+.nested-object-button {
+  background: #2d5a8e;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 12px;
+  color: #a8c7e7;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.15s;
+  font-family: inherit;
+}
+
+.nested-object-button:hover {
+  background: #3a6da8;
+  color: #fff;
+}
+
+.nested-object-button:active {
+  transform: translateY(1px);
+}

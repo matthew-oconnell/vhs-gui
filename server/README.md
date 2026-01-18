@@ -114,6 +114,55 @@ Upload a mesh file for conversion.
 curl -X POST -F "mesh=@waverider.meshb" http://127.0.0.1:8080/api/mesh/upload
 ```
 
+### `GET /api/mesh/convert/{sessionId}`
+Convert uploaded mesh to JSON format.
+
+**Request:**
+- Method: `GET`
+- URL Parameter: `{sessionId}` - Session ID from upload response
+
+**Success Response (200):**
+```json
+{
+  "totalVertices": 50516,
+  "totalFaces": 101032,
+  "globalCenter": [-350.000000, 499.909000, 0.000000],
+  "globalScale": 0.005000,
+  "regions": [
+    {
+      "name": "sphere",
+      "tag": 1,
+      "vertices": [[x, y, z], ...],
+      "cells": [[i1, i2, i3], ...]
+    }
+  ]
+}
+```
+
+**Error Responses:**
+```json
+// 404: Session not found
+{"error":"Session not found","sessionId":"..."}
+
+// 404: No mesh file in session
+{"error":"No mesh file found in session"}
+
+// 500: Conversion failed
+{"error":"Conversion failed","message":"..."}
+```
+
+**Example Workflow:**
+```bash
+# 1. Upload mesh
+RESPONSE=$(curl -X POST -F "mesh=@waverider.obj" http://127.0.0.1:8080/api/mesh/upload)
+SESSION_ID=$(echo $RESPONSE | jq -r '.sessionId')
+
+# 2. Convert mesh
+curl http://127.0.0.1:8080/api/mesh/convert/$SESSION_ID > mesh.json
+
+# 3. Use mesh.json in frontend
+```
+
 ## Development
 
 ### Project Structure
@@ -172,7 +221,7 @@ TEST_CASE("Your test", "[tag]") {
 
 ## Next Steps
 
-- [ ] Add mesh upload endpoint (`POST /api/mesh/upload`)
+- [x] Add mesh upload endpoint (`POST /api/mesh/upload`)
 - [ ] Integrate mesh conversion libraries
 - [ ] Add static file serving for React frontend
 - [ ] Implement caching layer

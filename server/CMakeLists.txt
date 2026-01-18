@@ -35,6 +35,7 @@ add_executable(vulcan_tests
     tests/test_main.cpp
     tests/test_server.cpp
     tests/test_file_handler.cpp
+    tests/test_mesh_converter.cpp
 )
 
 target_link_libraries(vulcan_tests

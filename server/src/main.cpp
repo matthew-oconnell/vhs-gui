@@ -7,6 +7,7 @@
 
 #include "httplib.h"
 #include "file_handler.hpp"
+#include "mesh_converter.hpp"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -138,7 +139,61 @@ int main(int argc, char* argv[]) {
                   << ") -> Session: " << sessionId << std::endl;
     });
     
-    // 
+    // Mesh conversion endpoint
+    svr.Get(R"(/api/mesh/convert/(.+))", [](const httplib::Request& req, httplib::Response& res) {
+        std::string sessionId = req.matches[1];
+        
+        // Find the mesh file in the session directory
+        namespace fs = std::filesystem;
+        fs::path sessionDir = fs::temp_directory_path() / "vulcan" / "uploads" / sessionId;
+        
+        if (!fs::exists(sessionDir)) {
+            res.status = 404;
+            res.set_content(R"({"error":"Session not found","sessionId":")" + sessionId + R"("})", 
+                          "application/json");
+            return;
+        }
+        
+        // Find first supported mesh file in directory
+        std::string meshFile;
+        std::string extension;
+        for (const auto& entry : fs::directory_iterator(sessionDir)) {
+            if (entry.is_regular_file()) {
+                extension = vulcan::getFileExtension(entry.path().filename().string());
+                if (vulcan::isSupportedMeshFormat(extension)) {
+                    meshFile = entry.path().string();
+                    break;
+                }
+            }
+        }
+        
+        if (meshFile.empty()) {
+            res.status = 404;
+            res.set_content(R"({"error":"No mesh file found in session"})", "application/json");
+            return;
+        }
+        
+        // Convert mesh to JSON
+        try {
+            std::cout << "[CONVERT] Session: " << sessionId << " | File: " 
+                      << fs::path(meshFile).filename().string() << " | Format: " << extension << std::endl;
+            
+            std::string meshJSON = vulcan::convertMeshToJSON(meshFile, extension);
+            
+            res.set_content(meshJSON, "application/json");
+            
+            std::cout << "[CONVERT] Success | " << meshJSON.size() << " bytes" << std::endl;
+            
+        } catch (const std::exception& e) {
+            std::ostringstream error;
+            error << R"({"error":"Conversion failed","message":")" << e.what() << R"("})";
+            res.status = 500;
+            res.set_content(error.str(), "application/json");
+            
+            std::cout << "[CONVERT] Failed: " << e.what() << std::endl;
+        }
+    });
+    
     // Log server startup
     std::cout << "\n=================================================\n"
               << "  Vulcan CFD GUI Server v1.0.0\n"

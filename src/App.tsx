@@ -10,8 +10,10 @@ import SettingsDialog from './components/SettingsDialog/SettingsDialog'
 import ValidationErrorDialog from './components/ValidationErrorDialog/ValidationErrorDialog'
 import { useAppStore } from './store/appStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
-import { saveJsonFile } from './utils/fileUtils'
+import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fileUtils'
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
+import { loadMeshFromDirectory } from './utils/meshLoader'
+import { transformLoadedConfig } from './utils/configTransform'
 import './App.css'
 
 function App() {
@@ -21,7 +23,8 @@ function App() {
   const [showValidationErrors, setShowValidationErrors] = useState(false)
   const [validationErrors, setValidationErrors] = useState<ValidationErrorItem[]>([])
   const [pendingMesh, setPendingMesh] = useState<{ parsedMesh: any; filename: string } | null>(null)
-  const { configData, initializeConfig, loadMesh, availableSurfaces } = useAppStore()
+  const [pendingConfig, setPendingConfig] = useState<any>(null) // Store config until mesh loads
+  const { configData, initializeConfig, loadMesh, availableSurfaces, setConfigData } = useAppStore()
 
   const handleNew = () => {
     setShowNewProjectWizard(true)
@@ -33,9 +36,70 @@ function App() {
     console.log('Config initialized, check store for updated configData')
   }
 
-  const handleOpen = () => {
-    console.log('Open file')
-    // TODO: Open file dialog and load configuration
+  const handleOpen = async () => {
+    try {
+      // Open file picker and load JSON
+      const loadedConfig = await openJsonFile()
+      
+      // If user cancelled, do nothing
+      if (!loadedConfig) {
+        return
+      }
+      
+      // Check if config has mesh filename
+      const meshFilename = loadedConfig['mesh filename']
+      let meshLoaded = false
+      let showedLumpDialog = false
+      
+      if (meshFilename) {
+        // Prompt user to select the directory containing the config and mesh
+        const directoryHandle = await promptForDirectoryAccess()
+        
+        if (directoryHandle) {
+          // Try to load mesh from the selected directory
+          meshLoaded = await loadMeshFromDirectory(
+            typeof meshFilename === 'string' ? meshFilename : meshFilename[0],
+            directoryHandle,
+            parseMeshFile,
+            loadMesh,
+            (parsedMesh, filename) => {
+              // Mesh has duplicates - will show lump dialog
+              // Store config to transform AFTER mesh actually loads
+              console.log('[App] Storing pending config to transform after lump dialog resolves')
+              showedLumpDialog = true
+              setPendingConfig(loadedConfig)
+              setPendingMesh({ parsedMesh, filename })
+              setShowLumpDialog(true)
+            }
+          )
+          
+          if (meshLoaded) {
+            console.log(`[App] Mesh "${meshFilename}" loaded automatically from selected directory`)
+          } else {
+            console.log(`[App] Mesh "${meshFilename}" not found in directory, will need to locate manually`)
+          }
+        }
+        
+        // If user cancelled directory selection or mesh not found, they can load it later manually
+      }
+      
+      // If mesh was loaded directly (no lump dialog), transform and set config now
+      // If lump dialog was shown, this will be handled in handleLumpChoice
+      if (!showedLumpDialog) {
+        const currentSurfaces = useAppStore.getState().availableSurfaces
+        console.log('[App] Transforming config with surfaces:', currentSurfaces.length)
+        console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
+        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces)
+        setConfigData(transformedConfig)
+        console.log('[App] Transformed BCs:', transformedConfig.HyperSolve?.['boundary conditions'])
+        console.log('Configuration loaded successfully')
+      } else {
+        console.log('[App] Config transformation deferred until after lump dialog')
+      }
+    } catch (error) {
+      console.error('Error loading configuration:', error)
+      alert(`Failed to load configuration: ${(error as Error).message}`)
+    }
   }
 
   // Remove internal GUI fields (id, name, etc.) before saving
@@ -184,6 +248,18 @@ function App() {
       console.log('[App] Loading mesh with lump =', lump)
       loadMesh(pendingMesh.parsedMesh, pendingMesh.filename, lump)
       console.log('[App] Mesh loaded successfully!')
+      
+      // NOW transform and set the pending config with the loaded mesh surfaces
+      if (pendingConfig) {
+        console.log('[App] Transforming pending config after mesh load')
+        const currentSurfaces = useAppStore.getState().availableSurfaces
+        console.log('[App] Available surfaces after mesh load:', currentSurfaces.length)
+        console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
+        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces)
+        setConfigData(transformedConfig)
+        console.log('[App] Configuration set with BCs:', transformedConfig.HyperSolve?.['boundary conditions'])
+        setPendingConfig(null)
+      }
     }
     setShowLumpDialog(false)
     setPendingMesh(null)

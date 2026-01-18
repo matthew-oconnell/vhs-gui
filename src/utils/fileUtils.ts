@@ -102,3 +102,145 @@ export const saveJsonFile = async (data: any, filename: string = 'config.json'):
     return Promise.reject(error);
   }
 };
+
+/**
+ * Opens a file picker dialog and reads a JSON file
+ * 
+ * @returns Promise that resolves with the parsed JSON data, or null if user cancels
+ * @throws Error if JSON parsing fails or file reading fails
+ */
+export const openJsonFile = async (): Promise<any> => {
+  try {
+    // Check if the File System Access API is available
+    if (!('showOpenFilePicker' in window)) {
+      throw new Error('File System Access API is not supported in this browser');
+    }
+
+    // Open file picker dialog
+    const [fileHandle] = await window.showOpenFilePicker({
+      types: [
+        {
+          description: 'JSON Files',
+          accept: {
+            'application/json': ['.json']
+          }
+        }
+      ]
+    });
+
+    // Get the file
+    const file = await fileHandle.getFile();
+    
+    // Read the file content as text
+    const text = await file.text();
+    
+    // Parse and return JSON (will throw if invalid)
+    return JSON.parse(text);
+  } catch (error) {
+    // If user cancels the file picker, return null instead of throwing
+    if ((error as Error).name === 'AbortError') {
+      return null;
+    }
+    
+    // Re-throw other errors (parsing errors, file read errors, etc.)
+    throw error;
+  }
+};
+
+/**
+ * Prompts user to select a directory and returns the directory handle
+ * This is used to get access to the directory containing the config file
+ * so we can automatically load mesh files from the same directory
+ * 
+ * @returns Promise that resolves with directory handle, or null if user cancels
+ * @throws Error if Directory Picker API not supported
+ */
+export const promptForDirectoryAccess = async (): Promise<FileSystemDirectoryHandle | null> => {
+  try {
+    // Check if the Directory Picker API is available
+    if (!('showDirectoryPicker' in window)) {
+      throw new Error('Directory Picker API is not supported in this browser');
+    }
+
+    // Prompt user to select the directory
+    const directoryHandle = await window.showDirectoryPicker({
+      mode: 'read' // We only need read access
+    });
+
+    return directoryHandle;
+  } catch (error) {
+    // If user cancels, return null
+    if ((error as Error).name === 'AbortError') {
+      return null;
+    }
+    
+    // Re-throw other errors
+    throw error;
+  }
+};
+
+/**
+ * Opens a file picker dialog and reads a JSON file, also returning directory handle
+ * 
+ * @returns Promise that resolves with config and directory handle, or null if user cancels
+ * @throws Error if JSON parsing fails or file reading fails
+ */
+export const openJsonFileWithDirectory = async (): Promise<{ config: any; directoryHandle: FileSystemDirectoryHandle } | null> => {
+  try {
+    // Check if the File System Access API is available
+    if (!('showOpenFilePicker' in window)) {
+      throw new Error('File System Access API is not supported in this browser');
+    }
+
+    // Open file picker dialog
+    const [fileHandle] = await window.showOpenFilePicker({
+      types: [
+        {
+          description: 'JSON Files',
+          accept: {
+            'application/json': ['.json']
+          }
+        }
+      ]
+    });
+
+    // Get the file
+    const file = await fileHandle.getFile();
+    
+    // Read the file content as text
+    const text = await file.text();
+    
+    // Parse JSON (will throw if invalid)
+    const config = JSON.parse(text);
+    
+    // Get the directory handle (parent directory of the file)
+    // @ts-ignore - FileSystemFileHandle may have parent access in some browsers
+    let directoryHandle: FileSystemDirectoryHandle | null = null;
+    
+    // Try to get parent directory (non-standard but works in some browsers)
+    if ('getParent' in fileHandle && typeof (fileHandle as any).getParent === 'function') {
+      try {
+        directoryHandle = await (fileHandle as any).getParent();
+      } catch (e) {
+        console.warn('Could not get parent directory:', e);
+      }
+    }
+    
+    // Fallback: use the directory picker API if available
+    if (!directoryHandle) {
+      // We need to store the directory handle - for now return the fileHandle
+      // The calling code can request directory access if needed
+      directoryHandle = fileHandle as any; // Will handle in calling code
+    }
+    
+    return { config, directoryHandle };
+  } catch (error) {
+    // If user cancels the file picker, return null instead of throwing
+    if ((error as Error).name === 'AbortError') {
+      return null;
+    }
+    
+    // Re-throw other errors (parsing errors, file read errors, etc.)
+    throw error;
+  }
+};

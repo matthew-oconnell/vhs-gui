@@ -207,23 +207,24 @@ int main(int argc, char* argv[]) {
         std::cout << "Static files directory found: " << publicDir << "\n";
         
         // Mount static file handler
-        // API routes have priority, then static files
+        // This serves all files from public/ directory at the root path
         svr.set_mount_point("/", publicDir.string());
         
-        // Serve index.html for any non-API route (SPA fallback)
-        svr.set_file_request_handler([publicDir](const httplib::Request& req, httplib::Response& res) {
-            // Don't interfere with API routes
-            if (req.path.find("/api/") == 0) {
+        // SPA fallback: serve index.html for routes that don't match files
+        svr.set_error_handler([publicDir](const httplib::Request& req, httplib::Response& res) {
+            // Only apply SPA routing to GET requests that aren't API calls
+            if (req.method != "GET" || req.path.find("/api/") == 0) {
                 return;
             }
             
-            // For SPA routing, serve index.html for any path that doesn't have a file extension
-            if (req.path.find('.') == std::string::npos) {
+            // For 404s on paths without extensions (SPA routes), serve index.html
+            if (res.status == 404 && req.path.find('.') == std::string::npos) {
                 fs::path indexPath = publicDir / "index.html";
                 if (fs::exists(indexPath)) {
                     std::ifstream file(indexPath);
                     std::string content((std::istreambuf_iterator<char>(file)),
                                       std::istreambuf_iterator<char>());
+                    res.status = 200;
                     res.set_content(content, "text/html");
                 }
             }

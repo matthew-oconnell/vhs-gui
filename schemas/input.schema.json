@@ -3,7 +3,7 @@
     "type": "object",
     "required": [
         "mesh filename",
-        "HyperSolve"
+        "Vulcan"
     ],
     "properties": {
         "mesh filename": {
@@ -23,9 +23,9 @@
             "description": "Sequence of simulation settings to solve",
             "items" :  {
                 "type": "object",
-                "required": ["HyperSolve", "steps"],
+                "required": ["Vulcan", "steps"],
                 "properties": {
-                    "HyperSolve" : {
+                    "Vulcan" : {
                         "$ref": "#/definitions/HyperSolveBase"
                     },
                     "steps" : {
@@ -140,16 +140,19 @@
         },
         "allow solve retry": {
             "type": "boolean",
+            "only for":["advanced"],
             "default": true,
             "description": "Run sequence solve procedure upon nonlinear solver stall.  This will retry the solve using a sequence of different settings to try and recover a solution."
         },
         "sequence solve": {
             "type": "boolean",
+            "only for":["advanced"],
             "default": false,
             "description": "Perform solves starting from the most robust discretization settings to the requested discretization settings.  This can help increase solver robustness/efficiency when starting from a challenging initial condition."
         },
         "template": {
             "type": "string",
+            "only for":["advanced"],
             "description": "The name of a template to use to override the standard defaults.  Use the `hs template` subcommand to view available templates."
         },
         "templates": {
@@ -159,7 +162,7 @@
                 "type": "string"
             }
         },
-        "HyperSolve": {
+        "Vulcan": {
             "$ref": "#/definitions/HyperSolveRequired",
             "additionalProperties": false
         },
@@ -294,6 +297,7 @@
         "Debugging Settings": {
             "type": "object",
             "description": "Debugging settings for diagnosing problems with HyperSolve.  In general, these should not be used unless the solver is performing poorly.",
+            "only for":["developer"],
             "properties": {
                 "linesearch samples": {
                     "type": "integer",
@@ -401,7 +405,8 @@
                 },
                 "max augmentation sweeps": {
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "advanced"
                     ],
                     "type": "integer",
                     "description": "Specify the maximum number of gradient stencil augmentation sweeps.",
@@ -410,7 +415,8 @@
                 "monitor limiter": {
                     "type": "boolean",
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "advanced"
                     ],
                     "description": "Monitors the slope limiter",
                     "default": false
@@ -418,14 +424,16 @@
                 "monitor dissipation": {
                     "type": "boolean",
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "advanced"
                     ],
                     "description": "Monitors the dissipation coefficient",
                     "default": false
                 },
                 "buffer limiter strategy": {
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "advanced"
                     ],
                     "type": "string",
                     "description": "Extend the effect of limiter to some distance of neighbors. Options are neighbor based (one neighbor at a time) or stencil based (using the entire gradient stencil at a time)",
@@ -447,6 +455,7 @@
                     "description": "The entropy fix to be used with the Roe flux function.  Only applicable for roe-type fluxes, such as 'roe', 'low-dissipation roe', and 'rroe'",
                     "type": "string",
                     "default": "harten",
+                    "only for":["advanced"],
                     "enum": [
                         "harten",
                         "harten-hyman"
@@ -482,11 +491,13 @@
                 "max dissipation coeff": {
                     "description": "Maximum value of the dissipation limiter.  0 is full dissipation 1.0 is no additional dissipation",
                     "type": "number",
+                    "only for":["advanced"],
                     "default": 1.0
                 },
                 "wall distance dissipation activation range": {
                     "description": "Activation range for the wall distance dissipation limiter.",
                     "type": "array",
+                    "only for":["advanced"],
                     "default": [
                         1e-4,
                         0.01
@@ -495,11 +506,13 @@
                 "multispecies flux correction": {
                     "description": "Apply a correction to the species mass fluxes and energy flux to better promote positivity in the solution mass fractions.",
                     "type": "boolean",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "apply limiter to boundary integration": {
                     "description": "Reduce the boundary integration to first order where the slope limiter is active",
                     "type": "boolean",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "eigenvalue limiting coefficient": {
@@ -521,6 +534,7 @@
                 "eigenvalue limiting coefficient floor": {
                     "type": "number",
                     "description": "The minimum eigenvalue smoothing coefficient allowed in some flux functions.",
+                    "only for":["advanced"],
                     "default": 0.0
                 },
                 "particle phase source terms": {
@@ -571,11 +585,13 @@
                 "average viscous transport coefficients": {
                     "type": "boolean",
                     "description": "Compute the transport coefficients at faces by averaging the quantities at computed at cell centers.",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "kappa": {
                     "description": "kappa parameter in U-MUSCL scheme. Kappa = 0 is Fromm's scheme, and kappa = 1/2 yields 3rd-order accuracy in certain situations.",
                     "type": "number",
+                    "only for":["hypersolve"],
                     "default": 0.5
                 },
                 "skip viscous flux on non-wall boundaries": {
@@ -602,6 +618,7 @@
                 "skip transport jacobian": {
                     "type": "boolean",
                     "description": "Skip calculating the Jacobian of transport properties.  This will decrease the time spent computing the Jacobian (possibly) at the expense of more linear solver iterations",
+                    "only for":["hypersolve"],
                     "default": false
                 },
                 "solve hns8 gradients only": {
@@ -672,6 +689,7 @@
                     "type": "string",
                     "description": "The slope limiter for the state extrapolation scheme in the viscous flux.",
                     "default": "no limiter",
+                    "only for":["advanced"],
                     "enum": [
                         "first order",
                         "barth",
@@ -688,6 +706,7 @@
                 "filter limiter at expansions": {
                     "type": "boolean",
                     "description": "turn off the limiter in regions of expansion (div(u) > 0)",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "slope limiter settings": {
@@ -737,6 +756,7 @@
                 },
                 "viscous gradient weights power": {
                     "type": "number",
+                    "only for":["advanced"],
                     "description": "Inverse distance weight power for the viscous terms least-squares gradient computation.",
                     "default": 1
                 },
@@ -769,6 +789,7 @@
                 "qlsq stencil threshold increase": {
                     "type": "integer",
                     "description": "Increase the stencil-size threshold for quadratic least-squares gradient computation above the minimum (9 edges per node in 3D, or 5 edges per node in 2D).",
+                    "only for":["advanced"],
                     "default": 0
                 },
                 "vulcan min LSQ stencil size": {
@@ -787,7 +808,8 @@
                         }
                     ],
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "advanced"
                     ]
                 },
                 "alpha-damping coefficient": {
@@ -798,6 +820,7 @@
                 "max skewness angle": {
                     "type": "number",
                     "description": "Max angle between edge and face normal in alpha-damping skewness measure used in the gradient damping term in viscous flux. Specified in degrees.",
+                    "only for":["advanced"],
                     "minimum": 0.0,
                     "maximum": 90.0,
                     "default": 90.0
@@ -805,12 +828,14 @@
                 "alpha-damping edge length tolerance": {
                     "type": "number",
                     "description": "The minimum edge length to engage the damping term in the alpha-damping scheme.",
+                    "only for":["advanced"],
                     "minimum": 0.0,
                     "default": 1e-10
                 },
                 "viscous damping type": {
                     "type": "string",
                     "description": "Damping type used to stabalize the viscous gradients",
+                    "only for":["hypersolve", "vulcan", "advanced"],
                     "enum": [
                         "alpha-damping-1st-order",
                         "alpha-damping",
@@ -833,12 +858,11 @@
                 "disable flux extrapolation": {
                     "type": "boolean",
                     "description": "Disable the flux extrapolation for convective fluxes.  This will prevent third-order accuracy is some cases, and may other degrade accuracy of the second order scheme.  This is intended as a debugging option.",
+                    "only for":["hypersolve"],
                     "default": false
                 },
                 "disable flux reconstruction": {
-                    "only for": [
-                        "developer"
-                    ],
+                    "only for": [ "developer" ],
                     "type": "boolean",
                     "description": "Disable the flux reconstruction term in Vulcan 3rd order scheme",
                     "default": false
@@ -870,9 +894,7 @@
                     ],
                     "description": "Limit based on reconstruction to cell nodes, amounts to more restrictive",
                     "default": "auto",
-                    "only for": [
-                        "vulcan"
-                    ]
+                    "only for": [ "vulcan", "advanced" ]
                 },
                 "vulcan boundary coeff": {
                     "type": "number",
@@ -887,7 +909,7 @@
                     "description": "The volume below which we claim a cell is a sliver cell",
                     "default": 1.0e-17,
                     "only for": [
-                        "vulcan"
+                        "vulcan", "advanced"
                     ]
                 },
                 "vulcan gradient selfcheck": {
@@ -895,7 +917,8 @@
                     "description": "Allow Vulcan to perform gradient selfchecks on startup. Disable for 2D simulations not in the xy plane.",
                     "default": true,
                     "only for": [
-                        "vulcan"
+                        "vulcan", 
+                        "advanced"
                     ]
                 },
                 "vulcan gradient weight precision": {
@@ -923,7 +946,8 @@
                     ],
                     "default": false,
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "developer"
                     ]
                 },
                 "vulcan order": {
@@ -931,7 +955,8 @@
                     "description": "EXPERIMENTAL: toggle 3rd order terms in Vulcan",
                     "default": 2,
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "experimental"
                     ]
                 },
                 "vulcan inviscid gradient": {
@@ -944,7 +969,8 @@
                         "C-LSQ"
                     ],
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "advanced"
                     ]
                 },
                 "vulcan viscous gradient": {
@@ -957,12 +983,14 @@
                         "C-LSQ"
                     ],
                     "only for": [
-                        "vulcan"
+                        "vulcan",
+                        "advanced"
                     ]
                 },
                 "scale residual by volume": {
                     "type": "boolean",
                     "description": "Scale the equations by dual volume, to normalize the effects of large changes in mesh cell size.",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "shock sensor type": {
@@ -1011,16 +1039,19 @@
                 "monitor residual": {
                     "type": "boolean",
                     "description": "Monitor the convergence of the linear solver.",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "check frequency": {
                     "type": "integer",
                     "description": "Frequency to perform preconditioner convergence test.",
+                    "only for":["advanced"],
                     "default": 5
                 },
                 "logarithmic checks": {
                     "type": "integer",
                     "description": "Check the preconditioner convergence test at a logarithmic frequency, in which checks are performed frequently at early iterations and infrequently at late iterations. Setting to positive number engages this option, with the number corresponding to the number of checks spaced linearly in log space.",
+                    "only for":["advanced"],
                     "default": -1
                 },
                 "divergence tolerance": {
@@ -1032,6 +1063,7 @@
                     "type": "string",
                     "description": "The preconditioner for the linear solver solver. For the PETSc solver, the default is 'asm'. For the Kokkos solver, the default is 'MCGS'.",
                     "default": "auto",
+                    "only for":["advanced"],
                     "examples": [
                         "MCGS",
                         "Jacobi",
@@ -1048,6 +1080,7 @@
                 "print load balance": {
                     "type": "boolean",
                     "description": "Monitor the load balance of the Kokkos linear solver.",
+                    "only for":["advanced"],
                     "default": false
                 }
             },
@@ -1102,6 +1135,7 @@
                 "petsc options": {
                     "type": "string",
                     "description": "Options for the PETSc nonlinear solver.",
+                    "only for":["advanced"],
                     "default": ""
                 },
                 "starting cfl": {
@@ -1126,18 +1160,21 @@
                 "cfl reduction linesearch threshold": {
                     "type": "number",
                     "description": "The minimum linesearch value allowed before the CFL will be reduced.",
+                    "only for":["advanced"],
                     "default": 0.2,
                     "minimum": 0.0
                 },
                 "cfl increase linesearch threshold": {
                     "type": "number",
                     "description": "The minimum linesearch value required before the CFL will be increased.",
+                    "only for":["advanced"],
                     "default": 0.5,
                     "minimum": 0.0
                 },
                 "cfl reduction linear solver threshold": {
                     "type": "number",
                     "description": "The maximum linear solver relative convergence threshold before the CFL will lower.",
+                    "only for":["advanced"],
                     "default": 0.99,
                     "minimum": 0.0
                 },
@@ -1149,6 +1186,7 @@
                 "monitor cfl changes": {
                     "type": "boolean",
                     "description": "Print the reason(s) for changes to CFL number at each timestep.",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "cfl bounds": {
@@ -1163,11 +1201,13 @@
                 "use jacobian freezing": {
                     "type": "boolean",
                     "description": "Allow the Jacobian to be updated less frequently based on nonlinear residual",
+                    "only for":["experimental"],
                     "default": false
                 },
                 "frechet derivative type": {
                     "type": "string",
                     "description": "Method of forming the Jacobian-solution-update matrix-vector product operator used in the Krylov solver. The 'exact' and 'finite-difference' options result in a the Jacobian-Free Newton-Krylov method, with 'finite-difference' using real-values and 'exact' using dual-numbers to compute the operator.  Using 'none' results in the preconditioner matrix being used instead of the actual Jacobian.",
+                    "only for":["advanced"],
                     "enum": [
                         "exact",
                         "finite-difference",
@@ -1183,6 +1223,7 @@
                 "line search": {
                     "type": "object",
                     "description": "Options to control the line search",
+                    "only for":["advanced"],
                     "properties": {
                         "max ratio": {
                             "type": "number",
@@ -1214,6 +1255,7 @@
                 "monitor linesearch": {
                     "type": "boolean",
                     "description": "Monitor the residual L2 norm during the line search when determining update step size.",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "residual increase allowance": {
@@ -1229,6 +1271,7 @@
                 },
                 "residual norm type": {
                     "type": "string",
+                    "only for":["advanced"],
                     "enum": [
                         "L2",
                         "geometric mean"
@@ -1258,6 +1301,7 @@
                     "type": "string",
                     "description": "The nonlinear solver plugin name. The default (auto) will select the best option based on the full configuration.",
                     "default": "auto",
+                    "only for":["advanced"],
                     "enum": [
                         "auto",
                         "debug-explicit",
@@ -1351,7 +1395,8 @@
                         "radiation equation",
                         "vulcan-turbulent",
                         "electromagnetic"
-                    ]
+                    ], 
+                    "advanced enums":["hyperbolic heat equation", "electromagnetic", "hns8", "radiation equation"]
                 },
                 "discretization settings": {
                     "$ref": "#/definitions/Discretization Settings"
@@ -1396,9 +1441,7 @@
                     "type": "string"
                 },
                 "reference length state": {
-                    "only for": [
-                        "hypersolve"
-                    ],
+                    "only for": [ "hypersolve" ],
                     "description": "The name of the state to used in computing the length scale in hns8. If this is not set, the first state is used by default",
                     "type": "string"
                 },
@@ -1407,13 +1450,12 @@
                 },
                 "mesh unit length": {
                     "type": "number",
+                    "only for": [ "hypersolve" ],
                     "description": "The conversion factor from grid units to meters.",
                     "default": 1.0
                 },
                 "mesh closed tolerance": {
-                    "only for": [
-                        "vulcan"
-                    ],
+                    "only for": [ "vulcan", "advanced" ],
                     "type": "number",
                     "description": "Tolerance that the mesh geometry is expected to be closed.",
                     "default": 1.0e-11
@@ -1459,6 +1501,7 @@
                 },
                 "global petsc options": {
                     "type": "string",
+                    "only for": [ "advanced" ],
                     "description": "Options to pass to the global PETSc options database.",
                     "default": ""
                 },
@@ -1470,21 +1513,21 @@
                     "$ref": "#/definitions/Nonlinear Solver Settings"
                 },
                 "post-process-only": {
-                    "only for": [
-                        "developer"
-                    ],
+                    "only for": [ "developer" ],
                     "type": "boolean",
                     "default": false,
                     "description": "internal signal denoting a post-process only run"
                 },
                 "print configuration": {
                     "type": "boolean",
+                    "only for": [ "advanced" ],
                     "description": "Print the full configuration (input file w/defaults added).",
                     "default": false
                 },
                 "print kokkos configuration": {
                     "type": "boolean",
                     "description": "Print the Kokko configuration",
+                    "only for": [ "advanced" ],
                     "default": false
                 },
                 "profiling": {
@@ -1492,6 +1535,7 @@
                 },
                 "restart from previous history": {
                     "type": "boolean",
+                    "only for": [ "advanced" ],
                     "description": "Restart from CFL and iteration number found at the end of the *-residual.csv file.  This is intended for developer use.",
                     "default": false
                 },
@@ -1510,6 +1554,7 @@
                 "symmetry plane check tolerance": {
                     "type": "number",
                     "description": "The maximum deviation from the average plane normal for a symmetry plane that the normal of any face on that plane can have.  Increasing this tolerance may be necessary for meshes where points on a symmetry plane are nearly, but not exactly, coplanar due to the mesh generation process used.",
+                    "only for": [ "advanced" ],
                     "default": 1e-6
                 },
                 "thermodynamics": {
@@ -1661,6 +1706,7 @@
         "Performance Profiling": {
             "type": "object",
             "description": "Performance profiling settings.",
+            "only for": [ "advanced" ],
             "properties": {
                 "debug": {
                     "type": "boolean",
@@ -1782,16 +1828,14 @@
                 },
                 "curve-fits for equilibrium constant": {
                     "type": "boolean",
-                    "description": "Option to specify if the equilibrium constants for the chemical reaction steps should be calculated using curve-fits (option - true) or assuming the minimization of Gibb's free energy equation (false).",
+                    "description": "Equilibrium constants for chemical reactions calculated using curve-fits (true) or minimization of Gibb's free energy (false).",
                     "default": true
                 },
                 "vulcan kinetics": {
                     "type": "boolean",
                     "description": "option to engage the Vulcan kinetics path - parser, analytic equilibrium constant (instead of curve-fits), pressure-dependent reactions options, no limiting of maximum or minimum effective temperature for kinetics purposes",
                     "default": false,
-                    "only for": [
-                        "vulcan"
-                    ]
+                    "only for": [ "vulcan", "advanced" ]
                 },
                 "turbulence chemistry closure": {
                     "type": "object",
@@ -1852,6 +1896,7 @@
                 "ratio of specific heats": {
                     "type": "number",
                     "description": "The ratio of specific heats (gamma).",
+                    "only for":["perfect gas"],
                     "default": 1.4
                 },
                 "use constant transport properties": {
@@ -1894,6 +1939,7 @@
                 "molecular weight": {
                     "type": "number",
                     "description": "Assumed molecular weight for perfect gas.",
+                    "only for":["perfect gas"],
                     "default": 28.8
                 },
                 "Sutherland": {
@@ -1956,6 +2002,7 @@
                 "pseudo-mixture mass fractions": {
                     "type": "array",
                     "description": "Represent the species as a single species that describes gas mixture without needing to track the transport of individual species.  Should not be used for cases where chemical reactions or mass diffusion is expected.",
+                    "only for":["advanced"],
                     "items": {
                         "type": "number",
                         "minimum": 0.0
@@ -2003,12 +2050,14 @@
                 "timestep": {
                     "type": "number",
                     "description": "The timestep, in units of seconds, applied with the 'fixed timestep' time integrator, or the starting timestep for the 'ramped timestep' time integrator.",
+                    "only for":["unsteady"],
                     "default": 1e-4,
                     "minimum": 0.0
                 },
                 "smooth timestep": {
                     "type": "boolean",
                     "description": "Smooth timestep (if using local timestepping).",
+                    "only for":["advanced"],
                     "default": true
                 },
                 "subiteration tolerance": {
@@ -2033,9 +2082,7 @@
                     "type": "boolean",
                     "description": "Add an extra timestep limit based on viscous stability limits for Vulcan as the time terms are handled separately in node and cell paths",
                     "default": false,
-                    "only for": [
-                        "vulcan"
-                    ]
+                    "only for": [ "vulcan", "advanced" ]
                 },
                 "temperature timestep limit": {
                     "only for": [
@@ -2049,6 +2096,7 @@
                 },
                 "min dt reduction": {
                     "description": "The lower limit the dt reduction factor.",
+                    "only for":["vulcan", "advanced"],
                     "default": 1.0e-3,
                     "minimum": 1.0e-6,
                     "maximum": 1.0,
@@ -2074,6 +2122,7 @@
                 "timestep focus region": {
                     "type": "object",
                     "description": "Progressively decrease timestep downstream from spherical region to focus convergence on subsonic regions that feed supersonic regions. Freestream zone of influence is automatically included for the defined region.",
+                    "only for":["advanced"],
                     "properties": {
                         "center": {
                             "type": "array",
@@ -2190,6 +2239,7 @@
                 "skip source": {
                     "type": "boolean",
                     "description": "Debug option to skip computing the turbulent source terms.",
+                    "only for":["developer"],
                     "default": false
                 },
                 "include extra gradient inner product": {
@@ -2242,9 +2292,7 @@
         },
         "Radiation Settings": {
             "hidden": true,
-            "only for": [
-                "particle"
-            ],
+            "only for": [ "particle" ],
             "type": "object",
             "description": "Settings for the finite volume radiation solver specified by \"equation type\": \"radiation equation\".",
             "properties": {
@@ -2302,9 +2350,7 @@
             "additionalProperties": false
         },
         "MHD Solver Settings": {
-            "only for": [
-                "mhd"
-            ],
+            "only for": [ "mhd" ],
             "type": "object",
             "description": "Settings related to the magnetohydrodynamic (MHD) and electromagnetic state solvers as well as plasma physics modeling.",
             "properties": {
@@ -2744,6 +2790,7 @@
         },
         "Strongly Enforced Dirichlet": {
             "description": "Fixed external state, but strongly enforced at the boundary nodes. This is typically only used for debugging.",
+            "only for":["hypersolve"],
             "properties": {
                 "mesh boundary tags": {
                     "$ref": "#/definitions/Mesh Boundary Tags"
@@ -2869,7 +2916,7 @@
                 }
             ]
         },
-        "Constant Temperature": {
+        "Isothermal Wall": {
             "only for": [
                 "heat-equation"
             ],
@@ -2891,7 +2938,7 @@
             },
             "additionalProperties": false
         },
-        "Radiative Equilibrium Temperature": {
+        "Radiative Equilibrium Wall": {
             "only for": [
                 "heat-equation"
             ],
@@ -3082,7 +3129,7 @@
                 }
             ]
         },
-        "Back Pressure": {
+        "Subsonic Outflow": {
             "description": "Outflow condition with static pressure specified when the flow is subsonic.  For supersonic flow, the interior state is extrapolated to the exterior state.",
             "properties": {
                 "mesh boundary tags": {
@@ -3590,6 +3637,7 @@
         "Mesh Adaptation": {
             "type": "object",
             "description": "Options controlling unstructured mesh adaptation via interpolation error control.",
+            "only for":["hypersolve", "vulcan", "sketch-2-solution"],
             "properties": {
                 "project name": {
                     "type": "string",
@@ -3599,6 +3647,7 @@
                     "type": "string",
                     "description": "Plugin used to interpolate the solution between meshes.  The default (auto) will automatically determine the plugin based on the mesh element types.",
                     "default": "auto",
+                    "only for":["advanced"],
                     "enum": [
                         "auto",
                         "ParfaitInterpolator",
@@ -3622,6 +3671,7 @@
                     "description": "Starting mesh complexity value used by the refine library."
                 },
                 "startup steps": {
+                    "only for":["advanced"],
                     "oneOf": [
                         {
                             "type": "string",
@@ -3639,6 +3689,7 @@
                 },
                 "startup sequencing levels": {
                     "type": "number",
+                    "only for":["advanced"],
                     "description": "Number of meshes to solve sequentially to initialize the solution on the target mesh.",
                     "minimum": 0
                 },
@@ -3668,10 +3719,12 @@
                 "curvature_constraint": {
                     "type": "boolean",
                     "description": "Apply a curvature constraint to the adaptation metric",
+                    "only for":["advanced"],
                     "default": true
                 },
                 "segments_per_radian": {
                     "type": "number",
+                    "only for":["advanced"],
                     "description": "Number of segments per radian of arc in geometry"
                 },
                 "scalar to adapt": {
@@ -3687,6 +3740,7 @@
                 "hessian calculator": {
                     "type": "object",
                     "description": "options to control how the Hessian is computed for the multiscale metric",
+                    "only for":["advanced"],
                     "properties": {
                         "plugin": {
                             "type": "string",
@@ -3744,11 +3798,13 @@
                 "launch refine as separate process": {
                     "type": "boolean",
                     "description": "launch refine via the inf adapt subcommand, rather that calling it in-memory.  This is essential when running with GPUs to avoid launching refine on a small subset of cores available.",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "separate process parameters": {
                     "type": "object",
                     "description": "Options that control launching external MPI applications during execution",
+                    "only for":["advanced"],
                     "properties": {
                         "mpi ranks": {
                             "type": "integer",
@@ -3882,6 +3938,7 @@
                 "redirect output to file": {
                     "type": "boolean",
                     "description": "Redirect output from the mesh adaptation plugin to log files in the history directory",
+                    "only for":["advanced"],
                     "default": false
                 },
                 "sweeps": {
@@ -3924,6 +3981,7 @@
                 "write metric": {
                     "type": "boolean",
                     "default": false,
+                    "only for":["advanced"],
                     "description": "Dump the metric for adaptation as a solb file."
                 }
             },
@@ -4124,6 +4182,7 @@
         },
         "LAURA Mesh Adaptation": {
             "type": "object",
+            "only for":["hypersolve", "vulcan", "structured-adaptation"],
             "description": "Perform structured mesh adaptation using the algorithm in the LAURA CFD code for aligning the outer boundary of the mesh with a bow shock and adjusting the boundary layer region of the mesh to a target spacing.",
             "properties": {
                 "adapt to scalar": {
@@ -4762,6 +4821,7 @@
         "Volume Debug Sample": {
             "type": "object",
             "description": "Visualization options for visualizing the full only volume cells solution.",
+            "only for":["developer"],
             "required": [
                 "type",
                 "filename"
@@ -5196,6 +5256,7 @@
             ]
         },
         "Super Ellipse Frustum Initialization Region": {
+            "only for":["advanced"],
             "type": "object",
             "required": [
                 "state",
@@ -5324,6 +5385,7 @@
             }
         },
         "Converging Diverging Nozzle Initialization Region": {
+            "only for":["advanced"],
             "type": "object",
             "required": [
                 "state",

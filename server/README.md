@@ -68,6 +68,52 @@ Server information and available endpoints.
 }
 ```
 
+### `POST /api/mesh/upload`
+Upload a mesh file for conversion.
+
+**Request:**
+- Method: `POST`
+- Content-Type: `multipart/form-data`
+- Field: `mesh` (file upload)
+
+**Supported Formats:**
+- `.meshb` - Binary mesh format
+- `.egads` - EGADS geometry
+- `.csm` - Constructive Solid Modeling
+- `.obj` - Wavefront OBJ
+- `.stl` - STereoLithography
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "sessionId": "1768761927085_1624",
+  "filename": "test.meshb",
+  "extension": "meshb",
+  "size": "26.00 B",
+  "sizeBytes": 26,
+  "path": "/tmp/vulcan/uploads/1768761927085_1624/test.meshb",
+  "message": "File uploaded successfully. Conversion pending."
+}
+```
+
+**Error Responses:**
+```json
+// 400: No file uploaded
+{"error":"No file uploaded","field":"mesh"}
+
+// 400: Unsupported format
+{"error":"Unsupported file format","extension":"txt","supported":["meshb","egads","csm","obj","stl"]}
+
+// 500: Server error
+{"error":"Failed to save file","message":"..."}
+```
+
+**Example:**
+```bash
+curl -X POST -F "mesh=@waverider.meshb" http://127.0.0.1:8080/api/mesh/upload
+```
+
 ## Development
 
 ### Project Structure

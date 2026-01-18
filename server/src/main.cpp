@@ -6,6 +6,7 @@
  */
 
 #include "httplib.h"
+#include "file_handler.hpp"
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -80,6 +81,64 @@ int main(int argc, char* argv[]) {
         res.set_content("Vulcan CFD GUI Server - Use /api/health to check status", "text/plain");
     });
     
+    // Mesh upload endpoint
+    svr.Post("/api/mesh/upload", [](const httplib::Request& req, httplib::Response& res) {
+        // Check if file was uploaded
+        if (!req.form.has_file("mesh")) {
+            res.status = 400;
+            res.set_content(R"({"error":"No file uploaded","field":"mesh"})", "application/json");
+            return;
+        }
+        
+        // Get uploaded file
+        const auto& file = req.form.get_file("mesh");
+        std::string filename = file.filename;
+        std::string content = file.content;
+        
+        // Validate file extension
+        std::string ext = vulcan::getFileExtension(filename);
+        if (!vulcan::isSupportedMeshFormat(ext)) {
+            std::ostringstream error;
+            error << R"({"error":"Unsupported file format","extension":")" << ext 
+                  << R"(","supported":["meshb","egads","csm","obj","stl"]})";
+            res.status = 400;
+            res.set_content(error.str(), "application/json");
+            return;
+        }
+        
+        // Generate session ID and save file
+        std::string sessionId = vulcan::generateSessionId();
+        std::string savedPath;
+        
+        try {
+            savedPath = vulcan::saveUploadedFile(content, filename, sessionId);
+        } catch (const std::exception& e) {
+            std::ostringstream error;
+            error << R"({"error":"Failed to save file","message":")" << e.what() << R"("})";
+            res.status = 500;
+            res.set_content(error.str(), "application/json");
+            return;
+        }
+        
+        // Build success response
+        std::ostringstream response;
+        response << "{\n"
+                 << R"(  "success": true,)" << "\n"
+                 << R"(  "sessionId": ")" << sessionId << "\",\n"
+                 << R"(  "filename": ")" << filename << "\",\n"
+                 << R"(  "extension": ")" << ext << "\",\n"
+                 << R"(  "size": ")" << vulcan::formatFileSize(content.size()) << "\",\n"
+                 << R"(  "sizeBytes": )" << content.size() << ",\n"
+                 << R"(  "path": ")" << savedPath << "\",\n"
+                 << R"(  "message": "File uploaded successfully. Conversion pending.")" << "\n"
+                 << "}";
+        
+        res.set_content(response.str(), "application/json");
+        std::cout << "[UPLOAD] " << filename << " (" << vulcan::formatFileSize(content.size()) 
+                  << ") -> Session: " << sessionId << std::endl;
+    });
+    
+    // 
     // Log server startup
     std::cout << "\n=================================================\n"
               << "  Vulcan CFD GUI Server v1.0.0\n"

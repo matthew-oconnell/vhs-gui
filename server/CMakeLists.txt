@@ -34,6 +34,7 @@ enable_testing()
 add_executable(vulcan_tests
     tests/test_main.cpp
     tests/test_server.cpp
+    tests/test_file_handler.cpp
 )
 
 target_link_libraries(vulcan_tests

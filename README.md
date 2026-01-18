@@ -72,45 +72,78 @@ A web-based graphical user interface for setting up and configuring Computationa
 
 ### Prerequisites
 
-- **Node.js 18+** and npm or yarn
+- **Node.js 18+** and npm (for building frontend)
 - **CMake 3.15+** and C++17 compiler (for backend server)
 - **Git** for version control
 
-### Installation & Running
-
-#### Option 1: Full Stack (Frontend + Backend)
-
-**1. Build and start the C++ backend server:**
+### Quick Start (Production - Single Server)
 
 ```bash
-# Build the backend
+# Build everything (React + C++)
+./build-production.sh
+
+# Run the server
+cd server/build
+./vulcan_server
+
+# Visit http://127.0.0.1:8080
+```
+
+That's it! One command, one server, one URL.
+
+### Installation & Running
+
+#### Production Mode (Recommended)
+
+```bash
+# 1. Build production bundle
+./build-production.sh
+
+# 2. Start server (serves both frontend + API on port 8080)
+cd server/build
+./vulcan_server
+
+# Open browser: http://127.0.0.1:8080
+```
+
+**What it does:**
+- Builds optimized React bundle
+- Compiles C++ server
+- Copies frontend to `server/build/public/`
+- Single server serves everything
+
+#### Development Mode
+
+When actively developing, run both servers for hot module reloading:
+
+```bash
+# Terminal 1: C++ backend (API only)
+cd server/build
+./vulcan_server
+
+# Terminal 2: Vite dev server (frontend with HMR)
+npm install
+npm run dev
+
+# Frontend: http://localhost:3000
+# Backend:  http://127.0.0.1:8080
+```
+
+**Development benefits:**
+- Instant hot reloading on code changes
+- React Fast Refresh
+- Source maps for debugging
+
+#### API-Only Mode (No Frontend)
+
+```bash
 cd server
 ./build.sh
-
-# Start the server (runs on http://127.0.0.1:8080)
 cd build
 ./vulcan_server
 ```
 
-**2. In a new terminal, start the frontend:**
-
-```bash
-npm install
-npm run dev
-```
-
-Frontend will be available at `http://localhost:3000` and will automatically connect to the backend server.
-
-#### Option 2: Frontend Only (Browser-Side Mesh Parsing)
-
-If you don't need the backend (limited to .stl and .obj formats):
-
-```bash
-npm install
-npm run dev
-```
-
-The app will automatically fall back to browser-side parsing if the backend is not available.
+Server runs on port 8080 serving only API endpoints.
 
 ### Backend Server Features
 

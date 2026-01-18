@@ -1,16 +1,21 @@
 #!/bin/bash
-# Build production version - combines React frontend + C++ backend into single server
+# Build script - combines React frontend + C++ backend into single server
+# Use this for both development and deployment
 
 set -e  # Exit on error
 
 echo "======================================"
-echo "Building Production Server"
+echo "Building Vulcan Server"
 echo "======================================"
 
 # Step 1: Build React frontend
 echo ""
 echo "Step 1: Building React frontend..."
-npm run build
+if [ ! -d "node_modules" ]; then
+    echo "Installing npm dependencies first..."
+    npm install
+fi
+npx vite build
 
 # Step 2: Build C++ backend
 echo ""
@@ -28,15 +33,21 @@ cp -r ../../../dist/* public/
 
 echo ""
 echo "======================================"
-echo "Production Build Complete!"
+echo "✅ Build Complete!"
 echo "======================================"
 echo ""
 echo "Server binary: server/build/vulcan_server"
 echo "Frontend files: server/build/public/"
 echo ""
-echo "To run production server:"
+echo "To run server:"
 echo "  cd server/build"
 echo "  ./vulcan_server"
 echo ""
 echo "Then visit: http://127.0.0.1:8080"
+echo ""
+echo "For development:"
+echo "  1. Edit React files in src/"
+echo "  2. Run: npx vite build"
+echo "  3. Run: cd server/build && ./vulcan_server"
+echo "  (No need for npm dev server!)"
 echo "======================================"

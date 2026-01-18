@@ -30,7 +30,7 @@ echo "Step 3: Copying frontend to server..."
 cd build
 rm -rf public
 mkdir -p public
-cp -r ../../dist/* public/
+cp -r ../../../dist/* public/
 
 echo ""
 echo "======================================"

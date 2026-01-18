@@ -1,25 +1,34 @@
-# ✅ Single Server Achievement Unlocked!
+# Single Server Architecture
 
-## What We Did
+## Overview
 
-**Combined two servers into ONE:**
-- ❌ Before: Vite dev server (port 3000) + C++ server (port 8080)
-- ✅ After: C++ server only (port 8080) serving both frontend + API
+The C++ server serves both the frontend (static files) and backend API on a single port, eliminating the need for separate dev servers.
 
-## How It Works
+**Architecture:**
+- **Production:** One server (port 8080) for everything
+- **Development:** Optional Vite dev server (port 5173) for hot-reload
 
-### Production Mode (ONE SERVER)
+## Quick Start
+
+### Build and Run (Automatic)
 ```bash
-./build-production.sh
-cd server/build && ./vulcan_server
-# Visit: http://127.0.0.1:8080
+./build.sh
+# Builds everything and automatically:
+# - Starts server on http://127.0.0.1:8080
+# - Opens your default browser
 ```
 
-**What happens:**
-1. Builds React → `dist/`
-2. Compiles C++ server
-3. Copies `dist/` to `server/build/public/`
-4. Server serves static files + API endpoints
+### Manual Build and Run
+```bash
+./build.sh  # Just build, don't launch
+cd src/server/build && ./vulcan_server
+```
+
+**What `build.sh` does:**
+1. Builds React frontend → `dist/`
+2. Compiles C++ server → `src/server/build/vulcan_server`
+3. Copies `dist/*` to `src/server/build/public/`
+4. Launches server and opens browser
 
 ### Server Architecture
 
@@ -27,16 +36,21 @@ cd server/build && ./vulcan_server
 // In main.cpp
 svr.set_mount_point("/", publicDir.string());  // Serve static files
 svr.set_file_request_handler([...]);           // SPA routing fallback
+Optional - Hot Reload)
 
-// Routes:
-// /                    → public/index.html
-// /assets/*            → public/assets/*  
-// /api/health          → API handler
-// /api/mesh/upload     → API handler
-// /any-spa-route       → public/index.html (SPA fallback)
+For faster frontend development with hot module reload:
+```bash
+# Terminal 1: Backend server
+cd src/server/build
+./vulcan_server
+
+# Terminal 2: Vite dev server (hot reload)
+cd src/frontend
+npm run dev
+# Visit: http://localhost:5173
 ```
 
-### Development Mode (TWO SERVERS)
+**Note:** You must configure `VITE_API_URL=http://127.0.0.1:8080` in `.env` for dev mode. Development Mode (TWO SERVERS)
 
 Still available for hot reloading:
 ```bash
@@ -49,24 +63,27 @@ npm run dev
 
 ## Benefits
 
-✅ **Simpler deployment** - One binary, one port
-✅ **No CORS issues** - Same origin for API + frontend
-✅ **Faster production** - Optimized bundle served by C++
-✅ **Single SSL cert** - Only need HTTPS on one server
-✅ **Easier firewall** - Open only port 8080
+✅ **Auto-launch** - `build.sh` opens browser automatically
 
 ## File Structure
 
 ```
-server/build/
-├── vulcan_server           # Single executable
-├── uploads/                # Mesh upload directory
-└── public/                 # React build (copied by build script)
+src/server/build/
+├── vulcan_server           # Single executable (1.8MB)
+├── uploads/                # Mesh upload directory (session-based)
+└── public/                 # React build (copied by build.sh)
     ├── index.html
     ├── assets/
-    │   ├── index-DYNVlEL8.js    (1.3MB)
-    │   └── index-DU3e6mmS.css   (40KB)
+    │   ├── index-*.js      (~1.3MB minified)
+    │   └── index-*.css     (~35KB)
     └── schemas/
+        └── input.schema.json
+
+dist/                       # Frontend build output (temporary)
+└── [copied to src/server/build/public/]
+
+src/frontend/public/schemas/
+└── input.schema.json       # Source schema (copied during
         └── input.schema.json
 
 src/frontend/public/
@@ -94,12 +111,21 @@ All working from ONE server! 🎉
 
 ## Performance
 
-| Metric | Dev (2 servers) | Prod (1 server) |
-|--------|----------------|-----------------|
-| Ports | 2 (3000, 8080) | 1 (8080) |
-| Processes | 2 | 1 |
-| Bundle | Dev build | Optimized (minified) |
-| HMR | ✅ Yes | ❌ No |
+| MImplementation Details
+
+**Server (src/server/src/main.cpp):**
+- Static file serving with SPA fallback
+- API routes on `/api/*`
+- Mesh upload handling with session management
+
+**Build System:**
+- `build.sh` - Main build script (builds + launches)
+- `src/scripts/create-distribution.sh` - Package for distribution
+- `src/scripts/rebuild-frontend.sh` - Quick frontend-only rebuild
+
+**Configuration:**
+- Production: API URL is relative (same origin)
+- Development: Set `VITE_API_URL` in `.env` for Vite dev server
 | Speed | Faster dev | Faster load |
 
 ## What Changed

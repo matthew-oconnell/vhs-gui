@@ -22,7 +22,7 @@ if [ ! -d "node_modules" ]; then
     echo "Installing npm dependencies first..."
     npm install
 fi
-npx vite build --config vite.config.ts
+npm run build
 cd ../..
 
 # Step 3: Build C++ backend

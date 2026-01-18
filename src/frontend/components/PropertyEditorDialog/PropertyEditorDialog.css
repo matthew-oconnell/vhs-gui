@@ -209,16 +209,37 @@
 .property-grid-item {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+}
+
+.property-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 32px;
 }
 
 .property-grid-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   color: #e0e0e0;
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
+  cursor: help;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 40%;
+}
+
+.property-input-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .property-grid-description {
@@ -232,11 +253,22 @@
   background: #2d2d2d;
   border: 1px solid #444;
   border-radius: 4px;
-  padding: 8px 10px;
+  padding: 6px 10px;
   color: #e0e0e0;
-  font-size: 13px;
+  font-size: 12px;
   font-family: inherit;
   transition: all 0.15s;
+  width: 100%;
+  max-width: 200px;
+}
+
+.property-grid-input[type="number"] {
+  max-width: 120px;
+}
+
+textarea.property-grid-input {
+  max-width: 100%;
+  resize: vertical;
 }
 
 .property-grid-input:focus {

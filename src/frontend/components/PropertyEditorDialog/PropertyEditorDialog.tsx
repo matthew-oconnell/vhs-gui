@@ -1,6 +1,7 @@
 import { X, Maximize2, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from '../../utils/schemaParser'
+import { isCategoryHidden } from '../../utils/featureFlags'
 import './PropertyEditorDialog.css'
 
 interface SchemaProperty {
@@ -165,6 +166,17 @@ export default function PropertyEditorDialog({
     const requiredFields = objSchema.required || []
     
     for (const [key, prop] of Object.entries(objSchema.properties)) {
+      // Skip properties that should be hidden based on global feature flags
+      if (prop['only for']) {
+        const onlyFor = Array.isArray(prop['only for']) ? prop['only for'] : [prop['only for']]
+        const otherCategories = onlyFor.filter(cat => cat !== 'advanced')
+        
+        // If property requires a category that's disabled, skip it entirely
+        if (otherCategories.length > 0 && otherCategories.some(cat => isCategoryHidden(cat))) {
+          continue
+        }
+      }
+      
       if (isPropertyPOD(prop)) {
         const isAdvanced = prop['only for'] && (
           Array.isArray(prop['only for']) 
@@ -223,125 +235,117 @@ export default function PropertyEditorDialog({
       
       return (
         <div key={key} className="property-grid-item">
-          <label className="property-grid-label">
-            {key}
-            {required && <span className="property-required-marker">*</span>}
-          </label>
-          {prop.description && (
-            <div className="property-grid-description">
-              {prop.description}
-            </div>
-          )}
-          
-          {propType === 'boolean' ? (
-            <label style={{ 
-              position: 'relative',
-              display: 'inline-block',
-              width: '50px',
-              height: '24px',
-              cursor: 'pointer'
-            }}>
-              <input 
-                type="checkbox"
-                checked={displayValue === true}
-                style={{ 
-                  position: 'absolute',
-                  opacity: 0,
-                  width: '100%',
-                  height: '100%',
-                  cursor: 'pointer',
-                  zIndex: 1
-                }}
-                onChange={(e) => {
-                  handleInputChange(key, e.target.checked)
-                  const toggle = e.target.nextElementSibling as HTMLElement
-                  const knob = toggle?.firstChild as HTMLElement
-                  if (toggle && knob) {
-                    if (e.target.checked) {
-                      toggle.style.backgroundColor = '#4da6ff'
-                      knob.style.left = '28px'
-                    } else {
-                      toggle.style.backgroundColor = '#444'
-                      knob.style.left = '4px'
-                    }
-                  }
-                }}
-              />
-              <span style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: displayValue ? '#4da6ff' : '#444',
-                borderRadius: '24px',
-                transition: 'background-color 0.2s',
-                pointerEvents: 'none'
+          <div className="property-row">
+            <label className="property-grid-label" title={prop.description}>
+              {key}
+              {required && <span className="property-required-marker">*</span>}
+            </label>
+            <div className="property-input-wrapper">
+              {propType === 'boolean' ? (
+              <label style={{ 
+                position: 'relative',
+                display: 'inline-block',
+                width: '50px',
+                height: '24px',
+                cursor: 'pointer'
               }}>
+                <input 
+                  type="checkbox"
+                  checked={displayValue === true}
+                  style={{ 
+                    position: 'absolute',
+                    opacity: 0,
+                    width: '100%',
+                    height: '100%',
+                    cursor: 'pointer',
+                    zIndex: 1
+                  }}
+                  onChange={(e) => {
+                    handleInputChange(key, e.target.checked)
+                    const toggle = e.target.nextElementSibling as HTMLElement
+                    const knob = toggle?.firstChild as HTMLElement
+                    if (toggle && knob) {
+                      if (e.target.checked) {
+                        toggle.style.backgroundColor = '#4da6ff'
+                        knob.style.left = '28px'
+                      } else {
+                        toggle.style.backgroundColor = '#444'
+                        knob.style.left = '4px'
+                      }
+                    }
+                  }}
+                />
                 <span style={{
                   position: 'absolute',
-                  content: '""',
-                  height: '18px',
-                  width: '18px',
-                  left: displayValue ? '28px' : '4px',
-                  bottom: '3px',
-                  backgroundColor: 'white',
-                  borderRadius: '50%',
-                  transition: 'left 0.2s'
-                }} />
-              </span>
-            </label>
-          ) : prop.enum ? (
-            <select 
-              className="property-grid-input"
-              value={displayValue || ''}
-              onChange={(e) => handleInputChange(key, e.target.value)}
-            >
-              <option value="">-- Select --</option>
-              {prop.enum.map((enumValue: any) => (
-                <option key={enumValue} value={enumValue}>
-                  {enumValue}
-                </option>
-              ))}
-            </select>
-          ) : propType === 'array' ? (
-            <textarea 
-              className="property-grid-input"
-              rows={3}
-              value={Array.isArray(displayValue) ? JSON.stringify(displayValue, null, 2) : '[]'}
-              onChange={(e) => {
-                try {
-                  const parsed = JSON.parse(e.target.value)
-                  handleInputChange(key, parsed)
-                } catch {
-                  // Invalid JSON, ignore
-                }
-              }}
-              placeholder="[...]"
-            />
-          ) : (
-            <input 
-              type={propType === 'integer' || propType === 'number' ? 'number' : 'text'}
-              className="property-grid-input"
-              value={displayValue !== undefined ? displayValue : ''}
-              onChange={(e) => {
-                const val = e.target.value
-                if (propType === 'integer' || propType === 'number') {
-                  handleInputChange(key, parseFloat(val))
-                } else {
-                  handleInputChange(key, val)
-                }
-              }}
-              placeholder={prop.default !== undefined ? String(prop.default) : ''}
-              step={propType === 'number' ? 'any' : undefined}
-            />
-          )}
-          
-          {prop.default !== undefined && (
-            <div className="property-grid-description">
-              Default: {String(prop.default)}
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  backgroundColor: displayValue ? '#4da6ff' : '#444',
+                  borderRadius: '24px',
+                  transition: 'background-color 0.2s',
+                  pointerEvents: 'none'
+                }}>
+                  <span style={{
+                    position: 'absolute',
+                    content: '""',
+                    height: '18px',
+                    width: '18px',
+                    left: displayValue ? '28px' : '4px',
+                    bottom: '3px',
+                    backgroundColor: 'white',
+                    borderRadius: '50%',
+                    transition: 'left 0.2s'
+                  }} />
+                </span>
+              </label>
+            ) : prop.enum ? (
+              <select 
+                className="property-grid-input"
+                value={displayValue || ''}
+                onChange={(e) => handleInputChange(key, e.target.value)}
+              >
+                <option value="">-- Select --</option>
+                {prop.enum.map((enumValue: any) => (
+                  <option key={enumValue} value={enumValue}>
+                    {enumValue}
+                  </option>
+                ))}
+              </select>
+            ) : propType === 'array' ? (
+              <textarea 
+                className="property-grid-input"
+                rows={2}
+                value={Array.isArray(displayValue) ? JSON.stringify(displayValue, null, 2) : '[]'}
+                onChange={(e) => {
+                  try {
+                    const parsed = JSON.parse(e.target.value)
+                    handleInputChange(key, parsed)
+                  } catch {
+                    // Invalid JSON, ignore
+                  }
+                }}
+                placeholder="[...]"
+              />
+            ) : (
+              <input 
+                type={propType === 'integer' || propType === 'number' ? 'number' : 'text'}
+                className="property-grid-input"
+                value={displayValue !== undefined ? displayValue : ''}
+                onChange={(e) => {
+                  const val = e.target.value
+                  if (propType === 'integer' || propType === 'number') {
+                    handleInputChange(key, parseFloat(val))
+                  } else {
+                    handleInputChange(key, val)
+                  }
+                }}
+                placeholder={prop.default !== undefined ? String(prop.default) : ''}
+                step={propType === 'number' ? 'any' : undefined}
+              />
+            )}
             </div>
-          )}
+          </div>
         </div>
       )
     }

@@ -1750,6 +1750,7 @@ function EditorPanel() {
           node={selectedNode}
           schema={schema}
           configData={configData}
+          onUpdate={updateValueAtPath}
         />
       )}
 

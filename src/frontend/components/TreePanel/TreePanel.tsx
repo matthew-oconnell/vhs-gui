@@ -13,7 +13,7 @@ function TreePanel() {
   const [schema, setSchema] = useState<any>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const { selectedNode, setSelectedNode, selectedBC, setSelectedBC, selectedState, setSelectedState, selectedViz, setSelectedViz, selectedInitRegion, setSelectedInitRegion, configData, rootSolverKey } = useAppStore()
+  const { selectedNode, setSelectedNode, selectedBC, setSelectedBC, selectedState, setSelectedState, selectedViz, setSelectedViz, selectedInitRegion, setSelectedInitRegion, configData, rootSolverKey, updateProperty } = useAppStore()
   const selectedId = selectedNode?.id || null
 
   useEffect(() => {
@@ -255,6 +255,7 @@ function TreePanel() {
           node={dialogNode}
           schema={schema}
           configData={configData}
+          onUpdate={updateProperty}
         />
       )}
       <div className="panel-header">

@@ -67,6 +67,7 @@ interface AppState {
   updateState: (id: string, updates: Partial<State>) => void
   deleteState: (id: string) => void
   updateThermodynamics: (thermoConfig: any) => void
+  updateProperty: (path: string, key: string, value: any) => void
   initializeConfig: (projectConfig: any) => void
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
 }
@@ -352,6 +353,43 @@ export const useAppStore = create<AppState>((set) => ({
         }
       })
     }
+  }),
+
+  updateProperty: (path, key, value) => set((s) => {
+    // Parse the path (e.g., "root.HyperSolve.discretization" or "root.Vulcan.discretization")
+    const parts = path.replace('root.', '').split('.')
+    
+    // Deep clone the config to avoid mutations
+    const updatedConfig = JSON.parse(JSON.stringify(s.configData))
+    
+    // Navigate to the target object
+    let current: any = updatedConfig
+    for (const part of parts) {
+      if (!current[part]) {
+        current[part] = {}
+      }
+      current = current[part]
+    }
+    
+    // Set the property
+    if (key === '') {
+      // If key is empty, replace the whole object at path
+      // Navigate to parent instead
+      const parentParts = parts.slice(0, -1)
+      const lastKey = parts[parts.length - 1]
+      let parent: any = updatedConfig
+      for (const part of parentParts) {
+        if (!parent[part]) {
+          parent[part] = {}
+        }
+        parent = parent[part]
+      }
+      parent[lastKey] = value
+    } else {
+      current[key] = value
+    }
+    
+    return { configData: updatedConfig }
   }),
   
   initializeConfig: (projectConfig) => set((s) => {

@@ -188,9 +188,78 @@ function App() {
     }
   }
 
-  const handleValidate = () => {
+  const handleValidate = async () => {
     console.log('Validate configuration')
-    // TODO: Validate configuration against schema
+    
+    const errors: ValidationErrorItem[] = []
+    
+    // Check 1: Validate against schema
+    try {
+      const schemaResponse = await fetch('/schemas/input.schema.json')
+      const schema = await schemaResponse.json()
+      
+      const configToValidate = cleanConfigForSave(configData)
+      const { valid, errors: schemaErrors } = validateAgainstSchema(schema, configToValidate)
+      
+      if (!valid && schemaErrors) {
+        console.warn('Schema validation errors:', schemaErrors.length)
+        const formattedSchemaErrors: ValidationErrorItem[] = schemaErrors.map(err => ({
+          message: err.message || 'Unknown error',
+          path: err.instancePath || undefined
+        }))
+        errors.push(...formattedSchemaErrors)
+      }
+    } catch (error) {
+      console.error('Error loading schema:', error)
+      errors.push({ message: 'Failed to load validation schema' })
+    }
+    
+    // Check 2: Ensure all mesh surfaces are assigned to boundary conditions
+    const availableSurfaces = useAppStore.getState().availableSurfaces
+    const boundaryConditions = configData.HyperSolve?.['boundary conditions'] || []
+    
+    if (availableSurfaces.length > 0) {
+      // Get all surface tags assigned to BCs
+      const assignedTags = new Set<number>()
+      boundaryConditions.forEach(bc => {
+        const tags = bc['mesh boundary tags']
+        if (tags !== undefined) {
+          if (Array.isArray(tags)) {
+            tags.forEach(tag => {
+              if (typeof tag === 'number') {
+                assignedTags.add(tag)
+              }
+            })
+          } else if (typeof tags === 'number') {
+            assignedTags.add(tags)
+          }
+        }
+      })
+      
+      // Find unassigned surfaces
+      const unassignedSurfaces = availableSurfaces.filter(
+        surface => !assignedTags.has(surface.metadata.tag)
+      )
+      
+      if (unassignedSurfaces.length > 0) {
+        const surfaceNames = unassignedSurfaces.map(s => s.name).join(', ')
+        errors.push({
+          message: `Unassigned mesh surfaces: ${surfaceNames}. All surfaces must be assigned to boundary conditions.`,
+          path: 'HyperSolve.boundary conditions'
+        })
+      }
+    }
+    
+    // Show results
+    if (errors.length > 0) {
+      setValidationErrors(errors)
+      setShowValidationErrors(true)
+      console.warn(`Validation failed with ${errors.length} error(s)`)
+    } else {
+      // Show success notification
+      console.log('✅ Validation passed - configuration is valid')
+      alert('✅ Validation passed!\n\nAll checks completed successfully.')
+    }
   }
 
   const handleExit = () => {

@@ -8,9 +8,6 @@ import Ajv, { ErrorObject } from 'ajv';
  * @returns A cleaned schema with non-standard keywords removed
  */
 const sanitizeSchema = (schema: Record<string, any>): Record<string, any> => {
-  // Clone the schema to avoid modifying the original
-  const result = { ...schema };
-  
   // List of non-standard keywords to remove
   const nonStandardKeywords = [
     'only for',
@@ -55,7 +52,8 @@ const sanitizeSchema = (schema: Record<string, any>): Record<string, any> => {
     return result;
   };
   
-  // Process the root schema
+  // Deep clone and process the schema
+  const result = JSON.parse(JSON.stringify(schema));
   return processObject(result);
 };
 

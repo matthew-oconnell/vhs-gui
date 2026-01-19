@@ -111,9 +111,10 @@ function App() {
         const currentSurfaces = useAppStore.getState().availableSurfaces
         console.log('[App] Transforming config with surfaces:', currentSurfaces.length)
         console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces)
+        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
         setConfigData(transformedConfig)
-        console.log('[App] Transformed BCs:', transformedConfig.HyperSolve?.['boundary conditions'])
+        console.log('[App] Transformed BCs:', (transformedConfig as any)[rootKey]?.['boundary conditions'])
         console.log('Configuration loaded successfully')
       } else {
         console.log('[App] Config transformation deferred until after lump dialog')
@@ -137,8 +138,10 @@ function App() {
     
     // Remove 'id' and 'name' from boundary conditions
     // Convert mesh boundary tags from numbers to surface names
-    if (cleaned.HyperSolve?.['boundary conditions']) {
-      cleaned.HyperSolve['boundary conditions'] = cleaned.HyperSolve['boundary conditions'].map((bc: any) => {
+    const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+    const rootConfig = (cleaned as any)[rootKey]
+    if (rootConfig?.['boundary conditions']) {
+      rootConfig['boundary conditions'] = rootConfig['boundary conditions'].map((bc: any) => {
         const { id, name, ...bcClean } = bc
         
         // Convert mesh boundary tags to surface names
@@ -159,9 +162,9 @@ function App() {
     }
     
     // Remove 'id' and 'name' from states if they have them
-    if (cleaned.HyperSolve?.states && typeof cleaned.HyperSolve.states === 'object') {
+    if (rootConfig?.states && typeof rootConfig.states === 'object') {
       const cleanedStates: any = {}
-      Object.entries(cleaned.HyperSolve.states).forEach(([key, value]: [string, any]) => {
+      Object.entries(rootConfig.states).forEach(([key, value]: [string, any]) => {
         if (value && typeof value === 'object') {
           const { id, name, ...stateClean } = value as any
           cleanedStates[key] = stateClean
@@ -169,7 +172,7 @@ function App() {
           cleanedStates[key] = value
         }
       })
-      cleaned.HyperSolve.states = cleanedStates
+      rootConfig.states = cleanedStates
     }
     
     return cleaned
@@ -178,8 +181,10 @@ function App() {
   const handleSave = async () => {
     console.log('Save file')
     console.log('Current config:', configData)
-    console.log('Boundary conditions:', configData.HyperSolve?.['boundary conditions'])
-    console.log('Num BCs:', configData.HyperSolve?.['boundary conditions']?.length || 0)
+    const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    console.log('Boundary conditions:', rootConfig?.['boundary conditions'])
+    console.log('Num BCs:', rootConfig?.['boundary conditions']?.length || 0)
     
     const configToSave = cleanConfigForSave(configData)
     
@@ -238,7 +243,9 @@ function App() {
     
     // Check 2: Ensure all mesh surfaces are assigned to boundary conditions
     const availableSurfaces = useAppStore.getState().availableSurfaces
-    const boundaryConditions = configData.HyperSolve?.['boundary conditions'] || []
+    const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    const boundaryConditions = rootConfig?.['boundary conditions'] || []
     
     if (availableSurfaces.length > 0) {
       // Get all surface tags assigned to BCs
@@ -267,7 +274,7 @@ function App() {
         const surfaceNames = unassignedSurfaces.map(s => s.name).join(', ')
         errors.push({
           message: `Unassigned mesh surfaces: ${surfaceNames}. All surfaces must be assigned to boundary conditions.`,
-          path: 'HyperSolve.boundary conditions'
+          path: `${rootKey}.boundary conditions`
         })
       }
     }
@@ -346,9 +353,10 @@ function App() {
         const currentSurfaces = useAppStore.getState().availableSurfaces
         console.log('[App] Available surfaces after mesh load:', currentSurfaces.length)
         console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces)
+        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces, rootKey)
         setConfigData(transformedConfig)
-        console.log('[App] Configuration set with BCs:', transformedConfig.HyperSolve?.['boundary conditions'])
+        console.log('[App] Configuration set with BCs:', (transformedConfig as any)[rootKey]?.['boundary conditions'])
         setPendingConfig(null)
       }
     }
@@ -381,7 +389,11 @@ function App() {
             
             {/* Editor Panel - Middle */}
             <Panel defaultSize={34} minSize={15}>
-              <EditorPanel key={JSON.stringify(configData.HyperSolve?.thermodynamics || configData.Vulcan?.thermodynamics)} />
+              <EditorPanel key={(() => {
+                const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+                const rootConfig = (configData as any)[rootKey]
+                return JSON.stringify(rootConfig?.thermodynamics)
+              })()} />
             </Panel>
             
             {/* Vertical Resize Handle */}

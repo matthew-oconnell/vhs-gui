@@ -285,7 +285,7 @@ function ClickableSurface({
 }
 
 function InitializationRegionCylinder({ region, isSelected, regionIndex, controlsRef }: { region: any; isSelected: boolean; regionIndex: number; controlsRef: React.RefObject<any> }) {
-  const { configData, setConfigData } = useAppStore()
+  const { configData, setConfigData, rootSolverKey } = useAppStore()
   const { gl, raycaster, camera } = useThree()
   const [hoveredPoint, setHoveredPoint] = useState<string | null>(null)
   const [draggingPoint, setDraggingPoint] = useState<string | null>(null)
@@ -483,19 +483,22 @@ function InitializationRegionCylinder({ region, isSelected, regionIndex, control
       }
       
       // Apply updates
-      if (Object.keys(updates).length > 0 && configData.HyperSolve?.['initialization regions']) {
-        const updatedRegions = [...configData.HyperSolve['initialization regions']]
+      const rootKey = rootSolverKey || 'HyperSolve'
+      const rootConfig = (configData as any)[rootKey]
+      if (Object.keys(updates).length > 0 && rootConfig?.['initialization regions']) {
+        const updatedRegions = [...rootConfig['initialization regions']]
         updatedRegions[regionIndex] = {
           ...region,
           ...updates
         }
-        setConfigData({
+        const updatedConfig = {
           ...configData,
-          HyperSolve: {
-            ...configData.HyperSolve,
+          [rootKey]: {
+            ...rootConfig,
             'initialization regions': updatedRegions
           }
-        })
+        }
+        setConfigData(updatedConfig)
       }
     }
     
@@ -1091,7 +1094,7 @@ function VisualizationLine({ viz, isSelected, vizIndex, controlsRef }: { viz: an
 
 function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surface: Surface) => void }) {
   const { scene, gl } = useThree()
-  const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData } = useAppStore()
+  const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData, rootSolverKey } = useAppStore()
   const controlsRef = useRef<any>(null)
   const isDraggingCamera = useRef(false)
   
@@ -1191,7 +1194,11 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
       })}
 
       {/* Render initialization regions */}
-      {configData.HyperSolve?.['initialization regions'] && configData.HyperSolve['initialization regions'].map((region: any, index: number) => {
+      {(() => {
+        // Use the rootSolverKey from the hook (already destructured above)
+        const effectiveRootKey = rootSolverKey || 'HyperSolve'
+        const rootConfig = (configData as any)[effectiveRootKey]
+        return rootConfig?.['initialization regions']?.map((region: any, index: number) => {
         const isSelected = selectedInitRegion ? selectedInitRegion.index === index : false
         
         // Only render if selected
@@ -1201,7 +1208,8 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
           return <InitializationRegionCylinder key={`init-region-cylinder-${index}`} region={region} isSelected={isSelected} regionIndex={index} controlsRef={controlsRef} />
         }
         return null
-      })}
+      })
+      })()}
 
       {/* Ground grid */}
       <Grid
@@ -1256,7 +1264,8 @@ function Viewport3D() {
     toggleSurfaceVisibility,
     surfaceVisibility,
     selectedInitRegion,
-    selectedViz
+    selectedViz,
+    rootSolverKey
   } = useAppStore()
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -1325,7 +1334,9 @@ function Viewport3D() {
   }, [surfaceVisibility, contextMenu])
   
   const findBCForSurface = (surface: Surface): BoundaryCondition | null => {
-    const bcs = configData.HyperSolve?.['boundary conditions'] || []
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    const bcs = rootConfig?.['boundary conditions'] || []
     return bcs.find(bc => {
       const tags = bc['mesh boundary tags']
       const surfaceTag = surface.metadata.tag
@@ -1535,7 +1546,9 @@ function Viewport3D() {
                   </div>
                 )}
                 {(() => {
-                  const bcs = configData.HyperSolve?.['boundary conditions'] || []
+                  const rootKey = rootSolverKey || 'HyperSolve'
+                  const rootConfig = (configData as any)[rootKey]
+                  const bcs = rootConfig?.['boundary conditions'] || []
                   const associatedBC = bcs.find(bc => {
                     const tags = bc['mesh boundary tags']
                     const surfaceTag = selectedSurface.metadata.tag
@@ -1571,7 +1584,9 @@ function Viewport3D() {
         
         {/* Context menu */}
         {contextMenu && (() => {
-          const hasBCs = configData?.HyperSolve?.['boundary conditions']?.length > 0
+          const rootKey = rootSolverKey || 'HyperSolve'
+          const rootConfig = (configData as any)[rootKey]
+          const hasBCs = rootConfig?.['boundary conditions']?.length > 0
           const hasVisualizations = false // TODO: Check when visualizations are implemented
           
           return (

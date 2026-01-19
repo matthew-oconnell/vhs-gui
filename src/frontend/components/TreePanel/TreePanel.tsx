@@ -13,7 +13,7 @@ function TreePanel() {
   const [schema, setSchema] = useState<any>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const { selectedNode, setSelectedNode, selectedBC, setSelectedBC, selectedState, setSelectedState, selectedViz, setSelectedViz, selectedInitRegion, setSelectedInitRegion, configData } = useAppStore()
+  const { selectedNode, setSelectedNode, selectedBC, setSelectedBC, selectedState, setSelectedState, selectedViz, setSelectedViz, selectedInitRegion, setSelectedInitRegion, configData, rootSolverKey } = useAppStore()
   const selectedId = selectedNode?.id || null
 
   useEffect(() => {
@@ -67,10 +67,14 @@ function TreePanel() {
 
   // Enhance tree nodes with actual data instances
   const enhanceTreeWithData = (nodes: TreeNode[]): TreeNode[] => {
+    // Use the rootSolverKey from the hook (already destructured above)
+    const effectiveRootKey = rootSolverKey || 'HyperSolve'
+    
     return nodes.map(node => {
       // Check if this is the boundary conditions array
-      if (node.id === 'root.HyperSolve.boundary conditions' && node.type === 'array') {
-        const bcs = configData.HyperSolve?.['boundary conditions'] || []
+      if (node.id === `root.${effectiveRootKey}.boundary conditions` && node.type === 'array') {
+        const rootConfig = (configData as any)[effectiveRootKey]
+        const bcs = rootConfig?.['boundary conditions'] || []
         
         // Create child nodes for each BC instance
         const bcNodes: TreeNode[] = bcs.map((bc, index) => ({
@@ -90,9 +94,8 @@ function TreePanel() {
       }
       
       // Check if this is the states object
-      const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-      if (node.id === `root.${rootKey}.states` && node.type === 'object') {
-        const rootConfig = (configData as any)[rootKey] || {}
+      if (node.id === `root.${effectiveRootKey}.states` && node.type === 'object') {
+        const rootConfig = (configData as any)[effectiveRootKey] || {}
         const states = rootConfig.states || {}
         const stateEntries = Object.values(states)
         
@@ -136,8 +139,9 @@ function TreePanel() {
       }
 
       // Check if this is the initialization regions array
-      if (node.id === 'root.HyperSolve.initialization regions' && node.type === 'array') {
-        const initRegions = configData.HyperSolve?.['initialization regions'] || []
+      if (node.id === `root.${effectiveRootKey}.initialization regions` && node.type === 'array') {
+        const rootConfig = (configData as any)[effectiveRootKey]
+        const initRegions = rootConfig?.['initialization regions'] || []
         
         // Create child nodes for each initialization region instance
         const initRegionNodes: TreeNode[] = initRegions.map((region: any, index: number) => ({
@@ -205,9 +209,10 @@ function TreePanel() {
             onDoubleClick={() => {
               // Open property dialog on double-click for object nodes (not BC/State/Viz/InitRegion instances)
               // Skip thermodynamics - use the wizard instead (property editor causes grey screen)
-              const isThermoNode = node.id === 'root.HyperSolve.thermodynamics' || 
+              const effectiveKey = rootSolverKey || 'HyperSolve'
+              const isThermoNode = node.id === `root.${effectiveKey}.thermodynamics` || 
                                   (node.id && node.id.endsWith('.thermodynamics')) ||
-                                  node.path === 'HyperSolve.thermodynamics'
+                                  node.path === `${effectiveKey}.thermodynamics`
               if (!isBCNode && !isStateNode && !isVizNode && !isInitRegionNode && !isThermoNode && node.type === 'object') {
                 setDialogNode(node)
                 setShowPropertyDialog(true)

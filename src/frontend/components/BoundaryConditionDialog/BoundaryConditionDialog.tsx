@@ -83,7 +83,8 @@ export default function BoundaryConditionDialog({
     configData, 
     addBoundaryCondition, 
     setSelectedBC,
-    addState
+    addState,
+    rootSolverKey
   } = useAppStore()
 
   const [bcName, setBcName] = useState('')
@@ -98,7 +99,9 @@ export default function BoundaryConditionDialog({
 
   // Get list of unassigned surfaces
   const getUnassignedSurfaces = (): Surface[] => {
-    const bcs = configData.HyperSolve?.['boundary conditions'] || []
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    const bcs = rootConfig?.['boundary conditions'] || []
     const assignedTags = new Set<number>()
     
     bcs.forEach(bc => {
@@ -136,7 +139,7 @@ export default function BoundaryConditionDialog({
     })
     })
   }, [])
-  const rootSolverKey = useAppStore(state => state.rootSolverKey)
+  
   const rootKey = rootSolverKey || 'HyperSolve'
   const rootConfig = (configData as any)[rootKey] || {}
   const availableStates = Object.keys(rootConfig.states || {})

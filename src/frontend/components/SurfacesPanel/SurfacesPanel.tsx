@@ -10,7 +10,8 @@ function SurfacesPanel() {
     toggleSurfaceVisibility,
     surfaceRenderSettings,
     updateSurfaceRenderSettings,
-    configData
+    configData,
+    rootSolverKey
   } = useAppStore()
   
   const [expandedSurfaces, setExpandedSurfaces] = useState<Set<string>>(new Set())
@@ -53,7 +54,9 @@ function SurfacesPanel() {
               const settings = getDefaultSettings(surface.id)
               
               // Find associated BC
-              const associatedBC = configData.HyperSolve?.['boundary conditions']?.find(bc => {
+              const rootKey = rootSolverKey || 'HyperSolve'
+              const rootConfig = (configData as any)[rootKey]
+              const associatedBC = rootConfig?.['boundary conditions']?.find(bc => {
                 const tags = bc['mesh boundary tags']
                 const surfaceTag = surface.metadata.tag
                 

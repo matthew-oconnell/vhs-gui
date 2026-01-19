@@ -454,7 +454,9 @@ function EditorPanel() {
   }
 
   const renderBCArrayEditor = () => {
-    const bcs = configData.HyperSolve?.['boundary conditions'] || []
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    const bcs = rootConfig?.['boundary conditions'] || []
     
     const handleAddBC = () => {
       setShowBCDialog(true)
@@ -957,7 +959,9 @@ function EditorPanel() {
   }
 
   const renderInitializationRegionArrayEditor = () => {
-    const initRegions = configData.HyperSolve?.['initialization regions'] || []
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    const initRegions = rootConfig?.['initialization regions'] || []
     
     const handleAddInitRegion = () => {
       setShowInitRegionDialog(true)
@@ -999,23 +1003,27 @@ function EditorPanel() {
     
     const handleUpdate = (updates: any) => {
       const updatedConfig = { ...configData }
-      if (!updatedConfig.HyperSolve?.['initialization regions']) return
+      const rootKey = rootSolverKey || 'HyperSolve'
+      const rootConfig = (updatedConfig as any)[rootKey]
+      if (!rootConfig?.['initialization regions']) return
       
-      updatedConfig.HyperSolve['initialization regions'][regionIndex] = {
-        ...updatedConfig.HyperSolve['initialization regions'][regionIndex],
+      rootConfig['initialization regions'][regionIndex] = {
+        ...rootConfig['initialization regions'][regionIndex],
         ...updates
       }
       setConfigData(updatedConfig)
       
       // Update the selected region reference
-      setSelectedInitRegion({ data: updatedConfig.HyperSolve['initialization regions'][regionIndex], index: regionIndex })
+      setSelectedInitRegion({ data: rootConfig['initialization regions'][regionIndex], index: regionIndex })
     }
     
     const handleDelete = () => {
       const updatedConfig = { ...configData }
-      if (!updatedConfig.HyperSolve?.['initialization regions']) return
+      const rootKey = rootSolverKey || 'HyperSolve'
+      const rootConfig = (updatedConfig as any)[rootKey]
+      if (!rootConfig?.['initialization regions']) return
       
-      updatedConfig.HyperSolve['initialization regions'].splice(regionIndex, 1)
+      rootConfig['initialization regions'].splice(regionIndex, 1)
       setConfigData(updatedConfig)
       setSelectedInitRegion(null)
     }
@@ -1451,12 +1459,13 @@ function EditorPanel() {
       return renderBCEditor()
     }
     if (selectedNode) {
+      const rootKey = rootSolverKey || 'HyperSolve'
       // Check if this is the boundary conditions array node
-      if (selectedNode.id === 'root.HyperSolve.boundary conditions') {
+      if (selectedNode.id === `root.${rootKey}.boundary conditions`) {
         return renderBCArrayEditor()
       }
       // Check if this is the states object node
-      if (selectedNode.id === 'root.HyperSolve.states' || (selectedNode.id && selectedNode.id.endsWith('.states')) || selectedNode.path === 'HyperSolve.states') {
+      if (selectedNode.id === `root.${rootKey}.states` || (selectedNode.id && selectedNode.id.endsWith('.states')) || selectedNode.path === `${rootKey}.states`) {
         return renderStatesObjectEditor()
       }
       // Check if this is the visualization array node
@@ -1464,7 +1473,7 @@ function EditorPanel() {
         return renderVisualizationArrayEditor()
       }
       // Check if this is the initialization regions array node
-      if (selectedNode.id === 'root.HyperSolve.initialization regions') {
+      if (selectedNode.id === `root.${rootKey}.initialization regions`) {
         return renderInitializationRegionArrayEditor()
       }
       return renderNodeEditor()
@@ -1480,9 +1489,10 @@ function EditorPanel() {
     if (!selectedNode) return null
 
     // Check if this is the thermodynamics node
-    const isThermoNode = selectedNode.id === 'root.HyperSolve.thermodynamics' || 
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const isThermoNode = selectedNode.id === `root.${rootKey}.thermodynamics` || 
                         (selectedNode.id && selectedNode.id.endsWith('.thermodynamics')) ||
-                        selectedNode.path === 'HyperSolve.thermodynamics'
+                        selectedNode.path === `${rootKey}.thermodynamics`
 
     return (
       <div className="editor-content">

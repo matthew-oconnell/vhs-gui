@@ -240,17 +240,19 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
 
     // Add initialization region to the config
     const updatedConfig = { ...configData }
-    if (!updatedConfig.HyperSolve) {
-      updatedConfig.HyperSolve = { 'boundary conditions': [], states: {} }
+    const rootKey = rootSolverKey || 'HyperSolve'
+    if (!(updatedConfig as any)[rootKey]) {
+      (updatedConfig as any)[rootKey] = { 'boundary conditions': [], states: {} }
     }
-    if (!updatedConfig.HyperSolve['initialization regions']) {
-      updatedConfig.HyperSolve['initialization regions'] = []
+    const rootConfig = (updatedConfig as any)[rootKey]
+    if (!rootConfig['initialization regions']) {
+      rootConfig['initialization regions'] = []
     }
-    updatedConfig.HyperSolve['initialization regions'].push(newRegion)
+    rootConfig['initialization regions'].push(newRegion)
     setConfigData(updatedConfig)
 
     // Select the newly created region
-    const newIndex = updatedConfig.HyperSolve['initialization regions'].length - 1
+    const newIndex = rootConfig['initialization regions'].length - 1
     setSelectedInitRegion({ data: newRegion, index: newIndex })
 
     onClose()

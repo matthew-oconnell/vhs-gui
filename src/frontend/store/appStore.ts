@@ -221,7 +221,9 @@ export const useAppStore = create<AppState>((set) => ({
   addState: (state) => set((s) => {
     const rootKey = s.rootSolverKey || 'HyperSolve'
     const rootConfig = (s.configData as any)[rootKey] || {}
-    return {
+    console.log('[addState] Adding state:', state.name, 'to', rootKey)
+    console.log('[addState] Current states:', Object.keys(rootConfig.states || {}))
+    const newConfig = {
       configData: {
         ...s.configData,
         [rootKey]: {
@@ -237,6 +239,8 @@ export const useAppStore = create<AppState>((set) => ({
       selectedSurface: null,
       selectedBC: null
     }
+    console.log('[addState] New states:', Object.keys((newConfig.configData as any)[rootKey]?.states || {}))
+    return newConfig
   }),
   
   updateState: (id, updates) => set((s) => {

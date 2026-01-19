@@ -33,7 +33,7 @@ interface InitializationRegionDialogProps {
 }
 
 export default function InitializationRegionDialog({ isOpen, onClose }: InitializationRegionDialogProps) {
-  const { configData, setConfigData, availableSurfaces, setSelectedInitRegion, addState } = useAppStore()
+  const { configData, setConfigData, availableSurfaces, setSelectedInitRegion, addState, rootSolverKey } = useAppStore()
 
   const [regionType, setRegionType] = useState('box')
   const [stateName, setStateName] = useState('')
@@ -93,8 +93,10 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
 
   // Get available states from configData
   const getAvailableStates = (): string[] => {
-    if (!configData?.HyperSolve?.states) return []
-    return Object.keys(configData.HyperSolve.states)
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    if (!rootConfig?.states) return []
+    return Object.keys(rootConfig.states)
   }
 
   // Reset form when dialog opens

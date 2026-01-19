@@ -114,6 +114,7 @@ function EditorPanel() {
     setSoloBC,
     configData,
     setConfigData,
+    rootSolverKey,
     availableSurfaces,
     addBoundaryCondition, 
     updateBoundaryCondition,
@@ -429,9 +430,13 @@ function EditorPanel() {
               >
                 <option value="">Select state...</option>
                 <option value="__CREATE_NEW__">Create New State...</option>
-                {Object.keys(configData.HyperSolve?.states || {}).map((stateName) => (
-                  <option key={stateName} value={stateName}>{stateName}</option>
-                ))}
+                {(() => {
+                  const rootKey = rootSolverKey || 'HyperSolve'
+                  const rootConfig = (configData as any)[rootKey] || {}
+                  return Object.keys(rootConfig.states || {}).map((stateName) => (
+                    <option key={stateName} value={stateName}>{stateName}</option>
+                  ))
+                })()}
               </select>
               <span className="default-hint">Reference to a defined state</span>
             </div>
@@ -580,7 +585,9 @@ function EditorPanel() {
   }
 
   const renderStatesObjectEditor = () => {
-    const states = Object.values(configData.HyperSolve?.states || {})
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey] || {}
+    const states = Object.values(rootConfig.states || {})
     
     return (
       <div className="editor-content">

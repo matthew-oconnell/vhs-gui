@@ -136,7 +136,10 @@ export default function BoundaryConditionDialog({
     })
     })
   }, [])
-  const availableStates = Object.keys(configData.HyperSolve?.states || {})
+  const rootSolverKey = useAppStore(state => state.rootSolverKey)
+  const rootKey = rootSolverKey || 'HyperSolve'
+  const rootConfig = (configData as any)[rootKey] || {}
+  const availableStates = Object.keys(rootConfig.states || {})
 
   // Initialize with the surface that was right-clicked
   useEffect(() => {
@@ -163,7 +166,13 @@ export default function BoundaryConditionDialog({
   }
 
   const handleCreateState = (state: State) => {
+    console.log('[BoundaryConditionDialog] Creating state:', state)
     addState(state)
+    const storeState = useAppStore.getState()
+    const rootKey = storeState.rootSolverKey || 'HyperSolve'
+    const rootConfig = (storeState.configData as any)[rootKey] || {}
+    console.log('[BoundaryConditionDialog] State added, current configData:', storeState.configData)
+    console.log('[BoundaryConditionDialog] States in config:', Object.keys(rootConfig.states || {}))
     setStateName(state.name)
     setShowStateWizard(false)
   }

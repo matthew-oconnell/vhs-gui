@@ -90,8 +90,10 @@ function TreePanel() {
       }
       
       // Check if this is the states object
-      if (node.id === 'root.HyperSolve.states' && node.type === 'object') {
-        const states = configData.HyperSolve?.states || {}
+      const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+      if (node.id === `root.${rootKey}.states` && node.type === 'object') {
+        const rootConfig = (configData as any)[rootKey] || {}
+        const states = rootConfig.states || {}
         const stateEntries = Object.values(states)
         
         // Create child nodes for each state instance

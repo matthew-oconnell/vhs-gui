@@ -8,6 +8,8 @@ import PropertyEditorDialog from '../PropertyEditorDialog/PropertyEditorDialog'
 import VisualizationDialog from '../VisualizationDialog/VisualizationDialog'
 import InitializationRegionDialog from '../InitializationRegionDialog/InitializationRegionDialog'
 import ThermodynamicsWizard from './ThermodynamicsWizard'
+import ArrayEditor from '../ArrayEditor/ArrayEditor'
+import MapEditor from '../MapEditor/MapEditor'
 import { loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
 import { calculateAreaWeightedNormal } from '../../utils/surfaceUtils'
 import './EditorPanel.css'
@@ -268,6 +270,21 @@ function EditorPanel() {
     }
     
     return podProps
+  }
+  
+  // Check if a property is a simple map (object with string keys to POD values)
+  const isSimpleMap = (prop: SchemaProperty): { isMap: boolean, valueType?: string } => {
+    // Check for object type with additionalProperties defining value type
+    if (prop.type === 'object' && (prop as any).additionalProperties) {
+      const additionalProps = (prop as any).additionalProperties
+      if (typeof additionalProps === 'object' && additionalProps.type) {
+        const valueType = additionalProps.type
+        if (isPODType(valueType)) {
+          return { isMap: true, valueType: valueType as string }
+        }
+      }
+    }
+    return { isMap: false }
   }
 
   const renderBCEditor = () => {
@@ -1496,8 +1513,25 @@ function EditorPanel() {
 
           {selectedNode.type === 'object' && (() => {
             const objSchema = getSchemaForPath(selectedNode.id)
-            const podProps = getPODProperties(objSchema)
             const objValue = getValueFromPath(selectedNode.id) || {}
+            
+            // Check if this is a simple map (object with arbitrary keys -> POD values)
+            const mapInfo = isSimpleMap(objSchema || {})
+            if (mapInfo.isMap && mapInfo.valueType) {
+              return (
+                <MapEditor
+                  value={objValue}
+                  onChange={(newValue) => updateValueAtPath(selectedNode.id, '', newValue)}
+                  valueType={mapInfo.valueType as 'string' | 'number' | 'integer' | 'boolean'}
+                  label={selectedNode.label}
+                  keyPlaceholder="key"
+                  valuePlaceholder={`value (${mapInfo.valueType})`}
+                />
+              )
+            }
+            
+            // Otherwise handle as object with known POD properties
+            const podProps = getPODProperties(objSchema)
             
             if (podProps.length === 0) {
               return (
@@ -1599,21 +1633,41 @@ function EditorPanel() {
                           ))}
                         </select>
                       ) : propType === 'array' ? (
-                        <textarea 
-                          className="form-input"
-                          rows={2}
-                          value={Array.isArray(displayValue) ? JSON.stringify(displayValue) : '[]'}
-                          onChange={(e) => {
-                            try {
-                              const parsed = JSON.parse(e.target.value)
-                              updateValueAtPath(selectedNode.id, key, parsed)
-                            } catch (err) {
-                              // Invalid JSON - don't update yet
-                            }
-                          }}
-                          placeholder="[...]"
-                          style={{ width: '100%', fontSize: '12px' }}
-                        />
+                        // Check if it's a simple array (POD items)
+                        (() => {
+                          const itemType = prop.items?.type
+                          const isSimpleArray = itemType && isPODType(itemType)
+                          
+                          if (isSimpleArray && Array.isArray(displayValue)) {
+                            return (
+                              <ArrayEditor
+                                value={displayValue}
+                                onChange={(newValue) => updateValueAtPath(selectedNode.id, key, newValue)}
+                                itemType={itemType as 'string' | 'number' | 'integer' | 'boolean'}
+                                placeholder={`Enter ${itemType}`}
+                              />
+                            )
+                          }
+                          
+                          // Fallback to textarea for complex arrays
+                          return (
+                            <textarea 
+                              className="form-input"
+                              rows={2}
+                              value={Array.isArray(displayValue) ? JSON.stringify(displayValue) : '[]'}
+                              onChange={(e) => {
+                                try {
+                                  const parsed = JSON.parse(e.target.value)
+                                  updateValueAtPath(selectedNode.id, key, parsed)
+                                } catch (err) {
+                                  // Invalid JSON - don't update yet
+                                }
+                              }}
+                              placeholder="[...]"
+                              style={{ width: '100%', fontSize: '12px' }}
+                            />
+                          )
+                        })()
                       ) : (
                         <input 
                           type={propType === 'integer' || propType === 'number' ? 'number' : 'text'}

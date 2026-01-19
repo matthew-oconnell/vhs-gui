@@ -1,0 +1,117 @@
+.map-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.map-editor-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #cccccc;
+  margin-bottom: 4px;
+}
+
+.map-editor-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-editor-item {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.map-editor-key {
+  flex: 1;
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.map-editor-key:focus {
+  outline: none;
+  border-color: #007acc;
+  background-color: #3c3c3c;
+}
+
+.map-editor-separator {
+  color: #858585;
+  font-size: 13px;
+  user-select: none;
+}
+
+.map-editor-value {
+  flex: 1.5;
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #3c3c3c;
+  border-radius: 2px;
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+.map-editor-value:focus {
+  outline: none;
+  border-color: #007acc;
+  background-color: #3c3c3c;
+}
+
+.map-editor-key:disabled,
+.map-editor-value:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.map-editor-delete {
+  background-color: transparent;
+  color: #cccccc;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-editor-delete:hover {
+  background-color: #3e3e42;
+  color: #ffffff;
+}
+
+.map-editor-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.map-editor-add {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: #0e639c;
+  color: #ffffff;
+  border: none;
+  border-radius: 3px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  margin-top: 4px;
+}
+
+.map-editor-add:hover {
+  background-color: #1177bb;
+}
+
+.map-editor-add:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}

@@ -4,6 +4,11 @@ import { Surface } from '../types/surface'
 import { ConfigData, BoundaryCondition, State } from '../types/config'
 import { ParsedMesh, RegionData } from '../utils/meshParser'
 
+// Helper to ensure deep immutable updates
+const updateConfig = (oldConfig: ConfigData, updates: Partial<ConfigData>): ConfigData => {
+  return JSON.parse(JSON.stringify({ ...oldConfig, ...updates }))
+}
+
 export interface CameraSettings {
   rotateSpeed: number
   zoomSpeed: number
@@ -40,6 +45,8 @@ interface AppState {
   setSoloBC: (bc: BoundaryCondition | null) => void
   configData: ConfigData
   setConfigData: (configData: ConfigData) => void
+  rootSolverKey: string | null
+  setRootSolverKey: (key: string | null) => void
   availableSurfaces: Surface[]
   totalVertices: number
   totalFaces: number
@@ -89,6 +96,10 @@ export const useAppStore = create<AppState>((set) => ({
   },
   
   setConfigData: (configData) => set({ configData }),
+  
+  // Root solver key from schema (e.g., 'Vulcan' or 'HyperSolve')
+  rootSolverKey: null,
+  setRootSolverKey: (key) => set({ rootSolverKey: key }),
   
   availableSurfaces: [],
   totalVertices: 0,
@@ -150,74 +161,92 @@ export const useAppStore = create<AppState>((set) => ({
     }
   })),
   
-  addBoundaryCondition: (bc) => set((state) => ({
-    configData: {
-      ...state.configData,
-      HyperSolve: {
-        ...state.configData.HyperSolve,
-        'boundary conditions': [
-          ...(state.configData.HyperSolve?.['boundary conditions'] || []),
-          bc
-        ]
-      }
-    },
-    selectedBC: bc,
-    selectedNode: null,
-    selectedSurface: null
-  })),
-  
-  updateBoundaryCondition: (id, updates) => set((state) => ({
-    configData: {
-      ...state.configData,
-      HyperSolve: {
-        ...state.configData.HyperSolve,
-        'boundary conditions': state.configData.HyperSolve?.['boundary conditions']?.map(bc =>
-          bc.id === id ? { ...bc, ...updates } : bc
-        ) || []
-      }
-    },
-    // Update selectedBC if it's the one being modified
-    selectedBC: state.selectedBC?.id === id 
-      ? { ...state.selectedBC, ...updates }
-      : state.selectedBC
-  })),
-  
-  deleteBoundaryCondition: (id) => set((state) => ({
-    configData: {
-      ...state.configData,
-      HyperSolve: {
-        ...state.configData.HyperSolve,
-        'boundary conditions': state.configData.HyperSolve?.['boundary conditions']?.filter(bc =>
-          bc.id !== id
-        ) || []
-      }
-    },
-    selectedBC: state.selectedBC?.id === id ? null : state.selectedBC
-  })),
-  
-  addState: (state) => set((s) => ({
-    configData: {
-      ...s.configData,
-      HyperSolve: {
-        ...s.configData.HyperSolve,
-        states: {
-          ...(s.configData.HyperSolve?.states || {}),
-          [state.name]: state
+  addBoundaryCondition: (bc) => set((state) => {
+    const rootKey = state.rootSolverKey || 'HyperSolve'
+    const rootConfig = (state.configData as any)[rootKey] || {}
+    return {
+      configData: {
+        ...state.configData,
+        [rootKey]: {
+          ...rootConfig,
+          'boundary conditions': [
+            ...(rootConfig['boundary conditions'] || []),
+            bc
+          ]
         }
-      }
-    },
-    selectedState: state,
-    selectedNode: null,
-    selectedSurface: null,
-    selectedBC: null
-  })),
+      },
+      selectedBC: bc,
+      selectedNode: null,
+      selectedSurface: null
+    }
+  }),
+  
+  updateBoundaryCondition: (id, updates) => set((state) => {
+    const rootKey = state.rootSolverKey || 'HyperSolve'
+    const rootConfig = (state.configData as any)[rootKey] || {}
+    return {
+      configData: {
+        ...state.configData,
+        [rootKey]: {
+          ...rootConfig,
+          'boundary conditions': rootConfig['boundary conditions']?.map((bc: any) =>
+            bc.id === id ? { ...bc, ...updates } : bc
+          ) || []
+        }
+      },
+      // Update selectedBC if it's the one being modified
+      selectedBC: state.selectedBC?.id === id 
+        ? { ...state.selectedBC, ...updates }
+        : state.selectedBC
+    }
+  }),
+  
+  deleteBoundaryCondition: (id) => set((state) => {
+    const rootKey = state.rootSolverKey || 'HyperSolve'
+    const rootConfig = (state.configData as any)[rootKey] || {}
+    return {
+      configData: {
+        ...state.configData,
+        [rootKey]: {
+          ...rootConfig,
+          'boundary conditions': rootConfig['boundary conditions']?.filter((bc: any) =>
+            bc.id !== id
+          ) || []
+        }
+      },
+      selectedBC: state.selectedBC?.id === id ? null : state.selectedBC
+    }
+  }),
+  
+  addState: (state) => set((s) => {
+    const rootKey = s.rootSolverKey || 'HyperSolve'
+    const rootConfig = (s.configData as any)[rootKey] || {}
+    return {
+      configData: {
+        ...s.configData,
+        [rootKey]: {
+          ...rootConfig,
+          states: {
+            ...(rootConfig.states || {}),
+            [state.name]: state
+          }
+        }
+      },
+      selectedState: state,
+      selectedNode: null,
+      selectedSurface: null,
+      selectedBC: null
+    }
+  }),
   
   updateState: (id, updates) => set((s) => {
-    const states = s.configData.HyperSolve?.states || {}
-    const currentState = Object.values(states).find(st => st.id === id)
+    const rootKey = s.rootSolverKey || 'HyperSolve'
+    const rootConfig = (s.configData as any)[rootKey] || {}
+    const states = rootConfig.states || {}
+    const currentState = Object.values(states).find((st: any) => st.id === id)
     if (!currentState) return s
     
-    const oldName = currentState.name
+    const oldName = (currentState as any).name
     const updatedState = { ...currentState, ...updates }
     
     // If name changed, remove old key and add new one
@@ -232,8 +261,8 @@ export const useAppStore = create<AppState>((set) => ({
     return {
       configData: {
         ...s.configData,
-        HyperSolve: {
-          ...s.configData.HyperSolve,
+        [rootKey]: {
+          ...rootConfig,
           states: newStates
         }
       },
@@ -242,18 +271,20 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   
   deleteState: (id) => set((s) => {
-    const states = s.configData.HyperSolve?.states || {}
-    const stateToDelete = Object.values(states).find(st => st.id === id)
+    const rootKey = s.rootSolverKey || 'HyperSolve'
+    const rootConfig = (s.configData as any)[rootKey] || {}
+    const states = rootConfig.states || {}
+    const stateToDelete = Object.values(states).find((st: any) => st.id === id)
     if (!stateToDelete) return s
     
     const newStates = { ...states }
-    delete newStates[stateToDelete.name]
+    delete newStates[(stateToDelete as any).name]
     
     return {
       configData: {
         ...s.configData,
-        HyperSolve: {
-          ...s.configData.HyperSolve,
+        [rootKey]: {
+          ...rootConfig,
           states: newStates
         }
       },
@@ -262,18 +293,11 @@ export const useAppStore = create<AppState>((set) => ({
   }),
 
   updateThermodynamics: (thermoConfig) => set((s) => {
-    // Determine which root key actually has the thermodynamics data
-    // Check both HyperSolve and Vulcan to see which one has data
-    let rootKey: 'HyperSolve' | 'Vulcan' = 'HyperSolve'
-    if (s.configData.Vulcan?.thermodynamics) {
-      rootKey = 'Vulcan'
-    } else if (s.configData.HyperSolve?.thermodynamics) {
-      rootKey = 'HyperSolve'
-    } else if (s.configData.Vulcan) {
-      rootKey = 'Vulcan'
-    } else if (s.configData.HyperSolve) {
-      rootKey = 'HyperSolve'
-    }
+    console.log('[appStore] updateThermodynamics called with:', thermoConfig)
+    
+    // Use the global root solver key
+    const rootKey = s.rootSolverKey || 'HyperSolve'
+    console.log('[appStore] Using root solver key:', rootKey)
     
     const thermodynamics: any = {}
     
@@ -305,28 +329,37 @@ export const useAppStore = create<AppState>((set) => ({
         thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
       } else if (thermoConfig.reactionModelFile && thermoConfig.selectedSpecies) {
         // Reaction file path
-        thermodynamics.species = thermoConfig.selectedSpecies
+        console.log('[appStore] Setting reaction file path:', thermoConfig.reactionModelFile, 'with species:', thermoConfig.selectedSpecies)
+        // Combine reaction species + inert species
+        const allSpecies = [...thermoConfig.selectedSpecies]
+        if (thermoConfig.inertSpecies && thermoConfig.inertSpecies.length > 0) {
+          allSpecies.push(...thermoConfig.inertSpecies)
+        }
+        thermodynamics.species = allSpecies
         thermodynamics['reaction model filename'] = thermoConfig.reactionModelFile
       } else {
         // No preset selected or custom
+        console.log('[appStore] No specific path matched, setting empty species')
         thermodynamics.species = []
       }
     }
     
     return {
-      configData: {
-        ...s.configData,
+      configData: updateConfig(s.configData, {
         [rootKey]: {
           ...s.configData[rootKey],
           thermodynamics
         }
-      }
+      })
     }
   }),
   
   initializeConfig: (projectConfig) => set((s) => {
+    const rootKey = s.rootSolverKey || 'HyperSolve'
+    console.log('[appStore] initializeConfig using root key:', rootKey)
+    
     const newConfig: any = {
-      HyperSolve: {
+      [rootKey]: {
         'boundary conditions': [],
         states: {}
       }
@@ -334,41 +367,41 @@ export const useAppStore = create<AppState>((set) => ({
     
     // Set thermodynamics based on gas model
     if (projectConfig.gasModel === 'single-species') {
-      newConfig.HyperSolve.thermodynamics = {
+      newConfig[rootKey].thermodynamics = {
         species: ['perfect gas']
       }
     } else if (projectConfig.gasModel === 'multispecies') {
       // Multispecies configuration
       if (projectConfig.reactionType === 'edl') {
         // EDL chemistry
-        newConfig.HyperSolve.thermodynamics = {
+        newConfig[rootKey].thermodynamics = {
           'chemical nonequilibrium': true
         }
         
         if (projectConfig.planetaryBody === 'earth') {
           // Earth air models
           if (projectConfig.speciesModel === '5-species') {
-            newConfig.HyperSolve.thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O']
+            newConfig[rootKey].thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O']
           } else if (projectConfig.speciesModel === '7-species') {
-            newConfig.HyperSolve.thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
+            newConfig[rootKey].thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
           } else if (projectConfig.speciesModel === '11-species') {
-            newConfig.HyperSolve.thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-']
+            newConfig[rootKey].thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-']
           }
         } else if (projectConfig.planetaryBody === 'mars') {
           // Mars Park model (5 species)
-          newConfig.HyperSolve.thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
+          newConfig[rootKey].thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
         }
       } else if (projectConfig.reactionType === 'combustion') {
         // Combustion chemistry
-        newConfig.HyperSolve.thermodynamics = {
+        newConfig[rootKey].thermodynamics = {
           'chemical nonequilibrium': true,
           'reaction model filename': projectConfig.reactionModelFile || 'kinetic_data'
         }
         // Species will be extracted from reaction model file later
-        newConfig.HyperSolve.thermodynamics.species = []
+        newConfig[rootKey].thermodynamics.species = []
       } else if (projectConfig.speciesType === 'non-reacting') {
         // Non-reacting multispecies
-        newConfig.HyperSolve.thermodynamics = {
+        newConfig[rootKey].thermodynamics = {
           'chemical nonequilibrium': false,
           species: [] // User will add species manually
         }
@@ -377,16 +410,16 @@ export const useAppStore = create<AppState>((set) => ({
     
     // Set time accuracy based on time mode
     if (projectConfig.timeMode === 'unsteady' && projectConfig.timeAccuracy) {
-      newConfig.HyperSolve['time accuracy'] = {
+      newConfig[rootKey]['time accuracy'] = {
         type: 'fixed timestep'
       }
       
       if (projectConfig.timeAccuracy.timeStep) {
-        newConfig.HyperSolve['time accuracy'].timestep = projectConfig.timeAccuracy.timeStep
+        newConfig[rootKey]['time accuracy'].timestep = projectConfig.timeAccuracy.timeStep
       }
       
       if (projectConfig.timeAccuracy.cfl) {
-        newConfig.HyperSolve['time accuracy'].cfl = projectConfig.timeAccuracy.cfl
+        newConfig[rootKey]['time accuracy'].cfl = projectConfig.timeAccuracy.cfl
       }
       
       if (projectConfig.timeAccuracy.scheme) {
@@ -396,19 +429,19 @@ export const useAppStore = create<AppState>((set) => ({
           'bdf2': 'BDF',
           'rk4': 'ESDIRK'
         }
-        newConfig.HyperSolve['time accuracy'].scheme = schemeMap[projectConfig.timeAccuracy.scheme]
+        newConfig[rootKey]['time accuracy'].scheme = schemeMap[projectConfig.timeAccuracy.scheme]
         
         if (projectConfig.timeAccuracy.scheme === 'bdf1') {
-          newConfig.HyperSolve['time accuracy'].order = 1
+          newConfig[rootKey]['time accuracy'].order = 1
         } else if (projectConfig.timeAccuracy.scheme === 'bdf2') {
-          newConfig.HyperSolve['time accuracy'].order = 2
+          newConfig[rootKey]['time accuracy'].order = 2
         } else if (projectConfig.timeAccuracy.scheme === 'rk4') {
-          newConfig.HyperSolve['time accuracy'].order = 4
+          newConfig[rootKey]['time accuracy'].order = 4
         }
       }
     } else {
       // Steady state - use local timestepping
-      newConfig.HyperSolve['time accuracy'] = {
+      newConfig[rootKey]['time accuracy'] = {
         type: 'local timestepping'
       }
     }

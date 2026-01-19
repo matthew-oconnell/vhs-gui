@@ -40,7 +40,7 @@ function TreePanel() {
       .catch(error => {
         console.error('Failed to load schema:', error)
       })
-  }, [showAdvanced, refreshKey])
+  }, [showAdvanced, refreshKey, configData])
 
   const toggleNode = (id: string) => {
     const toggleRecursive = (nodes: TreeNode[]): TreeNode[] => {
@@ -202,7 +202,11 @@ function TreePanel() {
             }}
             onDoubleClick={() => {
               // Open property dialog on double-click for object nodes (not BC/State/Viz/InitRegion instances)
-              if (!isBCNode && !isStateNode && !isVizNode && !isInitRegionNode && node.type === 'object') {
+              // Skip thermodynamics - use the wizard instead (property editor causes grey screen)
+              const isThermoNode = node.id === 'root.HyperSolve.thermodynamics' || 
+                                  (node.id && node.id.endsWith('.thermodynamics')) ||
+                                  node.path === 'HyperSolve.thermodynamics'
+              if (!isBCNode && !isStateNode && !isVizNode && !isInitRegionNode && !isThermoNode && node.type === 'object') {
                 setDialogNode(node)
                 setShowPropertyDialog(true)
               }

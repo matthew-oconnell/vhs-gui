@@ -291,6 +291,56 @@ describe('appStore - updateThermodynamics', () => {
       expect(thermo?.['reaction model filename']).toBe('custom_reactions.dat')
     })
 
+    it('adds inert species N to reaction file species list', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'reac_mod.H2_7x7',
+        selectedSpecies: ['H2', 'O2', 'OH', 'H', 'O', 'H2O'],
+        inertSpecies: ['N']
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      // Should combine reaction species + inert species
+      expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O', 'N'])
+      expect(thermo?.['reaction model filename']).toBe('reac_mod.H2_7x7')
+    })
+
+    it('adds inert species N2 to reaction file species list', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'reac_mod.H2_7x7',
+        selectedSpecies: ['H2', 'O2', 'OH', 'H', 'O', 'H2O'],
+        inertSpecies: ['N2']
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O', 'N2'])
+    })
+
+    it('adds multiple inert species to reaction file species list', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'reac_mod.H2_7x7',
+        selectedSpecies: ['H2', 'O2', 'OH', 'H', 'O', 'H2O'],
+        inertSpecies: ['N', 'N2']
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O', 'N', 'N2'])
+    })
+
     it('replaces planetary atmosphere with reaction file config', () => {
       // Start with planetary atmosphere
       useAppStore.setState({

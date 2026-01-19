@@ -26,6 +26,9 @@ export interface ThermodynamicsConfig {
   // Reaction file
   reactionModelFile?: string
   
+  // Inert species to add to reaction file species
+  inertSpecies?: string[]
+  
   // Manual species selection
   selectedSpecies?: string[]
 }
@@ -39,7 +42,7 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
   })
   const [extractedSpecies, setExtractedSpecies] = useState<string[]>([])
   
-  const { updateThermodynamics } = useAppStore()
+  const { updateThermodynamics, setSelectedNode, selectedNode } = useAppStore()
 
   const updateConfig = (updates: Partial<ThermodynamicsConfig>) => {
     setConfig({ ...config, ...updates })
@@ -81,7 +84,14 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
       ...config,
       selectedSpecies: extractedSpecies.length > 0 ? extractedSpecies : config.selectedSpecies
     }
+    console.log('[ThermodynamicsWizard] Updating with config:', finalConfig)
     updateThermodynamics(finalConfig)
+    
+    // Force re-selection of node to refresh the editor view
+    const currentNode = selectedNode
+    setSelectedNode(null)
+    setTimeout(() => setSelectedNode(currentNode), 0)
+    
     onUpdate(finalConfig)
     onClose()
   }
@@ -300,7 +310,6 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
                   <label className="form-label">Reaction File</label>
                   <input
                     type="file"
-                    accept=".txt,.dat,.reac,.yaml,.yml,.cti"
                     onChange={async (e) => {
                       const file = e.target.files?.[0]
                       if (!file) return
@@ -310,7 +319,10 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
                       
                       if (result.species.length > 0) {
                         setExtractedSpecies(result.species)
-                        updateConfig({ reactionModelFile: file.name })
+                        updateConfig({ 
+                          reactionModelFile: file.name,
+                          inertSpecies: ['N2'] // Default to N2 as inert
+                        })
                       } else {
                         alert('Could not extract species from file. Please check the file format.')
                       }
@@ -326,20 +338,59 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
                 </div>
 
                 {extractedSpecies.length > 0 && (
-                  <div className="form-group">
-                    <label className="form-label">Extracted Species ({extractedSpecies.length})</label>
-                    <div className="property-value" style={{ 
-                      fontSize: '13px', 
-                      color: '#cccccc',
-                      padding: '8px',
-                      backgroundColor: '#2a2a2a',
-                      borderRadius: '3px',
-                      maxHeight: '150px',
-                      overflowY: 'auto'
-                    }}>
-                      {extractedSpecies.join(', ')}
+                  <>
+                    <div className="form-group">
+                      <label className="form-label">Extracted Species ({extractedSpecies.length})</label>
+                      <div className="property-value" style={{ 
+                        fontSize: '13px', 
+                        color: '#cccccc',
+                        padding: '8px',
+                        backgroundColor: '#2a2a2a',
+                        borderRadius: '3px',
+                        maxHeight: '150px',
+                        overflowY: 'auto'
+                      }}>
+                        {extractedSpecies.join(', ')}
+                      </div>
                     </div>
-                  </div>
+
+                    <div className="form-group">
+                      <label className="form-label">Additional Inert Species (Optional)</label>
+                      <div className="info-box" style={{ marginBottom: '8px' }}>
+                        Select inert species not involved in reactions but present in the flow
+                      </div>
+                      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                        {['N', 'N2', 'Ar', 'He'].map(species => (
+                          <label key={species} style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            cursor: 'pointer',
+                            fontSize: '13px'
+                          }}>
+                            <input
+                              type="checkbox"
+                              checked={config.inertSpecies?.includes(species) || false}
+                              onChange={(e) => {
+                                const currentInert = config.inertSpecies || []
+                                if (e.target.checked) {
+                                  updateConfig({ inertSpecies: [...currentInert, species] })
+                                } else {
+                                  updateConfig({ inertSpecies: currentInert.filter(s => s !== species) })
+                                }
+                              }}
+                            />
+                            {species}
+                          </label>
+                        ))}
+                      </div>
+                      {config.inertSpecies && config.inertSpecies.length > 0 && (
+                        <div className="info-box" style={{ marginTop: '8px' }}>
+                          ✓ Adding: {config.inertSpecies.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </div>

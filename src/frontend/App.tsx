@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import TreePanel from './components/TreePanel/TreePanel'
 import EditorPanel from './components/EditorPanel/EditorPanel'
@@ -14,6 +14,7 @@ import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fi
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
+import { loadSchemaWithSolverKey } from './utils/schemaUtils'
 import './App.css'
 
 function App() {
@@ -24,7 +25,28 @@ function App() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrorItem[]>([])
   const [pendingMesh, setPendingMesh] = useState<{ parsedMesh: any; filename: string } | null>(null)
   const [pendingConfig, setPendingConfig] = useState<any>(null) // Store config until mesh loads
-  const { configData, initializeConfig, loadMesh, availableSurfaces, setConfigData } = useAppStore()
+  const { configData, initializeConfig, loadMesh, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
+
+  // Load schema on startup to determine root solver key (Vulcan or HyperSolve)
+  useEffect(() => {
+    const loadSchemaOnStartup = async () => {
+      try {
+        const { schema, rootSolverKey } = await loadSchemaWithSolverKey()
+        if (rootSolverKey) {
+          console.log(`[App] Setting root solver key to: ${rootSolverKey}`)
+          setRootSolverKey(rootSolverKey)
+        } else {
+          console.warn('[App] Could not determine root solver key from schema, defaulting to HyperSolve')
+          setRootSolverKey('HyperSolve')
+        }
+      } catch (error) {
+        console.error('[App] Error loading schema on startup:', error)
+        setRootSolverKey('HyperSolve') // Default fallback
+      }
+    }
+    
+    loadSchemaOnStartup()
+  }, [setRootSolverKey])
 
   const handleNew = () => {
     setShowNewProjectWizard(true)
@@ -359,7 +381,7 @@ function App() {
             
             {/* Editor Panel - Middle */}
             <Panel defaultSize={34} minSize={15}>
-              <EditorPanel />
+              <EditorPanel key={JSON.stringify(configData.HyperSolve?.thermodynamics || configData.Vulcan?.thermodynamics)} />
             </Panel>
             
             {/* Vertical Resize Handle */}

@@ -132,13 +132,42 @@ Updated properties are reflected in the website UI
 
 ---
 
-### Phase 5: Chemical Nonequilibrium ⏭️ NEXT
-The last page of the thermodynamics wizard should ask about chemical reactions. 
-If the user selected ideal gas, then this page is skipped as we can't run reacting
-If they selected a planetary atmosphere then they should be asked with a toggle switch 
-"chemical reactions or non-reacting"
-If they selected a reac_mod file previously then they should be asked
-"mixing only or combusting"
+### Phase 5: Chemical Nonequilibrium Toggle ✅ COMPLETE
+
+**Goal:** Allow users to enable/disable chemical reactions for multispecies configurations.
+
+**Implementation:**
+- ✅ Added Step 7 (final step) with toggle UI
+- ✅ Skipped for ideal gas (can't have reactions)
+- ✅ Shows for planetary atmosphere: "Enable Chemical Reactions?" toggle
+- ✅ Shows for reaction file: "Enable Chemical Reactions?" toggle  
+- ✅ Sets `chemical nonequilibrium: true` for full chemistry
+- ✅ Sets `chemical nonequilibrium: false` for frozen flow (mixing-only)
+- ✅ Defaults to `true` (backwards compatible)
+- ✅ Fixed step navigation for non-sequential steps (1,3,4,7 or 1,3,5,7)
+- ✅ 5 passing unit tests for Phase 5 logic
+
+**Files Modified:**
+- `src/frontend/components/EditorPanel/ThermodynamicsWizard.tsx`
+  - Added Step 7 UI with toggle switch
+  - Fixed `getTotalSteps()` to return actual step number (7)
+  - Added `getStepNumber()` to map actual steps to display numbers
+  - Updated `handleNext()` to set default `chemicalNonequilibrium: true`
+  - Navigation logic skips Step 7 for ideal gas
+- `src/frontend/store/appStore.ts`
+  - Uses `chemicalNonequilibrium ?? true` for multispecies configurations
+- `src/frontend/store/__tests__/appStore.thermodynamics.test.ts`
+  - Added 5 new tests for Phase 5 scenarios
+
+**Navigation Logic:**
+- Ideal Gas: Steps 1 → 3 → 4 (skip Step 7)
+- Planetary: Steps 1 → 3 → 4 → 7
+- Reaction File: Steps 1 → 3 → 5 → 7
+- Display shows sequential step numbers (1/4, 2/4, etc.) regardless of actual step numbers
+
+**Test Results:** 77 total tests passing (23 thermodynamics tests)
+
+---
 
 ## Schema Integration Checklist
 

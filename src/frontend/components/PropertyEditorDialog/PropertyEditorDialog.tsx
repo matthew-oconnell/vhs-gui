@@ -1,7 +1,9 @@
-import { X, Maximize2, Settings, ChevronRight } from 'lucide-react'
+import { X, Maximize2, Settings, ChevronRight, Plus } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from '../../utils/schemaParser'
 import { isCategoryHidden } from '../../utils/featureFlags'
+import { useAppStore } from '../../store/appStore'
+import StateWizard from '../EditorPanel/StateWizard'
 import './PropertyEditorDialog.css'
 
 interface SchemaProperty {
@@ -44,8 +46,13 @@ export default function PropertyEditorDialog({
 }: PropertyEditorDialogProps) {
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [nestedDialog, setNestedDialog] = useState<{key: string, prop: SchemaProperty} | null>(null)
+  const [showStateWizard, setShowStateWizard] = useState(false)
+  const { addState } = useAppStore()
   
   if (!isOpen || !node) return null
+
+  // Check if this is the states array
+  const isStatesNode = node.id.endsWith('.states') || node.path.endsWith('.states')
 
   // Helper function to get value from configData based on node path
   const getValueFromPath = (path: string) => {
@@ -223,6 +230,11 @@ export default function PropertyEditorDialog({
     }
   }
 
+  const handleCreateState = (state: any) => {
+    addState(state)
+    setShowStateWizard(false)
+  }
+
   const renderProperties = () => {
     if (node.type !== 'object') {
       return (
@@ -237,11 +249,15 @@ export default function PropertyEditorDialog({
     const objValue = getValueFromPath(node.id) || {}
     
     if (normalPOD.length === 0 && advancedPOD.length === 0 && normalNested.length === 0 && advancedNested.length === 0) {
-      return (
-        <div className="info-box">
-          This object has no editable properties.
-        </div>
-      )
+      // For states node, don't show "no properties" message - the create button will be shown instead
+      if (!isStatesNode) {
+        return (
+          <div className="info-box">
+            This object has no editable properties.
+          </div>
+        )
+      }
+      return null
     }
     
     const renderNestedPropertyRow = ({ key, prop, required }: {key: string, prop: SchemaProperty, required: boolean}) => {
@@ -455,6 +471,19 @@ export default function PropertyEditorDialog({
             <p className="property-editor-dialog-description">{node.description}</p>
           )}
           
+          {isStatesNode && (
+            <div style={{ marginBottom: '12px' }}>
+              <button
+                className="modal-button modal-button-primary"
+                onClick={() => setShowStateWizard(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+              >
+                <Plus size={16} />
+                Create New State
+              </button>
+            </div>
+          )}
+          
           {renderProperties()}
         </div>
         
@@ -477,6 +506,13 @@ export default function PropertyEditorDialog({
         schema={schema}
         configData={configData}
         onUpdate={onUpdate}
+      />
+    )}
+    
+    {showStateWizard && (
+      <StateWizard
+        onClose={() => setShowStateWizard(false)}
+        onCreate={handleCreateState}
       />
     )}
     </>

@@ -1413,7 +1413,7 @@ function EditorPanel() {
         return renderBCArrayEditor()
       }
       // Check if this is the states object node
-      if (selectedNode.id === 'root.HyperSolve.states') {
+      if (selectedNode.id === 'root.HyperSolve.states' || selectedNode.id.endsWith('.states') || selectedNode.path === 'HyperSolve.states') {
         return renderStatesObjectEditor()
       }
       // Check if this is the visualization array node

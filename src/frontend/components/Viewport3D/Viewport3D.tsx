@@ -34,15 +34,17 @@ const sampleSurfaces: Surface[] = [
 
 function ClickableSurface({ 
   surface, 
-  onContextMenu 
+  onContextMenu,
+  isDraggingCamera
 }: { 
   surface: Surface
   onContextMenu: (e: any, surface: Surface) => void
+  isDraggingCamera: React.MutableRefObject<boolean>
 }) {
   const meshRef = useRef<THREE.Mesh>(null)
   const edgesRef = useRef<THREE.LineSegments>(null)
-  // Track right-click position to differentiate click from drag (use ref for immediate access)
-  const rightClickStartRef = useRef<{ x: number; y: number } | null>(null)
+  // Track right-click position and time to differentiate click from drag
+  const rightClickStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   
   const { selectedSurface, setSelectedSurface, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings } = useAppStore()
   const [hovered, setHovered] = useState(false)
@@ -116,34 +118,61 @@ function ClickableSurface({
   }
   
   const handlePointerDown = (e: any) => {
-    // Track right-click start position
+    // Track right-click start position and time
     if (e.button === 2) {
-      console.log('Right click down on surface:', surface.metadata.tagName, e.clientX, e.clientY)
-      rightClickStartRef.current = { x: e.clientX, y: e.clientY }
+      const clientX = e.clientX ?? e.nativeEvent?.clientX ?? 0
+      const clientY = e.clientY ?? e.nativeEvent?.clientY ?? 0
+      console.log('Right pointer down on surface:', surface.metadata.tagName, 'at', clientX, clientY)
+      rightClickStartRef.current = { x: clientX, y: clientY, time: Date.now() }
+    }
+  }
+  
+  const handlePointerUp = (e: any) => {
+    // Only handle right mouse button
+    if (e.button !== 2) return
+    
+    e.stopPropagation()
+    
+    const clientX = e.clientX ?? e.nativeEvent?.clientX ?? 0
+    const clientY = e.clientY ?? e.nativeEvent?.clientY ?? 0
+    
+    console.log('Right pointer up on surface:', surface.metadata.tagName, 
+                'isDraggingCamera:', isDraggingCamera.current,
+                'at', clientX, clientY)
+    
+    // Don't show menu if we were dragging the camera
+    if (isDraggingCamera.current) {
+      console.log('Blocking context menu - camera was being dragged')
+      rightClickStartRef.current = null
+      return
+    }
+    
+    // Check if mouse moved significantly from click start (drag threshold = 5px)
+    if (rightClickStartRef.current) {
+      const dx = clientX - rightClickStartRef.current.x
+      const dy = clientY - rightClickStartRef.current.y
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      const duration = Date.now() - rightClickStartRef.current.time
+      
+      console.log('Distance moved:', distance, 'Duration:', duration + 'ms')
+      
+      if (distance < 5 && duration < 400) {
+        // It was a quick click, not a drag - show context menu
+        console.log('Calling onContextMenu')
+        onContextMenu(e, surface)
+      } else {
+        console.log('NOT calling onContextMenu - distance:', distance, 'or duration:', duration, 'too large')
+      }
+      
+      rightClickStartRef.current = null
+    } else {
+      console.log('NO rightClickStartRef - not showing menu')
     }
   }
   
   const handleContextMenu = (e: any) => {
+    // Just prevent the browser's native context menu
     e.stopPropagation()
-    
-    console.log('Context menu event on surface:', surface.metadata.tagName, 'rightClickStart:', rightClickStartRef.current)
-    
-    // Check if mouse moved significantly from click start (drag threshold = 5px)
-    if (rightClickStartRef.current) {
-      const dx = e.clientX - rightClickStartRef.current.x
-      const dy = e.clientY - rightClickStartRef.current.y
-      const distance = Math.sqrt(dx * dx + dy * dy)
-      
-      console.log('Distance moved:', distance)
-      
-      if (distance < 5) {
-        // It was a click, not a drag - show context menu
-        console.log('Calling onContextMenu')
-        onContextMenu(e, surface)
-      }
-      
-      rightClickStartRef.current = null
-    }
   }
   
   // Determine display color (highlight overrides custom color)
@@ -165,6 +194,7 @@ function ClickableSurface({
             geometry={geometry}
             onClick={handleClick}
             onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
             onContextMenu={handleContextMenu}
             onPointerOver={() => setHovered(true)}
             onPointerOut={() => setHovered(false)}
@@ -187,6 +217,7 @@ function ClickableSurface({
             ref={edgesRef}
             onClick={handleClick}
             onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
             onContextMenu={handleContextMenu}
             onPointerOver={() => setHovered(true)}
             onPointerOut={() => setHovered(false)}
@@ -219,6 +250,7 @@ function ClickableSurface({
           ref={meshRef}
           onClick={handleClick}
           onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           onContextMenu={handleContextMenu}
           onPointerOver={() => setHovered(true)}
           onPointerOut={() => setHovered(false)}
@@ -239,6 +271,7 @@ function ClickableSurface({
         <lineSegments
           onClick={handleClick}
           onPointerDown={handlePointerDown}
+          onPointerUp={handlePointerUp}
           onContextMenu={handleContextMenu}
           onPointerOver={() => setHovered(true)}
           onPointerOut={() => setHovered(false)}
@@ -1057,16 +1090,68 @@ function VisualizationLine({ viz, isSelected, vizIndex, controlsRef }: { viz: an
 }
 
 function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surface: Surface) => void }) {
-  const { scene } = useThree()
+  const { scene, gl } = useThree()
   const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData } = useAppStore()
   const controlsRef = useRef<any>(null)
+  const isDraggingCamera = useRef(false)
   
   // Set background color
   useEffect(() => {
     scene.background = new THREE.Color(0x1a1a1a)
   }, [scene])
   
+  // Track camera dragging to prevent context menu during drag
+  useEffect(() => {
+    const canvas = gl.domElement
+    
+    const handlePointerDown = (e: PointerEvent) => {
+      if (e.button === 2) {
+        console.log('[Scene] Right pointer down - resetting isDraggingCamera to false')
+        isDraggingCamera.current = false // Not dragging yet
+      }
+    }
+    
+    const handlePointerMove = (e: PointerEvent) => {
+      if (e.buttons === 2) {
+        if (!isDraggingCamera.current) {
+          console.log('[Scene] Right button move detected - setting isDraggingCamera to TRUE')
+        }
+        isDraggingCamera.current = true // Now we're dragging
+      }
+    }
+    
+    const handlePointerUp = (e: PointerEvent) => {
+      if (e.button === 2) {
+        console.log('[Scene] Right pointer up - isDraggingCamera is:', isDraggingCamera.current, '- will reset in 100ms')
+        setTimeout(() => {
+          console.log('[Scene] Resetting isDraggingCamera to false after delay')
+          isDraggingCamera.current = false
+        }, 100) // Small delay to let context menu check the flag
+      }
+    }
+    
+    const preventMenu = (e: MouseEvent) => {
+      console.log('[Scene] Browser contextmenu event - preventing')
+      e.preventDefault() // Always prevent native browser menu
+    }
+    
+    canvas.addEventListener('pointerdown', handlePointerDown)
+    canvas.addEventListener('pointermove', handlePointerMove)
+    canvas.addEventListener('pointerup', handlePointerUp)
+    canvas.addEventListener('contextmenu', preventMenu, true)
+    
+    return () => {
+      canvas.removeEventListener('pointerdown', handlePointerDown)
+      canvas.removeEventListener('pointermove', handlePointerMove)
+      canvas.removeEventListener('pointerup', handlePointerUp)
+      canvas.removeEventListener('contextmenu', preventMenu, true)
+    }
+  }, [gl])
+  
   console.log('[Viewport3D] Rendering scene, availableSurfaces:', availableSurfaces.length)
+  
+  // Make isDraggingCamera accessible to child components
+  const sceneContextValue = useMemo(() => ({ isDraggingCamera }), [])
   
   return (
     <>
@@ -1082,11 +1167,11 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
       {/* Surfaces from mesh or samples */}
       {availableSurfaces.length > 0 ? (
         availableSurfaces.map((surface) => (
-          <ClickableSurface key={surface.id} surface={surface} onContextMenu={onSurfaceContextMenu} />
+          <ClickableSurface key={surface.id} surface={surface} onContextMenu={onSurfaceContextMenu} isDraggingCamera={isDraggingCamera} />
         ))
       ) : (
         sampleSurfaces.map((surface) => (
-          <ClickableSurface key={surface.id} surface={surface} onContextMenu={onSurfaceContextMenu} />
+          <ClickableSurface key={surface.id} surface={surface} onContextMenu={onSurfaceContextMenu} isDraggingCamera={isDraggingCamera} />
         ))
       )}
 

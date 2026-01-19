@@ -14,6 +14,7 @@ describe('appStore - updateThermodynamics', () => {
           }
         }
       },
+      rootSolverKey: 'HyperSolve',
       selectedNode: null,
       selectedBC: null,
       meshData: null,
@@ -132,7 +133,8 @@ describe('appStore - updateThermodynamics', () => {
             'reaction model filename': 'kinetic_data'
           }
         }
-      }
+      },
+      rootSolverKey: 'Vulcan'
     })
     
     const { updateThermodynamics } = useAppStore.getState()
@@ -369,6 +371,120 @@ describe('appStore - updateThermodynamics', () => {
       // Should completely replace with reaction file config
       expect(thermo?.species).toEqual(['CH4', 'O2', 'CO2', 'H2O', 'N2'])
       expect(thermo?.['reaction model filename']).toBe('reac_mod.combustion')
+    })
+  })
+
+  describe('Chemical Nonequilibrium Toggle (Phase 5)', () => {
+    it('enables chemical nonequilibrium when explicitly set to true', () => {
+      useAppStore.setState({
+        configData: { HyperSolve: {} },
+        rootSolverKey: 'HyperSolve'
+      })
+      
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'earth',
+        speciesModel: '5-species',
+        chemicalNonequilibrium: true
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
+    })
+
+    it('disables chemical nonequilibrium when explicitly set to false (frozen flow)', () => {
+      useAppStore.setState({
+        configData: { HyperSolve: {} },
+        rootSolverKey: 'HyperSolve'
+      })
+      
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'earth',
+        speciesModel: '7-species',
+        chemicalNonequilibrium: false
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.['chemical nonequilibrium']).toBe(false)
+      expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-'])
+    })
+
+    it('defaults to true when chemicalNonequilibrium not provided (backwards compatible)', () => {
+      useAppStore.setState({
+        configData: { HyperSolve: {} },
+        rootSolverKey: 'HyperSolve'
+      })
+      
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'mars'
+        // chemicalNonequilibrium not provided
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.species).toEqual(['CO2', 'CO', 'N2', 'O2', 'NO'])
+    })
+
+    it('sets chemical nonequilibrium false for mixing-only combustion', () => {
+      useAppStore.setState({
+        configData: { HyperSolve: {} },
+        rootSolverKey: 'HyperSolve'
+      })
+      
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'reac_mod.H2',
+        selectedSpecies: ['H2', 'O2', 'H2O'],
+        chemicalNonequilibrium: false
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.['chemical nonequilibrium']).toBe(false)
+      expect(thermo?.['reaction model filename']).toBe('reac_mod.H2')
+      expect(thermo?.species).toEqual(['H2', 'O2', 'H2O'])
+    })
+
+    it('sets chemical nonequilibrium true for combusting mode', () => {
+      useAppStore.setState({
+        configData: { HyperSolve: {} },
+        rootSolverKey: 'HyperSolve'
+      })
+      
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'reac_mod.H2',
+        selectedSpecies: ['H2', 'O2', 'H2O', 'OH', 'H', 'O'],
+        inertSpecies: ['N2'],
+        chemicalNonequilibrium: true
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['reaction model filename']).toBe('reac_mod.H2')
+      expect(thermo?.species).toEqual(['H2', 'O2', 'H2O', 'OH', 'H', 'O', 'N2'])
     })
   })
 })

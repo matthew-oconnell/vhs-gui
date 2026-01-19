@@ -31,6 +31,9 @@ export interface ThermodynamicsConfig {
   
   // Manual species selection
   selectedSpecies?: string[]
+  
+  // Chemical nonequilibrium toggle (Phase 5)
+  chemicalNonequilibrium?: boolean
 }
 
 function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) {
@@ -56,6 +59,9 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
       } else {
         setCurrentStep(3) // Go to multispecies selection
       }
+    } else if (currentStep === 2 && config.gasModel === 'ideal-gas') {
+      // Ideal gas complete - skip chemical reactions (can't react)
+      return
     } else if (currentStep === 3 && config.gasModel === 'multispecies') {
       // From multispecies selection to specific configuration
       if (config.speciesSelectionMethod === 'planetary') {
@@ -65,6 +71,20 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
       } else if (config.speciesSelectionMethod === 'manual') {
         setCurrentStep(6) // Go to manual species entry
       }
+    } else if (currentStep === 4 && config.speciesSelectionMethod === 'planetary') {
+      // After planetary selection, go to chemical reactions toggle
+      // Set default to true if not already set
+      if (config.chemicalNonequilibrium === undefined) {
+        updateConfig({ chemicalNonequilibrium: true })
+      }
+      setCurrentStep(7)
+    } else if (currentStep === 5 && config.speciesSelectionMethod === 'reaction-file') {
+      // After reaction file, go to chemical reactions toggle
+      // Set default to true if not already set
+      if (config.chemicalNonequilibrium === undefined) {
+        updateConfig({ chemicalNonequilibrium: true })
+      }
+      setCurrentStep(7)
     }
   }
 
@@ -75,6 +95,13 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
       setCurrentStep(1) // Back to gas model from multispecies method
     } else if (currentStep === 4 || currentStep === 5 || currentStep === 6) {
       setCurrentStep(3) // Back to multispecies method selection
+    } else if (currentStep === 7) {
+      // Back from chemical reactions toggle
+      if (config.speciesSelectionMethod === 'planetary') {
+        setCurrentStep(4)
+      } else if (config.speciesSelectionMethod === 'reaction-file') {
+        setCurrentStep(5)
+      }
     }
   }
 
@@ -113,18 +140,37 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
     if (currentStep === 5) {
       return config.reactionModelFile !== undefined && extractedSpecies.length > 0
     }
+    if (currentStep === 7) {
+      // Chemical reactions toggle - always valid (has default)
+      return true
+    }
     return true
   }
 
   const getTotalSteps = () => {
     if (config.gasModel === 'ideal-gas') return 2
     if (config.gasModel === 'multispecies') {
-      if (config.speciesSelectionMethod === 'planetary') return 4
-      if (config.speciesSelectionMethod === 'reaction-file') return 5
+      if (config.speciesSelectionMethod === 'planetary') return 7 // Steps: 1,3,4,7
+      if (config.speciesSelectionMethod === 'reaction-file') return 7 // Steps: 1,3,5,7
       if (config.speciesSelectionMethod === 'manual') return 6
       return 3 // Just method selection
     }
     return 1
+  }
+
+  const getStepNumber = () => {
+    // Map actual step number to sequential display number
+    if (config.gasModel === 'ideal-gas') {
+      return currentStep // Steps 1,2
+    }
+    if (config.gasModel === 'multispecies') {
+      if (currentStep === 1) return 1
+      if (currentStep === 3) return 2
+      if (currentStep === 4) return 3
+      if (currentStep === 5) return 3
+      if (currentStep === 7) return 4
+    }
+    return currentStep
   }
 
   return (
@@ -139,7 +185,7 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
 
         <div className="wizard-body">
           <div className="wizard-progress">
-            Step {currentStep} of {getTotalSteps()}
+            Step {getStepNumber()} of {config.gasModel === 'ideal-gas' ? 2 : 4}
           </div>
 
           {/* Step 1: Gas Model */}
@@ -392,6 +438,56 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
                   </>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Step 7: Chemical Reactions Toggle */}
+          {currentStep === 7 && config.gasModel === 'multispecies' && (
+            <div className="wizard-step">
+              <h3>Chemical Reactions</h3>
+              <p className="wizard-description">
+                {config.speciesSelectionMethod === 'planetary' 
+                  ? 'Enable chemical reactions between species (EDL chemistry)?'
+                  : 'Enable combustion reactions or mixing only?'}
+              </p>
+              
+              <div className="wizard-options">
+                <button
+                  className={`wizard-option ${config.chemicalNonequilibrium === true ? 'selected' : ''}`}
+                  onClick={() => updateConfig({ chemicalNonequilibrium: true })}
+                >
+                  <div className="option-title">
+                    {config.speciesSelectionMethod === 'reaction-file' ? 'Combusting' : 'Chemical Reactions'}
+                  </div>
+                  <div className="option-description">
+                    {config.speciesSelectionMethod === 'reaction-file' 
+                      ? 'Enable chemical reactions from the reaction mechanism file'
+                      : 'Species can react with each other (EDL chemistry, ionization)'}
+                  </div>
+                </button>
+
+                <button
+                  className={`wizard-option ${config.chemicalNonequilibrium === false ? 'selected' : ''}`}
+                  onClick={() => updateConfig({ chemicalNonequilibrium: false })}
+                >
+                  <div className="option-title">
+                    {config.speciesSelectionMethod === 'reaction-file' ? 'Mixing Only' : 'Non-Reacting'}
+                  </div>
+                  <div className="option-description">
+                    {config.speciesSelectionMethod === 'reaction-file'
+                      ? 'Species mix but do not react (frozen chemistry)'
+                      : 'Species remain separate and do not react (frozen flow)'}
+                  </div>
+                </button>
+              </div>
+              
+              {config.chemicalNonequilibrium !== undefined && (
+                <div className="info-box" style={{ marginTop: '16px' }}>
+                  <strong>Note:</strong> {config.chemicalNonequilibrium 
+                    ? 'Chemical nonequilibrium will be enabled. The solver will compute reaction rates.'
+                    : 'Chemical nonequilibrium will be disabled. Species composition stays constant.'}
+                </div>
+              )}
             </div>
           )}
         </div>

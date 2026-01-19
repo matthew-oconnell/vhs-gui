@@ -306,7 +306,8 @@ export const useAppStore = create<AppState>((set) => ({
       thermodynamics['chemical nonequilibrium'] = false
     } else if (thermoConfig.gasModel === 'multispecies') {
       // Multispecies configuration
-      thermodynamics['chemical nonequilibrium'] = true
+      // Use user's choice if provided, otherwise default to true
+      thermodynamics['chemical nonequilibrium'] = thermoConfig.chemicalNonequilibrium ?? true
       thermodynamics['thermodynamic data source'] = 'NASA_9_coefficient'
       
       if (thermoConfig.planetaryBody === 'earth') {

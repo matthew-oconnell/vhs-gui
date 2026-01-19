@@ -1745,7 +1745,6 @@ function EditorPanel() {
           onClose={() => setShowThermoWizard(false)}
           onUpdate={(thermoConfig) => {
             console.log('[EditorPanel] Thermodynamics config updated:', thermoConfig)
-            // TODO: Wire up to appStore in Phase 2
           }}
         />
       )}

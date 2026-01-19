@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
+import { useAppStore } from '../../store/appStore'
 import './ThermodynamicsWizard.css'
 
 interface ThermodynamicsWizardProps {
@@ -35,6 +36,8 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
     molecularWeight: 28.97,
     gamma: 1.4
   })
+  
+  const { updateThermodynamics } = useAppStore()
 
   const updateConfig = (updates: Partial<ThermodynamicsConfig>) => {
     setConfig({ ...config, ...updates })
@@ -60,12 +63,19 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
   }
 
   const handleUpdate = () => {
+    updateThermodynamics(config)
     onUpdate(config)
     onClose()
   }
 
   const isStepValid = () => {
     if (currentStep === 1) return config.gasModel !== undefined
+    if (currentStep === 2 && config.gasModel === 'ideal-gas') {
+      return config.molecularWeight !== undefined && 
+             config.gamma !== undefined &&
+             config.molecularWeight > 0 &&
+             config.gamma > 0
+    }
     // More validation will be added in later phases
     return true
   }
@@ -117,14 +127,42 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
             </div>
           )}
 
-          {/* Step 2: Ideal Gas Properties - Placeholder for Phase 2 */}
+          {/* Step 2: Ideal Gas Properties */}
           {currentStep === 2 && config.gasModel === 'ideal-gas' && (
             <div className="wizard-step">
               <h3>Ideal Gas Properties</h3>
               <p className="wizard-description">Configure molecular weight and specific heat ratio</p>
               
               <div className="form-section">
-                <p className="info-box">Phase 2: Ideal gas property inputs will be added here</p>
+                <div className="form-group">
+                  <label className="form-label">Molecular Weight (g/mol)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={config.molecularWeight || ''}
+                    onChange={(e) => updateConfig({ molecularWeight: parseFloat(e.target.value) || undefined })}
+                    placeholder="28.97"
+                    step="0.01"
+                  />
+                  <div className="info-box" style={{ marginTop: '8px' }}>
+                    <strong>Examples:</strong> 28.97 (air), 43.34 (Mars), 39.95 (argon), 4.00 (helium)
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Ratio of Specific Heats (γ)</label>
+                  <input
+                    type="number"
+                    className="form-input"
+                    value={config.gamma || ''}
+                    onChange={(e) => updateConfig({ gamma: parseFloat(e.target.value) || undefined })}
+                    placeholder="1.4"
+                    step="0.01"
+                  />
+                  <div className="info-box" style={{ marginTop: '8px' }}>
+                    <strong>Examples:</strong> 1.4 (air, N₂, O₂), 1.29 (CO₂), 1.67 (monatomic), 1.41 (H₂)
+                  </div>
+                </div>
               </div>
             </div>
           )}

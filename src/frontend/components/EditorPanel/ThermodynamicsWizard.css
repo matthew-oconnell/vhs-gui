@@ -78,6 +78,36 @@
   gap: 16px;
 }
 
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  color: #cccccc;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.form-input {
+  background-color: #3e3e42;
+  border: 1px solid #555555;
+  border-radius: 3px;
+  padding: 6px 8px;
+  color: #cccccc;
+  font-size: 13px;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.form-input::placeholder {
+  color: #858585;
+}
+
 /* Info box for placeholders and help text */
 .info-box {
   background-color: #2d2d2d;

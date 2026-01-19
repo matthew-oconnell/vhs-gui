@@ -59,6 +59,7 @@ interface AppState {
   addState: (state: State) => void
   updateState: (id: string, updates: Partial<State>) => void
   deleteState: (id: string) => void
+  updateThermodynamics: (thermoConfig: any) => void
   initializeConfig: (projectConfig: any) => void
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
 }
@@ -257,6 +258,30 @@ export const useAppStore = create<AppState>((set) => ({
         }
       },
       selectedState: s.selectedState?.id === id ? null : s.selectedState
+    }
+  }),
+
+  updateThermodynamics: (thermoConfig) => set((s) => {
+    const thermodynamics: any = {}
+    
+    if (thermoConfig.gasModel === 'ideal-gas') {
+      // Map UI "ideal gas" to schema "perfect gas"
+      thermodynamics.species = ['perfect gas']
+      thermodynamics['molecular weight'] = thermoConfig.molecularWeight
+      thermodynamics['ratio of specific heats'] = thermoConfig.gamma
+    } else if (thermoConfig.gasModel === 'multispecies') {
+      // Multispecies paths will be implemented in later phases
+      thermodynamics.species = []
+    }
+    
+    return {
+      configData: {
+        ...s.configData,
+        HyperSolve: {
+          ...s.configData.HyperSolve,
+          thermodynamics
+        }
+      }
     }
   }),
   

@@ -49,17 +49,28 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
       if (config.gasModel === 'ideal-gas') {
         setCurrentStep(2) // Go to ideal gas properties
       } else {
-        setCurrentStep(3) // Go to species selection method
+        setCurrentStep(3) // Go to multispecies selection
+      }
+    } else if (currentStep === 3 && config.gasModel === 'multispecies') {
+      // From multispecies selection to specific configuration
+      if (config.speciesSelectionMethod === 'planetary') {
+        setCurrentStep(4) // Go to planetary body selection
+      } else if (config.speciesSelectionMethod === 'reaction-file') {
+        setCurrentStep(5) // Go to reaction file selection
+      } else if (config.speciesSelectionMethod === 'manual') {
+        setCurrentStep(6) // Go to manual species entry
       }
     }
-    // More navigation logic will be added in later phases
   }
 
   const handleBack = () => {
-    if (currentStep === 2 || currentStep === 3) {
-      setCurrentStep(1)
+    if (currentStep === 2) {
+      setCurrentStep(1) // Back to gas model from ideal gas properties
+    } else if (currentStep === 3) {
+      setCurrentStep(1) // Back to gas model from multispecies method
+    } else if (currentStep === 4 || currentStep === 5 || currentStep === 6) {
+      setCurrentStep(3) // Back to multispecies method selection
     }
-    // More back navigation will be added in later phases
   }
 
   const handleUpdate = () => {
@@ -76,14 +87,25 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
              config.molecularWeight > 0 &&
              config.gamma > 0
     }
-    // More validation will be added in later phases
+    if (currentStep === 3 && config.gasModel === 'multispecies') {
+      return config.speciesSelectionMethod !== undefined
+    }
+    if (currentStep === 4) {
+      return config.planetaryBody !== undefined && 
+             (config.planetaryBody === 'mars' || config.speciesModel !== undefined)
+    }
     return true
   }
 
   const getTotalSteps = () => {
     if (config.gasModel === 'ideal-gas') return 2
-    // Will be more complex for multispecies in later phases
-    return 3
+    if (config.gasModel === 'multispecies') {
+      if (config.speciesSelectionMethod === 'planetary') return 4
+      if (config.speciesSelectionMethod === 'reaction-file') return 5
+      if (config.speciesSelectionMethod === 'manual') return 6
+      return 3 // Just method selection
+    }
+    return 1
   }
 
   return (
@@ -167,14 +189,94 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
             </div>
           )}
 
-          {/* Step 3: Species Selection Method - Placeholder for Phase 3+ */}
+          {/* Step 3: Species Selection Method */}
           {currentStep === 3 && config.gasModel === 'multispecies' && (
             <div className="wizard-step">
               <h3>Species Selection Method</h3>
-              <p className="wizard-description">How do you want to select species?</p>
+              <p className="wizard-description">How do you want to configure species?</p>
+              
+              <div className="wizard-options">
+                <button
+                  className={`wizard-option ${config.speciesSelectionMethod === 'planetary' ? 'selected' : ''}`}
+                  onClick={() => updateConfig({ speciesSelectionMethod: 'planetary' })}
+                >
+                  <div className="option-title">Planetary Atmosphere</div>
+                  <div className="option-description">Pre-configured species sets for Earth, Mars, etc.</div>
+                </button>
+
+                <button
+                  className={`wizard-option ${config.speciesSelectionMethod === 'reaction-file' ? 'selected' : ''}`}
+                  onClick={() => updateConfig({ speciesSelectionMethod: 'reaction-file' })}
+                  disabled
+                  style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                >
+                  <div className="option-title">Reaction Mechanism File</div>
+                  <div className="option-description">Load species from reaction file (Phase 3 - Coming Soon)</div>
+                </button>
+
+                <button
+                  className={`wizard-option ${config.speciesSelectionMethod === 'manual' ? 'selected' : ''}`}
+                  onClick={() => updateConfig({ speciesSelectionMethod: 'manual' })}
+                  disabled
+                  style={{ opacity: 0.5, cursor: 'not-allowed' }}
+                >
+                  <div className="option-title">Manual Entry</div>
+                  <div className="option-description">Manually specify species list (Phase 4 - Coming Soon)</div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Planetary Body Selection */}
+          {currentStep === 4 && config.speciesSelectionMethod === 'planetary' && (
+            <div className="wizard-step">
+              <h3>Select Planetary Body</h3>
+              <p className="wizard-description">Choose atmosphere composition</p>
               
               <div className="form-section">
-                <p className="info-box">Phase 3+: Multispecies options will be added here</p>
+                <div className="form-group">
+                  <label className="form-label">Planetary Body</label>
+                  <select
+                    className="form-input"
+                    value={config.planetaryBody || ''}
+                    onChange={(e) => updateConfig({ 
+                      planetaryBody: e.target.value as 'earth' | 'mars',
+                      // Reset species model when changing planet
+                      speciesModel: e.target.value === 'mars' ? undefined : config.speciesModel
+                    })}
+                  >
+                    <option value="">-- Select --</option>
+                    <option value="earth">Earth</option>
+                    <option value="mars">Mars</option>
+                  </select>
+                </div>
+
+                {config.planetaryBody === 'earth' && (
+                  <div className="form-group">
+                    <label className="form-label">Species Model</label>
+                    <select
+                      className="form-input"
+                      value={config.speciesModel || ''}
+                      onChange={(e) => updateConfig({ speciesModel: e.target.value as '5-species' | '7-species' | '11-species' })}
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="5-species">5-species (N₂, O₂, NO, N, O)</option>
+                      <option value="7-species">7-species (+ NO⁺, e⁻)</option>
+                      <option value="11-species">11-species (+ N₂⁺, O₂⁺, N⁺, O⁺)</option>
+                    </select>
+                    <div className="info-box" style={{ marginTop: '8px' }}>
+                      <strong>Recommendation:</strong> Start with 5-species for most applications. 
+                      Use 7 or 11-species for high-temperature ionization effects.
+                    </div>
+                  </div>
+                )}
+
+                {config.planetaryBody === 'mars' && (
+                  <div className="info-box">
+                    <strong>Mars Park Model:</strong> Uses 5 species (CO₂, CO, N₂, O₂, NO) 
+                    optimized for Mars atmospheric entry simulations.
+                  </div>
+                )}
               </div>
             </div>
           )}

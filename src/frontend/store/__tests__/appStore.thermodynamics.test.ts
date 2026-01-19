@@ -149,4 +149,107 @@ describe('appStore - updateThermodynamics', () => {
     expect(state.configData.Vulcan?.thermodynamics?.species).toEqual(['perfect gas'])
     expect(state.configData.HyperSolve).toBeUndefined()
   })
+
+  // Phase 2: Multispecies - Planetary Atmosphere Tests
+  describe('multispecies planetary atmosphere', () => {
+    it('creates Earth 5-species atmosphere configuration', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'earth',
+        speciesModel: '5-species'
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['thermodynamic data source']).toBe('NASA_9_coefficient')
+      expect(thermo?.['molecular weight']).toBeUndefined()
+      expect(thermo?.['ratio of specific heats']).toBeUndefined()
+    })
+
+    it('creates Earth 7-species atmosphere configuration', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'earth',
+        speciesModel: '7-species'
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-'])
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+    })
+
+    it('creates Earth 11-species atmosphere configuration', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'earth',
+        speciesModel: '11-species'
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-'])
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+    })
+
+    it('creates Mars Park 5-species atmosphere configuration', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'mars'
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toEqual(['CO2', 'CO', 'N2', 'O2', 'NO'])
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['thermodynamic data source']).toBe('NASA_9_coefficient')
+    })
+
+    it('replaces ideal gas configuration with multispecies', () => {
+      // Start with ideal gas
+      useAppStore.setState({
+        configData: {
+          HyperSolve: {
+            thermodynamics: {
+              species: ['perfect gas'],
+              'molecular weight': 28.97,
+              'ratio of specific heats': 1.4,
+              'chemical nonequilibrium': false
+            }
+          }
+        }
+      })
+      
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        planetaryBody: 'earth',
+        speciesModel: '5-species'
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      // Should completely replace with multispecies config
+      expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['molecular weight']).toBeUndefined()
+      expect(thermo?.['ratio of specific heats']).toBeUndefined()
+    })
+  })
 })

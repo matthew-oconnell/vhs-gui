@@ -136,6 +136,23 @@ function EditorPanel() {
     return value
   }
 
+  // Helper function to update value at a path in configData
+  const updateValueAtPath = (path: string, key: string, value: any) => {
+    const parts = path.replace('root.', '').split('.')
+    const updatedConfig = JSON.parse(JSON.stringify(configData)) // Deep clone
+    
+    let current: any = updatedConfig
+    for (const part of parts) {
+      if (!current[part]) {
+        current[part] = {}
+      }
+      current = current[part]
+    }
+    
+    current[key] = value
+    setConfigData(updatedConfig)
+  }
+
   // Helper function to get schema properties for a node path
   const getSchemaForPath = (path: string): SchemaProperty | null => {
     if (!schema) return null
@@ -571,79 +588,6 @@ function EditorPanel() {
               `${states.length} state(s) defined. Select one from the tree to edit.`
             )}
           </div>
-        </div>
-      </div>
-    )
-  }
-
-  const renderThermodynamicsEditor = () => {
-    const thermo = configData.HyperSolve?.thermodynamics || {}
-    
-    // Detect current gas model
-    const isIdealGas = !thermo.species || thermo.species.length === 0 || thermo.species.includes('perfect gas')
-    const speciesCount = thermo.species?.length || 0
-    
-    return (
-      <div className="editor-content">
-        <div className="property-header">
-          <h3 className="property-title">Thermodynamics</h3>
-          <span className="property-type-badge">object</span>
-        </div>
-        
-        <p className="property-description">
-          Thermodynamic equations of state and species configuration
-        </p>
-
-        <div className="form-section">
-          <button 
-            className="add-button" 
-            onClick={() => setShowThermoWizard(true)}
-          >
-            <Settings size={16} /> Configure Thermodynamics
-          </button>
-          
-          <div className="info-box">
-            <strong>Current Gas Model:</strong>{' '}
-            {isIdealGas 
-              ? 'Ideal Gas' 
-              : `Multispecies (${speciesCount} species)`}
-          </div>
-          
-          {thermo.species && thermo.species.length > 0 && !thermo.species.includes('perfect gas') && (
-            <div className="form-group">
-              <label className="form-label">Species</label>
-              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
-                {thermo.species.join(', ')}
-              </div>
-            </div>
-          )}
-          
-          {thermo['molecular weight'] && (
-            <div className="form-group">
-              <label className="form-label">Molecular Weight (g/mol)</label>
-              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
-                {thermo['molecular weight']}
-              </div>
-            </div>
-          )}
-          
-          {thermo['ratio of specific heats'] && (
-            <div className="form-group">
-              <label className="form-label">Ratio of Specific Heats (γ)</label>
-              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
-                {thermo['ratio of specific heats']}
-              </div>
-            </div>
-          )}
-          
-          {thermo['reaction model filename'] && (
-            <div className="form-group">
-              <label className="form-label">Reaction Model File</label>
-              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
-                {thermo['reaction model filename']}
-              </div>
-            </div>
-          )}
         </div>
       </div>
     )
@@ -1483,18 +1427,12 @@ function EditorPanel() {
       return renderBCEditor()
     }
     if (selectedNode) {
-      // Check if this is the thermodynamics node
-      if (selectedNode.id === 'root.HyperSolve.thermodynamics' || 
-          selectedNode.id.endsWith('.thermodynamics') ||
-          selectedNode.path === 'HyperSolve.thermodynamics') {
-        return renderThermodynamicsEditor()
-      }
       // Check if this is the boundary conditions array node
       if (selectedNode.id === 'root.HyperSolve.boundary conditions') {
         return renderBCArrayEditor()
       }
       // Check if this is the states object node
-      if (selectedNode.id === 'root.HyperSolve.states' || selectedNode.id.endsWith('.states') || selectedNode.path === 'HyperSolve.states') {
+      if (selectedNode.id === 'root.HyperSolve.states' || (selectedNode.id && selectedNode.id.endsWith('.states')) || selectedNode.path === 'HyperSolve.states') {
         return renderStatesObjectEditor()
       }
       // Check if this is the visualization array node
@@ -1517,6 +1455,11 @@ function EditorPanel() {
   const renderNodeEditor = () => {
     if (!selectedNode) return null
 
+    // Check if this is the thermodynamics node
+    const isThermoNode = selectedNode.id === 'root.HyperSolve.thermodynamics' || 
+                        (selectedNode.id && selectedNode.id.endsWith('.thermodynamics')) ||
+                        selectedNode.path === 'HyperSolve.thermodynamics'
+
     return (
       <div className="editor-content">
         <div className="property-header">
@@ -1538,6 +1481,15 @@ function EditorPanel() {
         )}
 
         <div className="form-section">
+          {isThermoNode && (
+            <button 
+              className="wizard-launch-button" 
+              onClick={() => setShowThermoWizard(true)}
+            >
+              <Settings size={16} /> Open Thermodynamics Wizard
+            </button>
+          )}
+
           {selectedNode.required && (
             <div className="required-badge">Required Field</div>
           )}
@@ -1596,7 +1548,8 @@ function EditorPanel() {
                         }}>
                           <input 
                             type="checkbox"
-                            defaultChecked={displayValue === true}
+                            checked={displayValue === true}
+                            onChange={(e) => updateValueAtPath(selectedNode.id, key, e.target.checked)}
                             style={{ 
                               position: 'absolute',
                               opacity: 0,
@@ -1604,19 +1557,6 @@ function EditorPanel() {
                               height: '100%',
                               cursor: 'pointer',
                               zIndex: 1
-                            }}
-                            onChange={(e) => {
-                              const toggle = e.target.nextElementSibling as HTMLElement
-                              const knob = toggle?.firstChild as HTMLElement
-                              if (toggle && knob) {
-                                if (e.target.checked) {
-                                  toggle.style.backgroundColor = '#4da6ff'
-                                  knob.style.left = '28px'
-                                } else {
-                                  toggle.style.backgroundColor = '#444'
-                                  knob.style.left = '4px'
-                                }
-                              }
                             }}
                           />
                           <span style={{
@@ -1646,7 +1586,8 @@ function EditorPanel() {
                       ) : prop.enum ? (
                         <select 
                           className="form-input"
-                          defaultValue={displayValue}
+                          value={displayValue || ''}
+                          onChange={(e) => updateValueAtPath(selectedNode.id, key, e.target.value)}
                           style={{ width: '100%' }}
                         >
                           <option value="">-- Select --</option>
@@ -1660,7 +1601,15 @@ function EditorPanel() {
                         <textarea 
                           className="form-input"
                           rows={2}
-                          defaultValue={Array.isArray(displayValue) ? JSON.stringify(displayValue) : '[]'}
+                          value={Array.isArray(displayValue) ? JSON.stringify(displayValue) : '[]'}
+                          onChange={(e) => {
+                            try {
+                              const parsed = JSON.parse(e.target.value)
+                              updateValueAtPath(selectedNode.id, key, parsed)
+                            } catch (err) {
+                              // Invalid JSON - don't update yet
+                            }
+                          }}
                           placeholder="[...]"
                           style={{ width: '100%', fontSize: '12px' }}
                         />
@@ -1668,7 +1617,13 @@ function EditorPanel() {
                         <input 
                           type={propType === 'integer' || propType === 'number' ? 'number' : 'text'}
                           className="form-input"
-                          defaultValue={displayValue !== undefined ? displayValue : ''}
+                          value={displayValue !== undefined ? displayValue : ''}
+                          onChange={(e) => {
+                            const newValue = (propType === 'integer' || propType === 'number') 
+                              ? parseFloat(e.target.value) || 0
+                              : e.target.value
+                            updateValueAtPath(selectedNode.id, key, newValue)
+                          }}
                           placeholder={prop.default !== undefined ? String(prop.default) : ''}
                           style={{ width: '100%' }}
                         />
@@ -1743,8 +1698,8 @@ function EditorPanel() {
       {showThermoWizard && (
         <ThermodynamicsWizard
           onClose={() => setShowThermoWizard(false)}
-          onUpdate={(thermoConfig) => {
-            console.log('[EditorPanel] Thermodynamics config updated:', thermoConfig)
+          onUpdate={() => {
+            // Wizard updates configData directly via updateThermodynamics store action
           }}
         />
       )}

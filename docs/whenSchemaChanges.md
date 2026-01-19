@@ -330,8 +330,65 @@ When you get a new `input.schema.json`:
 - [ ] Update visualization type-specific form fields if required fields change
 - [ ] Review `State` oneOf array for new state definition modes
 - [ ] Update StateWizard options if needed
-- [ ] Test BC creation, initialization region creation, visualization creation, and state wizard
+- [ ] Check thermodynamics planetary atmosphere species lists
+- [ ] Update Earth/Mars species arrays in appStore.ts if chemistry models change
+- [ ] Verify thermodynamic data source enum values
+- [ ] Test BC creation, initialization region creation, visualization creation, state wizard, and thermodynamics wizard
 - [ ] Verify all form fields render correctly
+
+---
+
+### 8. Thermodynamics Planetary Atmosphere Presets
+**File:** `src/frontend/store/appStore.ts` (updateThermodynamics function, lines ~284-310)
+
+**Hardcoded Arrays:**
+```typescript
+if (thermoConfig.planetaryBody === 'earth') {
+  if (thermoConfig.speciesModel === '5-species') {
+    thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O']
+  } else if (thermoConfig.speciesModel === '7-species') {
+    thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
+  } else if (thermoConfig.speciesModel === '11-species') {
+    thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-']
+  }
+} else if (thermoConfig.planetaryBody === 'mars') {
+  thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
+}
+
+thermodynamics['thermodynamic data source'] = 'NASA_9_coefficient'
+```
+
+**How to Update:**
+1. If upstream chemistry models change (new species added/removed), update the hardcoded species arrays
+2. Verify species names match the thermodynamic database used by the solver
+3. Check if new planetary bodies should be added (Venus, Titan, etc.)
+4. Verify `thermodynamic data source` enum values in schema at `thermodynamics.properties["thermodynamic data source"].enum`
+5. Update the default `'NASA_9_coefficient'` if schema changes preferred data source
+
+**Example Update Scenario:**
+If Earth 5-species model adds `NO2`:
+```typescript
+thermodynamics.species = ['N2', 'O2', 'NO', 'NO2', 'N', 'O']  // Added NO2
+```
+
+**Where to Find Correct Values:**
+- Consult with the upstream Vulcan/HyperSolve team for approved chemistry models
+- Check solver documentation for valid species names and thermodynamic data sources
+- Species names must match entries in the thermodynamic database (e.g., `thermo.dat`)
+
+**Test After Update:**
+```bash
+cd src/frontend
+npm test -- --run appStore.thermodynamics.test.ts
+```
+
+The tests explicitly check each preset:
+- Earth 5-species
+- Earth 7-species  
+- Earth 11-species
+- Mars Park 5-species
+
+Update tests if species lists change.
 
 ---
 

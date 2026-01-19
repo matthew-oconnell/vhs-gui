@@ -262,6 +262,19 @@ export const useAppStore = create<AppState>((set) => ({
   }),
 
   updateThermodynamics: (thermoConfig) => set((s) => {
+    // Determine which root key actually has the thermodynamics data
+    // Check both HyperSolve and Vulcan to see which one has data
+    let rootKey: 'HyperSolve' | 'Vulcan' = 'HyperSolve'
+    if (s.configData.Vulcan?.thermodynamics) {
+      rootKey = 'Vulcan'
+    } else if (s.configData.HyperSolve?.thermodynamics) {
+      rootKey = 'HyperSolve'
+    } else if (s.configData.Vulcan) {
+      rootKey = 'Vulcan'
+    } else if (s.configData.HyperSolve) {
+      rootKey = 'HyperSolve'
+    }
+    
     const thermodynamics: any = {}
     
     if (thermoConfig.gasModel === 'ideal-gas') {
@@ -269,16 +282,38 @@ export const useAppStore = create<AppState>((set) => ({
       thermodynamics.species = ['perfect gas']
       thermodynamics['molecular weight'] = thermoConfig.molecularWeight
       thermodynamics['ratio of specific heats'] = thermoConfig.gamma
+      thermodynamics['chemical nonequilibrium'] = false
     } else if (thermoConfig.gasModel === 'multispecies') {
-      // Multispecies paths will be implemented in later phases
-      thermodynamics.species = []
+      // Multispecies configuration
+      thermodynamics['chemical nonequilibrium'] = true
+      thermodynamics['thermodynamic data source'] = 'NASA_9_coefficient'
+      
+      if (thermoConfig.planetaryBody === 'earth') {
+        // Earth atmosphere models
+        if (thermoConfig.speciesModel === '5-species') {
+          thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O']
+        } else if (thermoConfig.speciesModel === '7-species') {
+          thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
+        } else if (thermoConfig.speciesModel === '11-species') {
+          thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-']
+        } else {
+          // Default to 5-species if not specified
+          thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O']
+        }
+      } else if (thermoConfig.planetaryBody === 'mars') {
+        // Mars Park model (5 species)
+        thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
+      } else {
+        // No preset selected or custom
+        thermodynamics.species = []
+      }
     }
     
     return {
       configData: {
         ...s.configData,
-        HyperSolve: {
-          ...s.configData.HyperSolve,
+        [rootKey]: {
+          ...s.configData[rootKey],
           thermodynamics
         }
       }

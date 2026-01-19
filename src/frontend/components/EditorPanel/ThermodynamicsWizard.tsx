@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Upload } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { parseReactionFile } from '../../utils/reactionFileParser'
 import './ThermodynamicsWizard.css'
 
 interface ThermodynamicsWizardProps {
@@ -36,6 +37,7 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
     molecularWeight: 28.97,
     gamma: 1.4
   })
+  const [extractedSpecies, setExtractedSpecies] = useState<string[]>([])
   
   const { updateThermodynamics } = useAppStore()
 
@@ -74,8 +76,13 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
   }
 
   const handleUpdate = () => {
-    updateThermodynamics(config)
-    onUpdate(config)
+    // Include extracted species for reaction file path
+    const finalConfig = {
+      ...config,
+      selectedSpecies: extractedSpecies.length > 0 ? extractedSpecies : config.selectedSpecies
+    }
+    updateThermodynamics(finalConfig)
+    onUpdate(finalConfig)
     onClose()
   }
 
@@ -93,6 +100,9 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
     if (currentStep === 4) {
       return config.planetaryBody !== undefined && 
              (config.planetaryBody === 'mars' || config.speciesModel !== undefined)
+    }
+    if (currentStep === 5) {
+      return config.reactionModelFile !== undefined && extractedSpecies.length > 0
     }
     return true
   }
@@ -207,11 +217,9 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
                 <button
                   className={`wizard-option ${config.speciesSelectionMethod === 'reaction-file' ? 'selected' : ''}`}
                   onClick={() => updateConfig({ speciesSelectionMethod: 'reaction-file' })}
-                  disabled
-                  style={{ opacity: 0.5, cursor: 'not-allowed' }}
                 >
                   <div className="option-title">Reaction Mechanism File</div>
-                  <div className="option-description">Load species from reaction file (Phase 3 - Coming Soon)</div>
+                  <div className="option-description">Load species from reaction file (e.g., reac_mod.H2_7x7)</div>
                 </button>
 
                 <button
@@ -275,6 +283,62 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
                   <div className="info-box">
                     <strong>Mars Park Model:</strong> Uses 5 species (CO₂, CO, N₂, O₂, NO) 
                     optimized for Mars atmospheric entry simulations.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Reaction File Upload */}
+          {currentStep === 5 && config.speciesSelectionMethod === 'reaction-file' && (
+            <div className="wizard-step">
+              <h3>Select Reaction Mechanism File</h3>
+              <p className="wizard-description">Upload a reaction mechanism file to extract species</p>
+              
+              <div className="form-section">
+                <div className="form-group">
+                  <label className="form-label">Reaction File</label>
+                  <input
+                    type="file"
+                    accept=".txt,.dat,.reac,.yaml,.yml,.cti"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      
+                      const content = await file.text()
+                      const result = parseReactionFile(content)
+                      
+                      if (result.species.length > 0) {
+                        setExtractedSpecies(result.species)
+                        updateConfig({ reactionModelFile: file.name })
+                      } else {
+                        alert('Could not extract species from file. Please check the file format.')
+                      }
+                    }}
+                    className="form-input"
+                    style={{ cursor: 'pointer' }}
+                  />
+                  {config.reactionModelFile && (
+                    <div className="info-box" style={{ marginTop: '8px' }}>
+                      ✓ File: {config.reactionModelFile}
+                    </div>
+                  )}
+                </div>
+
+                {extractedSpecies.length > 0 && (
+                  <div className="form-group">
+                    <label className="form-label">Extracted Species ({extractedSpecies.length})</label>
+                    <div className="property-value" style={{ 
+                      fontSize: '13px', 
+                      color: '#cccccc',
+                      padding: '8px',
+                      backgroundColor: '#2a2a2a',
+                      borderRadius: '3px',
+                      maxHeight: '150px',
+                      overflowY: 'auto'
+                    }}>
+                      {extractedSpecies.join(', ')}
+                    </div>
                   </div>
                 )}
               </div>

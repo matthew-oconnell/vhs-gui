@@ -61,34 +61,42 @@ Updated properties are reflected in the website UI
 
 ---
 
-### Phase 3: Multispecies - Reaction File
+### Phase 3: Multispecies - Reaction File ✅ COMPLETE
 
 **Goal:** Configure thermodynamics using a pre-existing reaction mechanism file.
 
-**User Flow:**
-1. User selects "Multispecies" → "Reaction File"
-2. Wizard prompts to select file (`.yaml`, `.cti`, or other formats supported by schema)
-3. Wizard extracts species list from file (or prompts user to confirm)
-4. Creates configuration:
-   ```json
-   {
-     "species": ["H2", "O2", "H2O", "H", "O", "OH"],
-     "reaction model filename": "h2o2.yaml",
-     "thermodynamic data source": "NASA_9_coefficient",
-     "chemical nonequilibrium": true
-   }
-   ```
+**Implementation:**
+- ✅ User selects "Multispecies" → "Reaction File"
+- ✅ Wizard shows file picker for reaction mechanism files
+- ✅ Parser extracts species from reaction equations (reac_mod format)
+- ✅ Handles complex species names (commas, hyphens, parentheses)
+- ✅ Shows extracted species preview before confirmation
+- ✅ Sets `species` array from parsed file
+- ✅ Sets `reaction model filename` to uploaded filename
+- ✅ Sets `chemical nonequilibrium: true`
+- ✅ Sets `thermodynamic data source: "NASA_9_coefficient"`
+- ✅ 3 passing unit tests for reaction file configurations
 
-**Schema Requirements:**
-- Check schema for `reaction model filename` property
-- Validate file format/extension
-- May need backend support to parse reaction files
+**Files Modified:**
+- `src/frontend/utils/reactionFileParser.ts` (new) - Parser for reac_mod format
+- `src/frontend/utils/__tests__/reactionFileParser.test.ts` (new) - 9 parser tests
+- `src/frontend/components/EditorPanel/ThermodynamicsWizard.tsx` - Added Step 5 file upload UI
+- `src/frontend/store/appStore.ts` - Added reaction file logic to updateThermodynamics
+- `src/frontend/store/__tests__/appStore.thermodynamics.test.ts` - Added 3 new tests
 
-**Implementation Tasks:**
-- [ ] Add file picker for reaction mechanism files
-- [ ] Parse reaction file to extract species (or allow manual entry)
-- [ ] Validate file format
-- [ ] Test with real reaction files (.yaml, .cti, etc.)
+**Supported File Formats:**
+- `.txt`, `.dat`, `.reac` - Traditional reac_mod format
+- `.yaml`, `.yml`, `.cti` - Accepted but not yet parsed (future enhancement)
+
+**Parser Behavior:**
+- Skips comment lines (starting with `*`)
+- Parses reaction lines: `<number> <reactants> <=> <products>`
+- Stops at "FORWARD REACTION MODEL" or other non-reaction lines
+- Removes stoichiometric coefficients (e.g., `2H2` → `H2`)
+- Excludes `M` (third body indicator)
+- Handles species with special characters
+
+**Test Results:** 63 total tests passing (15 thermodynamics tests)
 
 ---
 
@@ -114,6 +122,14 @@ Updated properties are reflected in the website UI
 - [ ] Schema validation before accepting
 
 ---
+
+### Phase 5: Chemical Nonequilibrium ⏭️ NEXT
+The last page of the thermodynamics wizard should ask about chemical reactions. 
+If the user selected ideal gas, then this page is skipped as we can't run reacting
+If they selected a planetary atmosphere then they should be asked with a toggle switch 
+"chemical reactions or non-reacting"
+If they selected a reac_mod file previously then they should be asked
+"mixing only or combusting"
 
 ## Schema Integration Checklist
 

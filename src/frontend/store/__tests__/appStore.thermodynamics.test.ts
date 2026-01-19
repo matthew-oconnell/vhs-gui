@@ -252,4 +252,73 @@ describe('appStore - updateThermodynamics', () => {
       expect(thermo?.['ratio of specific heats']).toBeUndefined()
     })
   })
+
+  // Phase 3: Multispecies - Reaction File Tests
+  describe('multispecies reaction file', () => {
+    it('creates configuration from reaction file with species', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'reac_mod.H2_7x7',
+        selectedSpecies: ['H2', 'O2', 'OH', 'H', 'O', 'H2O']
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O'])
+      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['thermodynamic data source']).toBe('NASA_9_coefficient')
+      expect(thermo?.['reaction model filename']).toBe('reac_mod.H2_7x7')
+    })
+
+    it('handles complex species names from reaction files', () => {
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'custom_reactions.dat',
+        selectedSpecies: ['CH2CO,ketene', 'C4H9,s-butyl', 'CH3(OH)', 'O2']
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      expect(thermo?.species).toContain('CH2CO,ketene')
+      expect(thermo?.species).toContain('C4H9,s-butyl')
+      expect(thermo?.species).toContain('CH3(OH)')
+      expect(thermo?.['reaction model filename']).toBe('custom_reactions.dat')
+    })
+
+    it('replaces planetary atmosphere with reaction file config', () => {
+      // Start with planetary atmosphere
+      useAppStore.setState({
+        configData: {
+          HyperSolve: {
+            thermodynamics: {
+              species: ['N2', 'O2', 'NO', 'N', 'O'],
+              'chemical nonequilibrium': true,
+              'thermodynamic data source': 'NASA_9_coefficient'
+            }
+          }
+        }
+      })
+      
+      const { updateThermodynamics } = useAppStore.getState()
+      
+      updateThermodynamics({
+        gasModel: 'multispecies',
+        reactionModelFile: 'reac_mod.combustion',
+        selectedSpecies: ['CH4', 'O2', 'CO2', 'H2O', 'N2']
+      })
+      
+      const state = useAppStore.getState()
+      const thermo = state.configData.HyperSolve?.thermodynamics
+      
+      // Should completely replace with reaction file config
+      expect(thermo?.species).toEqual(['CH4', 'O2', 'CO2', 'H2O', 'N2'])
+      expect(thermo?.['reaction model filename']).toBe('reac_mod.combustion')
+    })
+  })
 })

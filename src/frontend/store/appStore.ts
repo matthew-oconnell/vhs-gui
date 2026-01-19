@@ -303,6 +303,10 @@ export const useAppStore = create<AppState>((set) => ({
       } else if (thermoConfig.planetaryBody === 'mars') {
         // Mars Park model (5 species)
         thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
+      } else if (thermoConfig.reactionModelFile && thermoConfig.selectedSpecies) {
+        // Reaction file path
+        thermodynamics.species = thermoConfig.selectedSpecies
+        thermodynamics['reaction model filename'] = thermoConfig.reactionModelFile
       } else {
         // No preset selected or custom
         thermodynamics.species = []

@@ -316,6 +316,7 @@ export default function PropertyEditorDialog({
                     zIndex: 1
                   }}
                   onChange={(e) => {
+                    e.stopPropagation()
                     handleInputChange(key, e.target.checked)
                     const toggle = e.target.nextElementSibling as HTMLElement
                     const knob = toggle?.firstChild as HTMLElement
@@ -358,7 +359,10 @@ export default function PropertyEditorDialog({
               <select 
                 className="property-grid-input"
                 value={displayValue || ''}
-                onChange={(e) => handleInputChange(key, e.target.value)}
+                onChange={(e) => {
+                  e.stopPropagation()
+                  handleInputChange(key, e.target.value)
+                }}
               >
                 <option value="">-- Select --</option>
                 {prop.enum.map((enumValue: any) => (
@@ -373,6 +377,7 @@ export default function PropertyEditorDialog({
                 rows={2}
                 value={Array.isArray(displayValue) ? JSON.stringify(displayValue, null, 2) : '[]'}
                 onChange={(e) => {
+                  e.stopPropagation()
                   try {
                     const parsed = JSON.parse(e.target.value)
                     handleInputChange(key, parsed)
@@ -388,6 +393,7 @@ export default function PropertyEditorDialog({
                 className="property-grid-input"
                 value={displayValue !== undefined ? displayValue : ''}
                 onChange={(e) => {
+                  e.stopPropagation()
                   const val = e.target.value
                   if (propType === 'integer' || propType === 'number') {
                     handleInputChange(key, parseFloat(val))

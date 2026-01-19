@@ -79,6 +79,7 @@ function EditorPanel() {
   const [showStateWizard, setShowStateWizard] = useState(false)
   const [showBCDialog, setShowBCDialog] = useState(false)
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
+  const [dialogNode, setDialogNode] = useState<any>(null) // Local copy of node for property dialog
   const [showVizDialog, setShowVizDialog] = useState(false)
   const [showInitRegionDialog, setShowInitRegionDialog] = useState(false)
   const [showThermoWizard, setShowThermoWizard] = useState(false)
@@ -1502,7 +1503,10 @@ function EditorPanel() {
           {selectedNode.type === 'object' && (
             <button 
               className="icon-button"
-              onClick={() => setShowPropertyDialog(true)}
+              onClick={() => {
+                setDialogNode(selectedNode) // Store local copy of node
+                setShowPropertyDialog(true)
+              }}
               title="Open in larger window"
             >
               <Maximize2 size={14} />
@@ -1743,11 +1747,15 @@ function EditorPanel() {
         />
       )}
       
-      {showPropertyDialog && selectedNode && (
+      {showPropertyDialog && dialogNode && (
         <PropertyEditorDialog
+          key={dialogNode.id}
           isOpen={showPropertyDialog}
-          onClose={() => setShowPropertyDialog(false)}
-          node={selectedNode}
+          onClose={() => {
+            setShowPropertyDialog(false)
+            setDialogNode(null)
+          }}
+          node={dialogNode}
           schema={schema}
           configData={configData}
           onUpdate={updateValueAtPath}

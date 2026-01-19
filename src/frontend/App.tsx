@@ -389,11 +389,7 @@ function App() {
             
             {/* Editor Panel - Middle */}
             <Panel defaultSize={34} minSize={15}>
-              <EditorPanel key={(() => {
-                const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-                const rootConfig = (configData as any)[rootKey]
-                return JSON.stringify(rootConfig?.thermodynamics)
-              })()} />
+              <EditorPanel />
             </Panel>
             
             {/* Vertical Resize Handle */}

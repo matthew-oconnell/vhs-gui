@@ -13,7 +13,21 @@ function TreePanel() {
   const [schema, setSchema] = useState<any>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
-  const { selectedNode, setSelectedNode, selectedBC, setSelectedBC, selectedState, setSelectedState, selectedViz, setSelectedViz, selectedInitRegion, setSelectedInitRegion, configData, rootSolverKey, updateProperty } = useAppStore()
+  
+  // Use selectors to only subscribe to what we need
+  const selectedNode = useAppStore(state => state.selectedNode)
+  const setSelectedNode = useAppStore(state => state.setSelectedNode)
+  const selectedBC = useAppStore(state => state.selectedBC)
+  const setSelectedBC = useAppStore(state => state.setSelectedBC)
+  const selectedState = useAppStore(state => state.selectedState)
+  const setSelectedState = useAppStore(state => state.setSelectedState)
+  const selectedViz = useAppStore(state => state.selectedViz)
+  const setSelectedViz = useAppStore(state => state.setSelectedViz)
+  const selectedInitRegion = useAppStore(state => state.selectedInitRegion)
+  const setSelectedInitRegion = useAppStore(state => state.setSelectedInitRegion)
+  const configData = useAppStore(state => state.configData)
+  const rootSolverKey = useAppStore(state => state.rootSolverKey)
+  const updateProperty = useAppStore(state => state.updateProperty)
   const selectedId = selectedNode?.id || null
 
   useEffect(() => {
@@ -40,7 +54,7 @@ function TreePanel() {
       .catch(error => {
         console.error('Failed to load schema:', error)
       })
-  }, [showAdvanced, refreshKey, configData])
+  }, [showAdvanced, refreshKey])
 
   const toggleNode = (id: string) => {
     const toggleRecursive = (nodes: TreeNode[]): TreeNode[] => {
@@ -250,6 +264,7 @@ function TreePanel() {
       
       {showPropertyDialog && dialogNode && (
         <PropertyEditorDialog
+          key={dialogNode.id}
           isOpen={showPropertyDialog}
           onClose={() => setShowPropertyDialog(false)}
           node={dialogNode}

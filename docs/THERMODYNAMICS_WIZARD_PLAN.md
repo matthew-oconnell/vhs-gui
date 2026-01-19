@@ -71,18 +71,21 @@ Updated properties are reflected in the website UI
 - ✅ Parser extracts species from reaction equations (reac_mod format)
 - ✅ Handles complex species names (commas, hyphens, parentheses)
 - ✅ Shows extracted species preview before confirmation
-- ✅ Sets `species` array from parsed file
+- ✅ **Inert species selection** - Checkboxes for N, N2, Ar, He (N2 default)
+- ✅ Combines reaction species + inert species
+- ✅ Sets `species` array from parsed file + inert species
 - ✅ Sets `reaction model filename` to uploaded filename
 - ✅ Sets `chemical nonequilibrium: true`
 - ✅ Sets `thermodynamic data source: "NASA_9_coefficient"`
-- ✅ 3 passing unit tests for reaction file configurations
+- ✅ 6 passing unit tests for reaction file configurations
 
 **Files Modified:**
 - `src/frontend/utils/reactionFileParser.ts` (new) - Parser for reac_mod format
 - `src/frontend/utils/__tests__/reactionFileParser.test.ts` (new) - 9 parser tests
-- `src/frontend/components/EditorPanel/ThermodynamicsWizard.tsx` - Added Step 5 file upload UI
-- `src/frontend/store/appStore.ts` - Added reaction file logic to updateThermodynamics
-- `src/frontend/store/__tests__/appStore.thermodynamics.test.ts` - Added 3 new tests
+- `src/frontend/components/EditorPanel/ThermodynamicsWizard.tsx` - Added Step 5 file upload UI with inert species
+- `src/frontend/store/appStore.ts` - Added reaction file + inert species logic to updateThermodynamics
+- `src/frontend/store/__tests__/appStore.thermodynamics.test.ts` - Added 6 new tests
+- `src/frontend/types/config.ts` - Added `inertSpecies` to ThermodynamicsConfig interface
 
 **Supported File Formats:**
 - `.txt`, `.dat`, `.reac` - Traditional reac_mod format
@@ -96,7 +99,13 @@ Updated properties are reflected in the website UI
 - Excludes `M` (third body indicator)
 - Handles species with special characters
 
-**Test Results:** 63 total tests passing (15 thermodynamics tests)
+**Inert Species Feature:**
+- Checkboxes for common inert species: N, N2, Ar, He
+- N2 selected by default (common in atmospheric combustion)
+- Inert species appended to reaction-derived species list
+- Properly combined in store before setting `species` array
+
+**Test Results:** 66 total tests passing (18 thermodynamics tests)
 
 ---
 

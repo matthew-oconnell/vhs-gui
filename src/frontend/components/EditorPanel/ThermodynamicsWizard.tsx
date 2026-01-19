@@ -84,7 +84,6 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
       ...config,
       selectedSpecies: extractedSpecies.length > 0 ? extractedSpecies : config.selectedSpecies
     }
-    console.log('[ThermodynamicsWizard] Updating with config:', finalConfig)
     updateThermodynamics(finalConfig)
     
     // Force re-selection of node to refresh the editor view

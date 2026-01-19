@@ -133,7 +133,6 @@ function EditorPanel() {
         return undefined
       }
     }
-    console.log('[EditorPanel] getValueFromPath:', path, '=', value)
     return value
   }
 
@@ -1500,8 +1499,6 @@ function EditorPanel() {
             const podProps = getPODProperties(objSchema)
             const objValue = getValueFromPath(selectedNode.id) || {}
             
-            console.log('[EditorPanel] Rendering object node:', selectedNode.id, 'objValue:', objValue)
-            
             if (podProps.length === 0) {
               return (
                 <div className="info-box">
@@ -1515,14 +1512,6 @@ function EditorPanel() {
               const displayValue = value !== undefined ? value : prop.default
               const propType = Array.isArray(prop.type) ? prop.type[0] : prop.type
               
-              // Debug logging for reaction model filename
-              if (key === 'reaction model filename') {
-                console.log('[EditorPanel] Rendering reaction model filename:')
-                console.log('  - objValue:', objValue)
-                console.log('  - value:', value)
-                console.log('  - displayValue:', displayValue)
-                console.log('  - prop.default:', prop.default)
-              }
               
               return (
                 <div key={key} className="form-group">

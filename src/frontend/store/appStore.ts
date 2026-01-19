@@ -293,11 +293,8 @@ export const useAppStore = create<AppState>((set) => ({
   }),
 
   updateThermodynamics: (thermoConfig) => set((s) => {
-    console.log('[appStore] updateThermodynamics called with:', thermoConfig)
-    
     // Use the global root solver key
     const rootKey = s.rootSolverKey || 'HyperSolve'
-    console.log('[appStore] Using root solver key:', rootKey)
     
     const thermodynamics: any = {}
     
@@ -329,7 +326,6 @@ export const useAppStore = create<AppState>((set) => ({
         thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
       } else if (thermoConfig.reactionModelFile && thermoConfig.selectedSpecies) {
         // Reaction file path
-        console.log('[appStore] Setting reaction file path:', thermoConfig.reactionModelFile, 'with species:', thermoConfig.selectedSpecies)
         // Combine reaction species + inert species
         const allSpecies = [...thermoConfig.selectedSpecies]
         if (thermoConfig.inertSpecies && thermoConfig.inertSpecies.length > 0) {
@@ -339,7 +335,6 @@ export const useAppStore = create<AppState>((set) => ({
         thermodynamics['reaction model filename'] = thermoConfig.reactionModelFile
       } else {
         // No preset selected or custom
-        console.log('[appStore] No specific path matched, setting empty species')
         thermodynamics.species = []
       }
     }

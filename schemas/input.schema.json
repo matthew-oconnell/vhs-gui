@@ -1995,6 +1995,7 @@
                     "type": "array",
                     "description": "The species mixture.",
                     "uniqueItems": true,
+                    "items":{ "type":"string" },
                     "default": [
                         "perfect gas"
                     ]

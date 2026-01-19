@@ -230,9 +230,17 @@ function EditorPanel() {
         return true
       }
       // Check for array of primitives
-      if (prop.type === 'array' && prop.items) {
-        const itemType = prop.items.type
-        if (isPODType(itemType)) {
+      if (prop.type === 'array') {
+        // If items.type is defined, check if it's POD
+        if (prop.items?.type && isPODType(prop.items.type)) {
+          return true
+        }
+        // If no items.type but has a default array with strings, treat as string array
+        if (!prop.items && Array.isArray(prop.default) && prop.default.every((v: any) => typeof v === 'string')) {
+          return true
+        }
+        // If no items specified at all, assume it could be an array of strings
+        if (!prop.items) {
           return true
         }
       }
@@ -1656,13 +1664,30 @@ function EditorPanel() {
                       ) : propType === 'array' ? (
                         // Check if it's a simple array (POD items)
                         (() => {
-                          const itemType = prop.items?.type
+                          // Determine item type: use schema items.type, or infer from default/values
+                          let itemType = prop.items?.type
+                          if (!itemType) {
+                            // Infer from default values or current values
+                            const sampleArray = Array.isArray(displayValue) && displayValue.length > 0 
+                              ? displayValue 
+                              : (Array.isArray(prop.default) ? prop.default : [])
+                            if (sampleArray.length > 0) {
+                              const sampleType = typeof sampleArray[0]
+                              if (sampleType === 'string' || sampleType === 'number' || sampleType === 'boolean') {
+                                itemType = sampleType === 'number' ? 'number' : sampleType
+                              }
+                            } else {
+                              // Default to string for empty arrays with no type info
+                              itemType = 'string'
+                            }
+                          }
                           const isSimpleArray = itemType && isPODType(itemType)
+                          const arrayValue = Array.isArray(displayValue) ? displayValue : (Array.isArray(prop.default) ? prop.default : [])
                           
-                          if (isSimpleArray && Array.isArray(displayValue)) {
+                          if (isSimpleArray) {
                             return (
                               <ArrayEditor
-                                value={displayValue}
+                                value={arrayValue}
                                 onChange={(newValue) => updateValueAtPath(selectedNode.id, key, newValue)}
                                 itemType={itemType as 'string' | 'number' | 'integer' | 'boolean'}
                                 placeholder={`Enter ${itemType}`}

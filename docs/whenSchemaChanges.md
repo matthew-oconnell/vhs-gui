@@ -392,6 +392,53 @@ Update tests if species lists change.
 
 ---
 
+### 7. Schema Bug Workarounds - Arrays Missing `items` Property
+**File:** `src/frontend/components/EditorPanel/EditorPanel.tsx` (isPropertyPOD and array rendering)
+**File:** `src/frontend/components/PropertyEditorDialog/PropertyEditorDialog.tsx` (similar logic)
+
+**Issue:** Some array properties in the schema were missing the `items` property that defines the element type. Per JSON Schema spec, arrays should have `items` to specify element types.
+
+**Status:** ✅ FIXED in upstream schema (January 2026)
+
+**Previously Affected Properties:**
+- `thermodynamics.species` - Now correctly has `items: { type: "string" }`
+
+**Workaround Code (kept for robustness):**
+```typescript
+// In isPropertyPOD():
+if (prop.type === 'array') {
+  // If no items.type but has a default array with strings, treat as string array
+  if (!prop.items && Array.isArray(prop.default) && prop.default.every((v: any) => typeof v === 'string')) {
+    return true
+  }
+  // If no items specified at all, assume it could be an array of strings
+  if (!prop.items) {
+    return true
+  }
+}
+
+// In array rendering:
+let itemType = prop.items?.type
+if (!itemType) {
+  // Infer from default values or current values
+  const sampleArray = Array.isArray(displayValue) && displayValue.length > 0 
+    ? displayValue 
+    : (Array.isArray(prop.default) ? prop.default : [])
+  if (sampleArray.length > 0) {
+    const sampleType = typeof sampleArray[0]
+    if (sampleType === 'string' || sampleType === 'number' || sampleType === 'boolean') {
+      itemType = sampleType === 'number' ? 'number' : sampleType
+    }
+  } else {
+    itemType = 'string'  // Default assumption
+  }
+}
+```
+
+**Note:** The workaround code is kept for robustness in case other arrays without `items` appear in future schema updates. The explicit `items.type` check takes precedence when present.
+
+---
+
 ## 💡 Future Improvements
 
 To make this more automatic:

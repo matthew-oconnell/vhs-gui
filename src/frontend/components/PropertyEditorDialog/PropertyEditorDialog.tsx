@@ -4,6 +4,7 @@ import { TreeNode } from '../../utils/schemaParser'
 import { isCategoryHidden } from '../../utils/featureFlags'
 import { useAppStore } from '../../store/appStore'
 import StateWizard from '../EditorPanel/StateWizard'
+import ArrayEditor from '../ArrayEditor/ArrayEditor'
 import './PropertyEditorDialog.css'
 
 interface SchemaProperty {
@@ -371,6 +372,13 @@ export default function PropertyEditorDialog({
                   </option>
                 ))}
               </select>
+            ) : propType === 'array' && prop.items && isPODType(prop.items.type) ? (
+              <ArrayEditor
+                value={Array.isArray(displayValue) ? displayValue : []}
+                onChange={(newValue) => handleInputChange(key, newValue)}
+                itemType={(Array.isArray(prop.items.type) ? prop.items.type[0] : prop.items.type) as 'string' | 'number' | 'integer' | 'boolean'}
+                placeholder={`Enter ${key}`}
+              />
             ) : propType === 'array' ? (
               <textarea 
                 className="property-grid-input"

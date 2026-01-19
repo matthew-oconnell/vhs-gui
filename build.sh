@@ -11,6 +11,12 @@ echo "======================================"
 # Step 1: Build React frontend
 echo ""
 echo "Step 1: Building React frontend..."
+
+# Copy schema to public directory before build (Vite will include it)
+echo "Copying schema to public/schemas..."
+mkdir -p public/schemas
+cp schemas/input.schema.json public/schemas/
+
 cd src/frontend
 if [ ! -d "node_modules" ]; then
     echo "Installing npm dependencies..."
@@ -32,6 +38,10 @@ cd build
 rm -rf public
 mkdir -p public
 cp -r ../../frontend/dist/* public/
+
+# Ensure schema is in the server's public directory
+mkdir -p public/schemas
+cp ../../../schemas/input.schema.json public/schemas/
 
 echo ""
 echo "======================================"

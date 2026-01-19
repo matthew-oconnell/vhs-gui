@@ -100,7 +100,35 @@ export const useAppStore = create<AppState>((set) => ({
   
   // Root solver key from schema (e.g., 'Vulcan' or 'HyperSolve')
   rootSolverKey: null,
-  setRootSolverKey: (key) => set({ rootSolverKey: key }),
+  setRootSolverKey: (key) => set((state) => {
+    // When root solver key changes, update the default config structure
+    const currentConfig = state.configData
+    const oldKey = state.rootSolverKey || 'HyperSolve'
+    
+    // If the key changed and we have default config under the old key, migrate it
+    if (key && key !== oldKey && currentConfig[oldKey]) {
+      const oldData = currentConfig[oldKey]
+      const newConfig = { ...currentConfig }
+      delete newConfig[oldKey]
+      newConfig[key] = oldData
+      return { rootSolverKey: key, configData: newConfig }
+    }
+    
+    // If no config exists yet under any key, create the default structure
+    if (key && !currentConfig[key]) {
+      return {
+        rootSolverKey: key,
+        configData: {
+          [key]: {
+            'boundary conditions': [],
+            states: {}
+          }
+        }
+      }
+    }
+    
+    return { rootSolverKey: key }
+  }),
   
   availableSurfaces: [],
   totalVertices: 0,

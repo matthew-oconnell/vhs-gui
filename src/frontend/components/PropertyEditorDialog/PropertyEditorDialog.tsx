@@ -52,7 +52,7 @@ export default function PropertyEditorDialog({
   if (!isOpen || !node) return null
 
   // Check if this is the states array
-  const isStatesNode = node.id.endsWith('.states') || node.path.endsWith('.states')
+  const isStatesNode = node.id && node.id.endsWith('.states')
 
   // Helper function to get value from configData based on node path
   const getValueFromPath = (path: string) => {
@@ -432,9 +432,7 @@ export default function PropertyEditorDialog({
       label: key,
       type: 'object',
       children: [],
-      path: `${node.path}.${key}`,
-      description: prop.description,
-      schemaType: prop
+      description: prop.description
     }
   }
 

@@ -2916,7 +2916,7 @@
                 }
             ]
         },
-        "Isothermal Wall": {
+        "Constant Temperature": {
             "only for": [
                 "heat-equation"
             ],
@@ -2938,7 +2938,7 @@
             },
             "additionalProperties": false
         },
-        "Radiative Equilibrium Wall": {
+        "Radiative Equilibrium Temperature": {
             "only for": [
                 "heat-equation"
             ],
@@ -3129,7 +3129,7 @@
                 }
             ]
         },
-        "Subsonic Outflow": {
+        "Back Pressure": {
             "description": "Outflow condition with static pressure specified when the flow is subsonic.  For supersonic flow, the interior state is extrapolated to the exterior state.",
             "properties": {
                 "mesh boundary tags": {

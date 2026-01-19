@@ -1,4 +1,4 @@
-import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2 } from 'lucide-react'
+import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2, Settings } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition } from '../../types/config'
@@ -7,6 +7,7 @@ import BoundaryConditionDialog from '../BoundaryConditionDialog/BoundaryConditio
 import PropertyEditorDialog from '../PropertyEditorDialog/PropertyEditorDialog'
 import VisualizationDialog from '../VisualizationDialog/VisualizationDialog'
 import InitializationRegionDialog from '../InitializationRegionDialog/InitializationRegionDialog'
+import ThermodynamicsWizard from './ThermodynamicsWizard'
 import { loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
 import { calculateAreaWeightedNormal } from '../../utils/surfaceUtils'
 import './EditorPanel.css'
@@ -78,6 +79,7 @@ function EditorPanel() {
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
   const [showVizDialog, setShowVizDialog] = useState(false)
   const [showInitRegionDialog, setShowInitRegionDialog] = useState(false)
+  const [showThermoWizard, setShowThermoWizard] = useState(false)
   const [normalPreset, setNormalPreset] = useState<string>('custom')
   const [selectedSurfaceForNormal, setSelectedSurfaceForNormal] = useState<string>('')
   const [schema, setSchema] = useState<Schema | null>(null)
@@ -569,6 +571,79 @@ function EditorPanel() {
               `${states.length} state(s) defined. Select one from the tree to edit.`
             )}
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderThermodynamicsEditor = () => {
+    const thermo = configData.HyperSolve?.thermodynamics || {}
+    
+    // Detect current gas model
+    const isIdealGas = !thermo.species || thermo.species.length === 0 || thermo.species.includes('perfect gas')
+    const speciesCount = thermo.species?.length || 0
+    
+    return (
+      <div className="editor-content">
+        <div className="property-header">
+          <h3 className="property-title">Thermodynamics</h3>
+          <span className="property-type-badge">object</span>
+        </div>
+        
+        <p className="property-description">
+          Thermodynamic equations of state and species configuration
+        </p>
+
+        <div className="form-section">
+          <button 
+            className="add-button" 
+            onClick={() => setShowThermoWizard(true)}
+          >
+            <Settings size={16} /> Configure Thermodynamics
+          </button>
+          
+          <div className="info-box">
+            <strong>Current Gas Model:</strong>{' '}
+            {isIdealGas 
+              ? 'Ideal Gas' 
+              : `Multispecies (${speciesCount} species)`}
+          </div>
+          
+          {thermo.species && thermo.species.length > 0 && !thermo.species.includes('perfect gas') && (
+            <div className="form-group">
+              <label className="form-label">Species</label>
+              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
+                {thermo.species.join(', ')}
+              </div>
+            </div>
+          )}
+          
+          {thermo['molecular weight'] && (
+            <div className="form-group">
+              <label className="form-label">Molecular Weight (g/mol)</label>
+              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
+                {thermo['molecular weight']}
+              </div>
+            </div>
+          )}
+          
+          {thermo['ratio of specific heats'] && (
+            <div className="form-group">
+              <label className="form-label">Ratio of Specific Heats (γ)</label>
+              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
+                {thermo['ratio of specific heats']}
+              </div>
+            </div>
+          )}
+          
+          {thermo['reaction model filename'] && (
+            <div className="form-group">
+              <label className="form-label">Reaction Model File</label>
+              <div className="property-value" style={{ fontSize: '13px', color: '#cccccc' }}>
+                {thermo['reaction model filename']}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )
@@ -1408,6 +1483,12 @@ function EditorPanel() {
       return renderBCEditor()
     }
     if (selectedNode) {
+      // Check if this is the thermodynamics node
+      if (selectedNode.id === 'root.HyperSolve.thermodynamics' || 
+          selectedNode.id.endsWith('.thermodynamics') ||
+          selectedNode.path === 'HyperSolve.thermodynamics') {
+        return renderThermodynamicsEditor()
+      }
       // Check if this is the boundary conditions array node
       if (selectedNode.id === 'root.HyperSolve.boundary conditions') {
         return renderBCArrayEditor()
@@ -1656,6 +1737,16 @@ function EditorPanel() {
         <InitializationRegionDialog
           isOpen={showInitRegionDialog}
           onClose={() => setShowInitRegionDialog(false)}
+        />
+      )}
+
+      {showThermoWizard && (
+        <ThermodynamicsWizard
+          onClose={() => setShowThermoWizard(false)}
+          onUpdate={(thermoConfig) => {
+            console.log('[EditorPanel] Thermodynamics config updated:', thermoConfig)
+            // TODO: Wire up to appStore in Phase 2
+          }}
         />
       )}
     </div>

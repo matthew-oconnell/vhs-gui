@@ -1,0 +1,124 @@
+/* Based on NewProjectWizard.css with consistent modal styling */
+
+.wizard-content {
+  min-width: 600px;
+  max-width: 700px;
+}
+
+.wizard-body {
+  padding: 24px;
+  min-height: 400px;
+}
+
+.wizard-progress {
+  text-align: center;
+  color: #858585;
+  font-size: 12px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wizard-step h3 {
+  color: #cccccc;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.wizard-description {
+  color: #858585;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.wizard-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wizard-option {
+  background-color: #2d2d2d;
+  border: 2px solid #3e3e42;
+  border-radius: 6px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.wizard-option:hover {
+  background-color: #333333;
+  border-color: #4a9eff;
+}
+
+.wizard-option.selected {
+  background-color: #1e3a5f;
+  border-color: #4a9eff;
+}
+
+.option-title {
+  color: #cccccc;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.option-description {
+  color: #858585;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Form sections */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Info box for placeholders and help text */
+.info-box {
+  background-color: #2d2d2d;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  padding: 12px;
+  color: #858585;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Consistent modal button styling */
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.modal-button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.modal-button-primary:hover {
+  background-color: #1177bb;
+}
+
+.modal-button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+.modal-button-secondary {
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.modal-button-secondary:hover {
+  background-color: #505050;
+}

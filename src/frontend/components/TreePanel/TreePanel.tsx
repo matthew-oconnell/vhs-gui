@@ -202,7 +202,11 @@ function TreePanel() {
             }}
             onDoubleClick={() => {
               // Open property dialog on double-click for object nodes (not BC/State/Viz/InitRegion instances)
-              if (!isBCNode && !isStateNode && !isVizNode && !isInitRegionNode && node.type === 'object') {
+              // Skip thermodynamics - it has a custom wizard
+              const isThermoNode = node.id === 'root.HyperSolve.thermodynamics' || 
+                                  node.id.endsWith('.thermodynamics') ||
+                                  node.path === 'HyperSolve.thermodynamics'
+              if (!isBCNode && !isStateNode && !isVizNode && !isInitRegionNode && !isThermoNode && node.type === 'object') {
                 setDialogNode(node)
                 setShowPropertyDialog(true)
               }

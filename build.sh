@@ -5,7 +5,7 @@
 set -e  # Exit on error
 
 echo "======================================"
-echo "Building Vulcan Server"
+echo "Building VHS Server"
 echo "======================================"
 
 # Step 1: Build React frontend
@@ -48,14 +48,14 @@ echo "======================================"
 echo "✅ Build Complete!"
 echo "======================================"
 echo ""
-echo "Server binary: src/server/build/vulcan_server"
+echo "Server binary: src/server/build/vhs_server"
 echo "Frontend files: src/server/build/public/"
 echo ""
 echo "Launching server and opening browser..."
 echo ""
 
 # Launch server in background
-./vulcan_server > /dev/null 2>&1 &
+./vhs_server > /dev/null 2>&1 &
 SERVER_PID=$!
 
 # Wait a moment for server to start

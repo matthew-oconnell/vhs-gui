@@ -1,5 +1,5 @@
 /**
- * Catch2 test runner for Vulcan Server
+ * Catch2 test runner for VHS Server
  */
 
 #define CATCH_CONFIG_MAIN

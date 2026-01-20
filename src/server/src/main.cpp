@@ -1,5 +1,5 @@
 /**
- * Vulcan CFD GUI - C++ HTTP Server
+ * VHS GUI - C++ HTTP Server
  * 
  * Minimal server implementation using cpp-httplib.
  * Serves REST API for mesh conversion and configuration management.
@@ -37,7 +37,7 @@ int main(int argc, char* argv[]) {
         } else if (arg == "--host" && i + 1 < argc) {
             host = argv[++i];
         } else if (arg == "--help" || arg == "-h") {
-            std::cout << "Vulcan Server - CFD GUI Backend\n\n"
+            std::cout << "VHS Server - CFD GUI Backend\n\n"
                       << "Usage: " << argv[0] << " [options]\n\n"
                       << "Options:\n"
                       << "  --port <port>    Port to bind to (default: 8080)\n"
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
         res.set_content(
             json_object({
                 {"status", "ok"},
-                {"message", "Vulcan server is running"},
+                {"message", "VHS server is running"},
                 {"version", "1.0.0"}
             }),
             "application/json"
@@ -69,7 +69,7 @@ int main(int argc, char* argv[]) {
     // API info endpoint
     svr.Get("/api/info", [](const httplib::Request&, httplib::Response& res) {
         std::string json = R"({
-  "name": "Vulcan CFD GUI Server",
+  "name": "VHS GUI Server",
   "version": "1.0.0",
   "description": "HTTP backend for mesh conversion and configuration management",
   "endpoints": ["/api/health", "/api/info"]
@@ -79,7 +79,7 @@ int main(int argc, char* argv[]) {
     
     // Root endpoint
     svr.Get("/", [](const httplib::Request&, httplib::Response& res) {
-        res.set_content("Vulcan CFD GUI Server - Use /api/health to check status", "text/plain");
+        res.set_content("VHS GUI Server - Use /api/health to check status", "text/plain");
     });
     
     // Mesh upload endpoint
@@ -97,8 +97,8 @@ int main(int argc, char* argv[]) {
         std::string content = file.content;
         
         // Validate file extension
-        std::string ext = vulcan::getFileExtension(filename);
-        if (!vulcan::isSupportedMeshFormat(ext)) {
+        std::string ext = vhs::getFileExtension(filename);
+        if (!vhs::isSupportedMeshFormat(ext)) {
             std::ostringstream error;
             error << R"({"error":"Unsupported file format","extension":")" << ext 
                   << R"(","supported":["meshb","egads","csm","obj","stl"]})";
@@ -108,11 +108,11 @@ int main(int argc, char* argv[]) {
         }
         
         // Generate session ID and save file
-        std::string sessionId = vulcan::generateSessionId();
+        std::string sessionId = vhs::generateSessionId();
         std::string savedPath;
         
         try {
-            savedPath = vulcan::saveUploadedFile(content, filename, sessionId);
+            savedPath = vhs::saveUploadedFile(content, filename, sessionId);
         } catch (const std::exception& e) {
             std::ostringstream error;
             error << R"({"error":"Failed to save file","message":")" << e.what() << R"("})";
@@ -128,14 +128,14 @@ int main(int argc, char* argv[]) {
                  << R"(  "sessionId": ")" << sessionId << "\",\n"
                  << R"(  "filename": ")" << filename << "\",\n"
                  << R"(  "extension": ")" << ext << "\",\n"
-                 << R"(  "size": ")" << vulcan::formatFileSize(content.size()) << "\",\n"
+                 << R"(  "size": ")" << vhs::formatFileSize(content.size()) << "\",\n"
                  << R"(  "sizeBytes": )" << content.size() << ",\n"
                  << R"(  "path": ")" << savedPath << "\",\n"
                  << R"(  "message": "File uploaded successfully. Conversion pending.")" << "\n"
                  << "}";
         
         res.set_content(response.str(), "application/json");
-        std::cout << "[UPLOAD] " << filename << " (" << vulcan::formatFileSize(content.size()) 
+        std::cout << "[UPLOAD] " << filename << " (" << vhs::formatFileSize(content.size()) 
                   << ") -> Session: " << sessionId << std::endl;
     });
     
@@ -145,7 +145,7 @@ int main(int argc, char* argv[]) {
         
         // Find the mesh file in the session directory
         namespace fs = std::filesystem;
-        fs::path sessionDir = fs::temp_directory_path() / "vulcan" / "uploads" / sessionId;
+        fs::path sessionDir = fs::temp_directory_path() / "vhs" / "uploads" / sessionId;
         
         if (!fs::exists(sessionDir)) {
             res.status = 404;
@@ -159,8 +159,8 @@ int main(int argc, char* argv[]) {
         std::string extension;
         for (const auto& entry : fs::directory_iterator(sessionDir)) {
             if (entry.is_regular_file()) {
-                extension = vulcan::getFileExtension(entry.path().filename().string());
-                if (vulcan::isSupportedMeshFormat(extension)) {
+                extension = vhs::getFileExtension(entry.path().filename().string());
+                if (vhs::isSupportedMeshFormat(extension)) {
                     meshFile = entry.path().string();
                     break;
                 }
@@ -178,7 +178,7 @@ int main(int argc, char* argv[]) {
             std::cout << "[CONVERT] Session: " << sessionId << " | File: " 
                       << fs::path(meshFile).filename().string() << " | Format: " << extension << std::endl;
             
-            std::string meshJSON = vulcan::convertMeshToJSON(meshFile, extension);
+            std::string meshJSON = vhs::convertMeshToJSON(meshFile, extension);
             
             res.set_content(meshJSON, "application/json");
             
@@ -236,7 +236,7 @@ int main(int argc, char* argv[]) {
     
     // Log server startup
     std::cout << "\n=================================================\n"
-              << "  Vulcan CFD GUI Server v1.0.0\n"
+              << "  VHS GUI Server v1.0.0\n"
               << "=================================================\n"
               << "  Starting server...\n"
               << "  Host: " << host << "\n"

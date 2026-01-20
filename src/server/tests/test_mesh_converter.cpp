@@ -7,7 +7,7 @@
 #include <fstream>
 #include <filesystem>
 
-using namespace vulcan;
+using namespace vhs;
 
 // Helper to create a simple OBJ file for testing
 std::string createTestOBJ(const std::string& path) {

@@ -1,4 +1,4 @@
-# Vulcan CFD GUI
+# VHS GUI
 
 A web-based graphical user interface for setting up and configuring Computational Fluid Dynamics (CFD) simulations. The application provides intuitive visual interactions for mesh visualization, boundary condition assignment, and comprehensive simulation setup driven by JSON schemas.
 
@@ -353,7 +353,7 @@ npm run preview
 ## Project Structure
 
 ```
-vulcan-gui/
+vhs-gui/
 ├── src/
 │   ├── frontend/               # React application
 │   │   ├── components/         # UI components

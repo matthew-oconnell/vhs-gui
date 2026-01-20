@@ -15,7 +15,7 @@
 #include <cmath>
 #include <stdexcept>
 
-namespace vulcan {
+namespace vhs {
 
 /**
  * Represents a single mesh region/surface

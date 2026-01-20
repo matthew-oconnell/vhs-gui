@@ -7,7 +7,7 @@
 #include <filesystem>
 #include <fstream>
 
-using namespace vulcan;
+using namespace vhs;
 
 TEST_CASE("Session ID generation", "[file_handler]") {
     SECTION("Generates non-empty ID") {

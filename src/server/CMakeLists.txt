@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
-project(VulcanServer VERSION 1.0.0 LANGUAGES CXX)
+project(VHSServer VERSION 1.0.0 LANGUAGES CXX)
 
 # C++17 standard
 set(CMAKE_CXX_STANDARD 17)
@@ -18,11 +18,11 @@ find_package(Threads REQUIRED)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Server executable
-add_executable(vulcan_server
+add_executable(vhs_server
     src/main.cpp
 )
 
-target_link_libraries(vulcan_server
+target_link_libraries(vhs_server
     PRIVATE
     Threads::Threads
 )
@@ -31,23 +31,23 @@ target_link_libraries(vulcan_server
 enable_testing()
 
 # Tests executable
-add_executable(vulcan_tests
+add_executable(vhs_tests
     tests/test_main.cpp
     tests/test_server.cpp
     tests/test_file_handler.cpp
     tests/test_mesh_converter.cpp
 )
 
-target_link_libraries(vulcan_tests
+target_link_libraries(vhs_tests
     PRIVATE
     Threads::Threads
 )
 
 # Register tests with CTest
-add_test(NAME VulcanServerTests COMMAND vulcan_tests)
+add_test(NAME VHSServerTests COMMAND vhs_tests)
 
 # Installation
-install(TARGETS vulcan_server
+install(TARGETS vhs_server
     RUNTIME DESTINATION bin
 )
 

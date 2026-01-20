@@ -5,7 +5,7 @@
 set -e
 
 VERSION="1.0.0"
-DIST_NAME="vulcan-gui-v${VERSION}"
+DIST_NAME="vhs-gui-v${VERSION}"
 
 echo "======================================"
 echo "Creating Distribution Package"
@@ -24,7 +24,7 @@ mkdir -p dist-package/$DIST_NAME
 
 # Step 3: Copy server binary
 echo "Copying server binary..."
-cp ../server/build/vulcan_server dist-package/$DIST_NAME/
+cp ../server/build/vhs_server dist-package/$DIST_NAME/
 
 # Step 4: Copy public files  
 echo "Copying frontend files..."
@@ -32,12 +32,12 @@ cp -r ../server/build/public dist-package/$DIST_NAME/
 
 # Step 5: Create README for end users
 cat > dist-package/$DIST_NAME/README.txt << 'EOF'
-# Vulcan CFD GUI - User Guide
+# VHS GUI - User Guide
 
 ## Quick Start
 
 1. Run the server:
-   ./vulcan_server
+   ./vhs_server
 
 2. Open your web browser:
    http://127.0.0.1:8080
@@ -52,18 +52,18 @@ That's it!
 ## Options
 
 Run with custom port:
-  ./vulcan_server --port 3000
+  ./vhs_server --port 3000
 
 Run on all network interfaces (allow remote access):
-  ./vulcan_server --host 0.0.0.0 --port 8080
+  ./vhs_server --host 0.0.0.0 --port 8080
 
 Help:
-  ./vulcan_server --help
+  ./vhs_server --help
 
 ## Troubleshooting
 
 - If port 8080 is in use, try a different port with --port
-- Make sure ./vulcan_server is executable: chmod +x vulcan_server
+- Make sure ./vhs_server is executable: chmod +x vhs_server
 - Check firewall if accessing from another machine
 
 ## Support
@@ -74,14 +74,14 @@ EOF
 # Step 6: Create run script for convenience
 cat > dist-package/$DIST_NAME/run.sh << 'EOF'
 #!/bin/bash
-# Convenience script to run Vulcan GUI
+# Convenience script to run VHS GUI
 
-echo "Starting Vulcan CFD GUI..."
+echo "Starting VHS GUI..."
 echo "Open browser: http://127.0.0.1:8080"
 echo "Press Ctrl+C to stop"
 echo ""
 
-./vulcan_server
+./vhs_server
 EOF
 
 chmod +x dist-package/$DIST_NAME/run.sh

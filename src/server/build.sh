@@ -1,10 +1,10 @@
 #!/bin/bash
-# Build script for Vulcan Server
+# Build script for VHS Server
 
 set -e  # Exit on error
 
 echo "==================================================="
-echo "  Building Vulcan Server"
+echo "  Building VHS Server"
 echo "==================================================="
 
 # Create build directory if it doesn't exist
@@ -29,9 +29,9 @@ echo "  Build complete!"
 echo "==================================================="
 echo ""
 echo "Run the server:"
-echo "  ./build/vulcan_server"
+echo "  ./build/vhs_server"
 echo ""
 echo "Run tests:"
-echo "  ./build/vulcan_tests"
+echo "  ./build/vhs_tests"
 echo "  or: cd build && ctest --output-on-failure"
 echo ""

@@ -1,4 +1,4 @@
-# AI Agent Guidelines for vulcan-gui
+# AI Agent Guidelines for vhs-gui
 
 This document provides guidance for AI agents making changes to this codebase.
 
@@ -592,7 +592,7 @@ The JSON schema file (`input.schema.json`) must be accessible to the frontend at
 
 **Directory Structure:**
 ```
-/home/matthew/Projects/vulcan-gui/
+/home/matthew/Projects/vhs-gui/
 ├── schemas/input.schema.json          # Source of truth (maintained by upstream)
 ├── public/schemas/input.schema.json   # Copy for Vite publicDir
 ├── src/frontend/

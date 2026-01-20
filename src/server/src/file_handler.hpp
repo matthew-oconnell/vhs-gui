@@ -12,7 +12,7 @@
 #include <filesystem>
 #include <chrono>
 
-namespace vulcan {
+namespace vhs {
 
 /**
  * Generate a unique session ID for file uploads
@@ -48,8 +48,8 @@ inline std::string saveUploadedFile(
 ) {
     namespace fs = std::filesystem;
     
-    // Create upload directory structure: /tmp/vulcan/uploads/{sessionId}/
-    fs::path uploadDir = fs::temp_directory_path() / "vulcan" / "uploads" / sessionId;
+    // Create upload directory structure: /tmp/vhs/uploads/{sessionId}/
+    fs::path uploadDir = fs::temp_directory_path() / "vhs" / "uploads" / sessionId;
     fs::create_directories(uploadDir);
     
     // Save file
@@ -105,4 +105,4 @@ inline std::string formatFileSize(size_t bytes) {
     return oss.str();
 }
 
-} // namespace vulcan
+} // namespace vhs

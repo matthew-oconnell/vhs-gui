@@ -176,9 +176,34 @@
 /* Property grid for better layout in larger window */
 .property-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 40px;
   margin-top: 16px;
+  position: relative;
+}
+
+/* Vertical divider line between the two columns */
+.property-grid::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #3d3d3d;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Hide vertical divider on smaller screens when grid is single column */
+@media (max-width: 800px) {
+  .property-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .property-grid::before {
+    display: none;
+  }
 }
 
 .property-divider-container {

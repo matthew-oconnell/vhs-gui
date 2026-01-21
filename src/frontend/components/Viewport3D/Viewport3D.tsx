@@ -7,10 +7,12 @@ import { BoundaryCondition } from '../../types/config'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { CameraControls, CameraToolbar } from './CameraToolbar'
+import { RenderingToolbar } from './RenderingToolbar'
 import BoundaryConditionDialog from '../BoundaryConditionDialog/BoundaryConditionDialog'
 import { ArrowGizmo } from './CylinderGizmo'
 import SurfaceAlreadyAssignedDialog from '../SurfaceAlreadyAssignedDialog/SurfaceAlreadyAssignedDialog'
 import ConfirmBCDeletionDialog from '../ConfirmBCDeletionDialog/ConfirmBCDeletionDialog'
+import { getColorForSurface } from '../../utils/surfaceColorUtils'
 import './Viewport3D.css'
 
 // Sample surfaces with metadata
@@ -46,11 +48,14 @@ function ClickableSurface({
   // Track right-click position and time to differentiate click from drag
   const rightClickStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   
-  const { selectedSurface, setSelectedSurface, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings } = useAppStore()
+  const { selectedSurface, setSelectedSurface, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings, globalRenderSettings, configData, rootSolverKey } = useAppStore()
   const [hovered, setHovered] = useState(false)
   
   const isSelected = selectedSurface?.id === surface.id
-  const isVisible = surfaceVisibility[surface.id] ?? true
+  
+  // Get boundary conditions for color logic
+  const rootKey = rootSolverKey || 'HyperSolve'
+  const boundaryConditions = (configData as any)[rootKey]?.['boundary conditions'] || []
   
   // Get render settings with defaults
   const settings = surfaceRenderSettings[surface.id] ?? {
@@ -101,6 +106,9 @@ function ClickableSurface({
     }
     return false
   })() : true // Show all surfaces if no BC is soloed
+  
+  // Check visibility from store (surfaceVisibility is updated by toggleHideAssignedSurfaces)
+  const isVisible = surfaceVisibility[surface.id] ?? true
   
   // Don't render if surface is hidden
   if (!isVisible) {
@@ -175,8 +183,16 @@ function ClickableSurface({
     e.stopPropagation()
   }
   
-  // Determine display color (highlight overrides custom color)
-  const displayColor = isSelected ? '#ffd700' : hovered ? '#ffffff' : settings.surfaceColor
+  // Get base color from color mode
+  const baseColor = getColorForSurface(
+    surface,
+    globalRenderSettings.colorMode,
+    globalRenderSettings,
+    boundaryConditions
+  )
+  
+  // Determine display color (selection/hover overrides base color)
+  const displayColor = isSelected ? '#ffd700' : hovered ? '#ffffff' : baseColor
   const emissive = isSelected ? '#aa8800' : hovered ? '#444444' : '#000000'
   const emissiveIntensity = isSelected ? 0.5 : hovered ? 0.2 : 0
   
@@ -1255,7 +1271,8 @@ function Viewport3D() {
     totalFaces, 
     overlayPosition, 
     setOverlayPosition, 
-    selectedSurface, 
+    selectedSurface,
+    setSelectedSurface,
     configData,
     addBoundaryCondition,
     setSelectedBC,
@@ -1489,6 +1506,28 @@ function Viewport3D() {
     }
   }, [contextMenu])
   
+  // Handle Escape key to deselect surface (only when no dialogs are open)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Don't deselect if any dialog is open
+        if (showBCDialog || showAlreadyAssignedDialog || showConfirmDeletionDialog || contextMenu) {
+          return
+        }
+        
+        // Deselect surface if one is selected
+        if (selectedSurface) {
+          setSelectedSurface(null)
+        }
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedSurface, setSelectedSurface, showBCDialog, showAlreadyAssignedDialog, showConfirmDeletionDialog, contextMenu])
+  
   return (
     <div className="panel viewport-panel">
       <div className="panel-header">
@@ -1518,6 +1557,9 @@ function Viewport3D() {
         {/* Camera Toolbar */}
         <CameraToolbar />
         
+        {/* Rendering Toolbar */}
+        <RenderingToolbar />
+        
         {/* Overlay UI */}
         <div className="viewport-overlay">
           <div 
@@ -1536,7 +1578,7 @@ function Viewport3D() {
           
           {/* Surface metadata overlay */}
           {selectedSurface && (
-            <div className="overlay-corner top-right">
+            <div className="overlay-corner bottom-left">
               <div className="surface-metadata">
                 <div className="metadata-header">{selectedSurface.name}</div>
                 <div className="metadata-row">Tag: {selectedSurface.metadata.tag}</div>

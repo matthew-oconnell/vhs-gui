@@ -28,6 +28,17 @@ export interface SurfaceRenderSettings {
   opacity: number
 }
 
+// Global color mode for all surfaces
+export type ColorMode = 'assigned-status' | 'bc-type' | 'random' | 'solid'
+
+export interface GlobalRenderSettings {
+  colorMode: ColorMode
+  hideAssignedSurfaces: boolean
+  unassignedColor: string
+  assignedColor: string
+  solidColor: string
+}
+
 interface AppState {
   selectedNode: TreeNode | null
   setSelectedNode: (node: TreeNode | null) => void
@@ -60,6 +71,12 @@ interface AppState {
   toggleSurfaceWireframe: (surfaceId: string) => void
   surfaceRenderSettings: Record<string, SurfaceRenderSettings>
   updateSurfaceRenderSettings: (surfaceId: string, settings: Partial<SurfaceRenderSettings>) => void
+  globalRenderSettings: GlobalRenderSettings
+  setColorMode: (mode: ColorMode) => void
+  toggleHideAssignedSurfaces: () => void
+  setUnassignedColor: (color: string) => void
+  setAssignedColor: (color: string) => void
+  setSolidColor: (color: string) => void
   addBoundaryCondition: (bc: BoundaryCondition) => void
   updateBoundaryCondition: (id: string, updates: Partial<BoundaryCondition>) => void
   deleteBoundaryCondition: (id: string) => void
@@ -190,9 +207,97 @@ export const useAppStore = create<AppState>((set) => ({
     }
   })),
   
+  // Global render settings with defaults
+  globalRenderSettings: {
+    colorMode: 'solid' as ColorMode,
+    hideAssignedSurfaces: false,
+    unassignedColor: '#ff4444',
+    assignedColor: '#44aa44',
+    solidColor: '#4a9eff'
+  },
+  
+  setColorMode: (mode) => set((state) => ({
+    globalRenderSettings: { ...state.globalRenderSettings, colorMode: mode }
+  })),
+  
+  toggleHideAssignedSurfaces: () => set((state) => {
+    const newHideAssigned = !state.globalRenderSettings.hideAssignedSurfaces
+    const rootKey = state.rootSolverKey || 'HyperSolve'
+    const boundaryConditions = (state.configData as any)[rootKey]?.['boundary conditions'] || []
+    
+    // Build new visibility map
+    const newVisibility = { ...state.surfaceVisibility }
+    
+    // For each surface, check if it's assigned to any BC
+    state.availableSurfaces.forEach(surface => {
+      const surfaceTag = surface.metadata.tag
+      const isAssigned = boundaryConditions.some((bc: any) => {
+        const tags = bc['mesh boundary tags']
+        if (Array.isArray(tags)) {
+          return tags.includes(surfaceTag) || tags.includes(String(surfaceTag))
+        } else if (typeof tags === 'number') {
+          return tags === surfaceTag
+        } else if (typeof tags === 'string') {
+          return tags.split(',').map((s: string) => parseInt(s.trim(), 10)).includes(surfaceTag)
+        }
+        return false
+      })
+      
+      if (isAssigned) {
+        // Hide assigned surfaces when toggling on, show when toggling off
+        newVisibility[surface.id] = !newHideAssigned
+      }
+    })
+    
+    return {
+      globalRenderSettings: { 
+        ...state.globalRenderSettings, 
+        hideAssignedSurfaces: newHideAssigned 
+      },
+      surfaceVisibility: newVisibility
+    }
+  }),
+  
+  setUnassignedColor: (color) => set((state) => ({
+    globalRenderSettings: { ...state.globalRenderSettings, unassignedColor: color }
+  })),
+  
+  setAssignedColor: (color) => set((state) => ({
+    globalRenderSettings: { ...state.globalRenderSettings, assignedColor: color }
+  })),
+  
+  setSolidColor: (color) => set((state) => ({
+    globalRenderSettings: { ...state.globalRenderSettings, solidColor: color }
+  })),
+  
   addBoundaryCondition: (bc) => set((state) => {
     const rootKey = state.rootSolverKey || 'HyperSolve'
     const rootConfig = (state.configData as any)[rootKey] || {}
+    
+    // If hideAssignedSurfaces is on, hide the surfaces being assigned to this BC
+    let newVisibility = state.surfaceVisibility
+    if (state.globalRenderSettings.hideAssignedSurfaces && bc['mesh boundary tags']) {
+      newVisibility = { ...state.surfaceVisibility }
+      const tags = bc['mesh boundary tags']
+      
+      state.availableSurfaces.forEach(surface => {
+        const surfaceTag = surface.metadata.tag
+        let isAssignedToThisBC = false
+        
+        if (Array.isArray(tags)) {
+          isAssignedToThisBC = tags.includes(surfaceTag) || tags.includes(String(surfaceTag))
+        } else if (typeof tags === 'number') {
+          isAssignedToThisBC = tags === surfaceTag
+        } else if (typeof tags === 'string') {
+          isAssignedToThisBC = tags.split(',').map((s: string) => parseInt(s.trim(), 10)).includes(surfaceTag)
+        }
+        
+        if (isAssignedToThisBC) {
+          newVisibility[surface.id] = false
+        }
+      })
+    }
+    
     return {
       configData: {
         ...state.configData,
@@ -204,6 +309,7 @@ export const useAppStore = create<AppState>((set) => ({
           ]
         }
       },
+      surfaceVisibility: newVisibility,
       selectedBC: bc,
       selectedNode: null,
       selectedSurface: null
@@ -213,6 +319,31 @@ export const useAppStore = create<AppState>((set) => ({
   updateBoundaryCondition: (id, updates) => set((state) => {
     const rootKey = state.rootSolverKey || 'HyperSolve'
     const rootConfig = (state.configData as any)[rootKey] || {}
+    
+    // If hideAssignedSurfaces is on and mesh boundary tags are being updated, hide newly assigned surfaces
+    let newVisibility = state.surfaceVisibility
+    if (state.globalRenderSettings.hideAssignedSurfaces && updates['mesh boundary tags']) {
+      newVisibility = { ...state.surfaceVisibility }
+      const tags = updates['mesh boundary tags']
+      
+      state.availableSurfaces.forEach(surface => {
+        const surfaceTag = surface.metadata.tag
+        let isAssignedToThisBC = false
+        
+        if (Array.isArray(tags)) {
+          isAssignedToThisBC = tags.includes(surfaceTag) || tags.includes(String(surfaceTag))
+        } else if (typeof tags === 'number') {
+          isAssignedToThisBC = tags === surfaceTag
+        } else if (typeof tags === 'string') {
+          isAssignedToThisBC = tags.split(',').map((s: string) => parseInt(s.trim(), 10)).includes(surfaceTag)
+        }
+        
+        if (isAssignedToThisBC) {
+          newVisibility[surface.id] = false
+        }
+      })
+    }
+    
     return {
       configData: {
         ...state.configData,
@@ -223,6 +354,7 @@ export const useAppStore = create<AppState>((set) => ({
           ) || []
         }
       },
+      surfaceVisibility: newVisibility,
       // Update selectedBC if it's the one being modified
       selectedBC: state.selectedBC?.id === id 
         ? { ...state.selectedBC, ...updates }

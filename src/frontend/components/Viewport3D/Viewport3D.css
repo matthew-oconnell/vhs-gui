@@ -67,6 +67,11 @@
   right: 12px;
 }
 
+.bottom-left {
+  bottom: 12px;
+  left: 12px;
+}
+
 .stats {
   background-color: rgba(0, 0, 0, 0.6);
   padding: 8px 12px;

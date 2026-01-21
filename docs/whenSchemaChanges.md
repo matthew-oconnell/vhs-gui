@@ -259,7 +259,36 @@ When the schema adds new visualization types or changes required fields, update 
 
 ---
 
-### 8. TypeScript Type Definitions
+### 8. BC Type Colors for Rendering
+**File:** `src/frontend/utils/surfaceColorUtils.ts` (lines ~77-91)
+
+**Hardcoded Color Map:**
+```typescript
+export const DEFAULT_BC_TYPE_COLORS: Record<string, string> = {
+  'dirichlet': '#4a90d9',      // Blue
+  'riemann': '#9b59b6',        // Purple
+  'no slip': '#e67e22',        // Orange
+  'slip': '#f1c40f',           // Yellow
+  'symmetry': '#1abc9c',       // Teal
+  'periodic': '#e91e63',       // Pink
+  'wall': '#795548',           // Brown
+  'inlet': '#2ecc71',          // Green
+  'outlet': '#e74c3c',         // Red
+  'farfield': '#3498db',       // Light blue
+}
+```
+
+**How to Update:**
+1. Look in schema at: `definitions["Boundary Condition"].oneOf[]`
+2. For each BC type, check if it has a default color in the map
+3. Add new BC types with visually distinct colors
+4. Unknown BC types automatically get a generated color, but explicit colors are preferred for common types
+
+**Note:** This is purely cosmetic - unknown BC types will still render correctly with auto-generated colors. However, adding explicit colors ensures visual consistency and better user experience.
+
+---
+
+### 9. TypeScript Type Definitions
 **File:** `src/types/config.ts`
 
 **Hardcoded Interfaces:**
@@ -320,6 +349,7 @@ When you get a new `input.schema.json`:
 
 - [ ] Check `Boundary Condition` oneOf array for new/removed BC types
 - [ ] Update `BC_TYPES` array in EditorPanel.tsx and BoundaryConditionDialog.tsx
+- [ ] Update `DEFAULT_BC_TYPE_COLORS` in surfaceColorUtils.ts for new BC types
 - [ ] Check each BC definition for required `state` field
 - [ ] Update BC type-specific field conditionals
 - [ ] Check `Initialization Regions` anyOf array for new/removed initialization region types

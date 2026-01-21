@@ -1567,8 +1567,27 @@ function EditorPanel() {
             </button>
           )}
 
-          {selectedNode.required && (
-            <div className="required-badge">Required Field</div>
+          {/* Show missing required children for object nodes */}
+          {selectedNode.type === 'object' && (() => {
+            const objSchema = getSchemaForPath(selectedNode.id)
+            const objValue = getValueFromPath(selectedNode.id) || {}
+            const requiredFields = objSchema?.required || []
+            const missingRequired = requiredFields.filter(field => objValue[field] === undefined)
+            
+            if (missingRequired.length > 0) {
+              return (
+                <div className="required-badge required-badge-missing">
+                  <AlertTriangle size={12} />
+                  <span>Missing required: {missingRequired.join(', ')}</span>
+                </div>
+              )
+            }
+            return null
+          })()}
+
+          {/* For primitives, show if this field is required by parent */}
+          {selectedNode.required && selectedNode.type !== 'object' && (
+            <div className="required-badge">This field is required</div>
           )}
 
           {/* Primitive types: show inline edit */}

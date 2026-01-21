@@ -231,7 +231,9 @@
 }
 
 .required-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 4px 8px;
   background-color: #f4877133;
   border: 1px solid #f48771;
@@ -240,6 +242,14 @@
   font-size: 11px;
   font-weight: 600;
   margin-bottom: 12px;
+}
+
+.required-badge-missing {
+  background-color: rgba(244, 135, 113, 0.2);
+}
+
+.required-badge-missing span {
+  word-break: break-word;
 }
 
 .default-hint {

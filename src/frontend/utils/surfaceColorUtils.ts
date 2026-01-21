@@ -66,22 +66,30 @@ export function getBCForSurface(
 
 /**
  * Generate a deterministic color from a string (surface ID)
- * Uses a simple hash to ensure the same ID always produces the same color
+ * Uses a better hash distribution to ensure visually distinct colors
  */
 export function getRandomColorForId(id: string): string {
-  let hash = 0
+  // Use a better hash function (djb2 variant with golden ratio mixing)
+  let hash = 5381
   for (let i = 0; i < id.length; i++) {
     const char = id.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash // Convert to 32-bit integer
+    hash = ((hash << 5) + hash) ^ char
   }
   
-  // Use golden ratio to spread hues evenly
-  const hue = Math.abs(hash % 360)
-  const saturation = 60 + Math.abs((hash >> 8) % 30) // 60-90%
-  const lightness = 45 + Math.abs((hash >> 16) % 20) // 45-65%
+  // Mix the hash bits for better distribution
+  hash = Math.abs(hash)
+  hash = ((hash >> 16) ^ hash) * 0x45d9f3b
+  hash = ((hash >> 16) ^ hash) * 0x45d9f3b
+  hash = (hash >> 16) ^ hash
   
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+  // Use golden angle (137.5°) for optimal hue distribution
+  // This ensures adjacent surfaces get maximally different hues
+  const goldenAngle = 137.508
+  const hue = (hash * goldenAngle) % 360
+  const saturation = 55 + (hash % 25) // 55-80%
+  const lightness = 45 + ((hash >> 8) % 20) // 45-65%
+  
+  return `hsl(${Math.round(hue)}, ${saturation}%, ${lightness}%)`
 }
 
 /**

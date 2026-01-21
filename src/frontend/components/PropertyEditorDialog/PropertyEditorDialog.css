@@ -414,3 +414,28 @@ textarea.property-grid-input {
 .property-add-button:active {
   transform: scale(0.95);
 }
+
+.property-remove-button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 4px 6px;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.property-remove-button:hover {
+  background: rgba(200, 80, 80, 0.2);
+  border-color: #c85050;
+  color: #e06060;
+}
+
+.property-remove-button:active {
+  transform: scale(0.95);
+}

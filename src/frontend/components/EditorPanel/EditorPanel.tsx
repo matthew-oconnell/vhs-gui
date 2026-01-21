@@ -1,4 +1,4 @@
-import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2, Settings, AlertTriangle } from 'lucide-react'
+import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2, Settings, AlertTriangle, X } from 'lucide-react'
 import { useState, useEffect, useMemo } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition } from '../../types/config'
@@ -1683,10 +1683,19 @@ function EditorPanel() {
                 )}
                 {configuredProps.length > 0 ? (
                   <div className="property-summary">
-                    {configuredProps.slice(0, 6).map(({ key }) => (
+                    {configuredProps.slice(0, 6).map(({ key, required }) => (
                       <div key={key} className="property-summary-row">
                         <span className="property-summary-key">{key}</span>
                         <span className="property-summary-value">{formatValue(objValue[key])}</span>
+                        {!required && (
+                          <button
+                            className="property-summary-remove"
+                            onClick={() => updateValueAtPath(selectedNode.id, key, undefined)}
+                            title={`Remove "${key}" (use default)`}
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
                       </div>
                     ))}
                     {configuredProps.length > 6 && (

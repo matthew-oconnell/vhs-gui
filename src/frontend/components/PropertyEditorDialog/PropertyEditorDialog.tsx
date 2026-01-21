@@ -1,4 +1,4 @@
-import { X, Maximize2, Settings, ChevronRight, Plus } from 'lucide-react'
+import { X, Maximize2, Settings, ChevronRight, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { TreeNode } from '../../utils/schemaParser'
 import { isCategoryHidden } from '../../utils/featureFlags'
@@ -300,6 +300,11 @@ export default function PropertyEditorDialog({
         handleInputChange(key, defaultVal)
       }
       
+      // Handler to remove property (return to default)
+      const handleRemoveProperty = () => {
+        handleInputChange(key, undefined)
+      }
+      
       return (
         <div key={key} className={`property-grid-item ${!isConfigured ? 'property-not-configured' : ''}`}>
           <div className="property-row">
@@ -432,6 +437,15 @@ export default function PropertyEditorDialog({
                   title={`Add "${key}" to configuration`}
                 >
                   <Plus size={14} />
+                </button>
+              )}
+              {isConfigured && !required && (
+                <button 
+                  className="property-remove-button"
+                  onClick={handleRemoveProperty}
+                  title={`Remove "${key}" (use default)`}
+                >
+                  <X size={14} />
                 </button>
               )}
             </div>

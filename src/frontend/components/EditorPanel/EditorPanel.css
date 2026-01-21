@@ -308,25 +308,51 @@ select.form-input {
   align-items: center;
   padding: 4px 12px;
   font-size: 12px;
+  gap: 8px;
 }
 
 .property-summary-row:hover {
   background-color: #333337;
 }
 
+.property-summary-row:hover .property-summary-remove {
+  opacity: 1;
+}
+
 .property-summary-key {
   color: #9cdcfe;
   font-family: 'Consolas', 'Monaco', monospace;
+  flex-shrink: 0;
 }
 
 .property-summary-value {
   color: #ce9178;
   font-family: 'Consolas', 'Monaco', monospace;
   text-align: right;
-  max-width: 60%;
+  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.property-summary-remove {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  color: #666;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  border-radius: 3px;
+}
+
+.property-summary-remove:hover {
+  color: #e06060;
+  background: rgba(200, 80, 80, 0.2);
 }
 
 .property-summary-more {

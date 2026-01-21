@@ -1508,16 +1508,15 @@ function EditorPanel() {
         <div className="property-header">
           <h3 className="property-title">{selectedNode.label}</h3>
           <span className="property-type-badge">{selectedNode.type}</span>
-          {selectedNode.type === 'object' && (
+          {selectedNode.type === 'object' && !isThermoNode && (
             <button 
-              className="icon-button"
+              className="edit-properties-button"
               onClick={() => {
-                setDialogNode(selectedNode) // Store local copy of node
+                setDialogNode(selectedNode)
                 setShowPropertyDialog(true)
               }}
-              title="Open in larger window"
             >
-              <Maximize2 size={14} />
+              <Maximize2 size={14} /> Edit
             </button>
           )}
         </div>

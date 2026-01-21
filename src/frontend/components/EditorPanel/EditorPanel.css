@@ -50,6 +50,7 @@
   padding-bottom: 12px;
   border-bottom: 1px solid #3e3e42;
   margin-bottom: 12px;
+  gap: 8px;
 }
 
 .property-title {
@@ -65,6 +66,27 @@
   background-color: #3e3e42;
   padding: 3px 8px;
   border-radius: 3px;
+}
+
+.edit-properties-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: transparent;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  color: #cccccc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  margin-left: auto;
+}
+
+.edit-properties-button:hover {
+  background-color: #3e3e42;
+  border-color: #007acc;
+  color: #ffffff;
 }
 
 .property-description {
@@ -119,7 +141,26 @@
 .add-button:hover {
   background-color: #1177bb;
 }
+.wizard-launch-button {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: #0e639c;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background-color 0.15s ease;
+}
 
+.wizard-launch-button:hover {
+  background-color: #1177bb;
+}
 .delete-button {
   background-color: transparent;
   color: #f48771;

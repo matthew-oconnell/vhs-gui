@@ -368,3 +368,49 @@ textarea.property-grid-input {
 .modal-button-secondary:hover {
   background-color: #505050;
 }
+
+/* Not configured (showing default) styling */
+.property-not-configured {
+  opacity: 0.7;
+}
+
+.property-not-configured:hover {
+  opacity: 1;
+}
+
+.property-default-marker {
+  font-size: 9px;
+  font-weight: 600;
+  color: #888;
+  background: #333;
+  padding: 1px 5px;
+  border-radius: 3px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.property-add-button {
+  background: transparent;
+  border: 1px dashed #555;
+  border-radius: 3px;
+  padding: 4px 6px;
+  color: #888;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
+
+.property-add-button:hover {
+  background: #2d5a8e;
+  border-color: #4da6ff;
+  color: #fff;
+}
+
+.property-add-button:active {
+  transform: scale(0.95);
+}

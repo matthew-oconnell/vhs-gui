@@ -286,15 +286,27 @@ export default function PropertyEditorDialog({
     
     const renderPropertyInput = ({ key, prop, required }: {key: string, prop: SchemaProperty, required: boolean}) => {
       const value = objValue[key]
-      const displayValue = value !== undefined ? value : prop.default
+      const isConfigured = value !== undefined
+      const displayValue = isConfigured ? value : prop.default
       const propType = Array.isArray(prop.type) ? prop.type[0] : prop.type
       
+      // Handler to add property with default value
+      const handleAddProperty = () => {
+        const defaultVal = prop.default !== undefined ? prop.default : 
+          propType === 'boolean' ? false :
+          propType === 'number' || propType === 'integer' ? 0 :
+          propType === 'array' ? [] :
+          ''
+        handleInputChange(key, defaultVal)
+      }
+      
       return (
-        <div key={key} className="property-grid-item">
+        <div key={key} className={`property-grid-item ${!isConfigured ? 'property-not-configured' : ''}`}>
           <div className="property-row">
             <label className="property-grid-label" title={prop.description}>
               {key}
               {required && <span className="property-required-marker">*</span>}
+              {!isConfigured && <span className="property-default-marker">default</span>}
             </label>
             <div className="property-input-wrapper">
               {propType === 'boolean' ? (
@@ -413,6 +425,15 @@ export default function PropertyEditorDialog({
                 step={propType === 'number' ? 'any' : undefined}
               />
             )}
+              {!isConfigured && (
+                <button 
+                  className="property-add-button"
+                  onClick={handleAddProperty}
+                  title={`Add "${key}" to configuration`}
+                >
+                  <Plus size={14} />
+                </button>
+              )}
             </div>
           </div>
         </div>

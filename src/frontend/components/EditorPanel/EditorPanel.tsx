@@ -1,5 +1,5 @@
-import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2, Settings } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2, Settings, AlertTriangle } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition } from '../../types/config'
 import StateWizard from './StateWizard'
@@ -12,6 +12,7 @@ import ArrayEditor from '../ArrayEditor/ArrayEditor'
 import MapEditor from '../MapEditor/MapEditor'
 import { loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
 import { calculateAreaWeightedNormal } from '../../utils/surfaceUtils'
+import { validateAgainstSchema, formatValidationErrors, ValidationErrorItem } from '../../utils/schemaValidator'
 import './EditorPanel.css'
 
 interface SchemaProperty {
@@ -296,6 +297,37 @@ function EditorPanel() {
     }
     return { isMap: false }
   }
+
+  // Get validation errors for the current selected node
+  const nodeValidationErrors = useMemo((): ValidationErrorItem[] => {
+    if (!selectedNode || !schema || !configData) return []
+    
+    try {
+      const { errors } = validateAgainstSchema(schema, configData)
+      if (!errors || errors.length === 0) return []
+      
+      const formattedErrors = formatValidationErrors(errors, schema)
+      
+      // Filter errors to those relevant to the selected node's path
+      const nodePath = selectedNode.id.replace('root.', '')
+      
+      return formattedErrors.filter(error => {
+        if (!error.path) return false
+        
+        // Skip "additionalProperties" errors - they're often false positives 
+        // due to $ref resolution issues in complex schemas
+        if (error.message.includes('unrecognized property')) return false
+        
+        // Include if error path starts with node path or is exactly the node path
+        return error.path === nodePath || 
+               error.path.startsWith(nodePath + '.') ||
+               (error.parentPath && (error.parentPath === nodePath || error.parentPath.startsWith(nodePath + '.')))
+      })
+    } catch (e) {
+      console.warn('Error validating node:', e)
+      return []
+    }
+  }, [selectedNode?.id, schema, configData])
 
   const renderBCEditor = () => {
     if (!selectedBC) return null
@@ -1539,7 +1571,66 @@ function EditorPanel() {
             <div className="required-badge">Required Field</div>
           )}
 
-          {selectedNode.type === 'object' && (() => {
+          {/* Primitive types: show inline edit */}
+          {(selectedNode.type === 'string' || selectedNode.type === 'number' || selectedNode.type === 'boolean' || (selectedNode.type as string) === 'integer') && (() => {
+            const currentValue = getValueFromPath(selectedNode.id)
+            const nodeType = selectedNode.type as string
+            
+            // Get parent path and key for updates
+            const pathParts = selectedNode.id.replace('root.', '').split('.')
+            const key = pathParts.pop() || ''
+            const parentPath = 'root.' + pathParts.join('.')
+            
+            return (
+              <div className="primitive-editor">
+                {nodeType === 'boolean' ? (
+                  <label className="toggle-container">
+                    <input 
+                      type="checkbox"
+                      checked={currentValue === true}
+                      onChange={(e) => updateValueAtPath(parentPath, key, e.target.checked)}
+                    />
+                    <span className="toggle-slider"></span>
+                    <span className="toggle-label">{currentValue ? 'Enabled' : 'Disabled'}</span>
+                  </label>
+                ) : selectedNode.enum ? (
+                  <select 
+                    className="form-input"
+                    value={currentValue || ''}
+                    onChange={(e) => {
+                      const val = nodeType === 'number' || nodeType === 'integer' 
+                        ? parseFloat(e.target.value) 
+                        : e.target.value
+                      updateValueAtPath(parentPath, key, val)
+                    }}
+                  >
+                    <option value="">-- Select --</option>
+                    {selectedNode.enum.map((enumValue: any) => (
+                      <option key={enumValue} value={enumValue}>{enumValue}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input 
+                    type={nodeType === 'number' || nodeType === 'integer' ? 'number' : 'text'}
+                    className="form-input"
+                    value={currentValue !== undefined ? currentValue : ''}
+                    onChange={(e) => {
+                      const val = nodeType === 'number' || nodeType === 'integer' 
+                        ? parseFloat(e.target.value) || 0
+                        : e.target.value
+                      updateValueAtPath(parentPath, key, val)
+                    }}
+                    placeholder={selectedNode.default !== undefined ? String(selectedNode.default) : ''}
+                  />
+                )}
+                {selectedNode.default !== undefined && (
+                  <span className="default-hint">Default: {String(selectedNode.default)}</span>
+                )}
+              </div>
+            )
+          })()}
+
+          {selectedNode.type === 'object' && !isThermoNode && (() => {
             const objSchema = getSchemaForPath(selectedNode.id)
             const objValue = getValueFromPath(selectedNode.id) || {}
             
@@ -1558,181 +1649,61 @@ function EditorPanel() {
               )
             }
             
-            // Otherwise handle as object with known POD properties
+            // Show read-only summary of configured values
             const podProps = getPODProperties(objSchema)
+            const configuredProps = podProps.filter(({ key }) => objValue[key] !== undefined)
             
-            if (podProps.length === 0) {
-              return (
-                <div className="info-box">
-                  This object has no primitive properties. Expand it in the tree to edit nested objects.
-                </div>
-              )
+            // Format a value for display
+            const formatValue = (val: any): string => {
+              if (val === null || val === undefined) return '—'
+              if (typeof val === 'boolean') return val ? 'true' : 'false'
+              if (Array.isArray(val)) return `[${val.length} items]`
+              if (typeof val === 'object') return '{...}'
+              if (typeof val === 'string' && val.length > 30) return val.substring(0, 30) + '...'
+              return String(val)
             }
             
-            return podProps.map(({ key, prop, required }) => {
-              const value = objValue[key]
-              const displayValue = value !== undefined ? value : prop.default
-              const propType = Array.isArray(prop.type) ? prop.type[0] : prop.type
-              
-              
-              return (
-                <div key={key} className="form-group">
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'space-between',
-                    gap: '16px'
-                  }}>
-                    <div style={{ flex: '0 0 auto', minWidth: 0 }}>
-                      <label className="form-label" style={{ marginBottom: 0 }}>
-                        {key}
-                        {required && <span style={{ color: '#ff6b6b' }}> *</span>}
-                      </label>
-                      {prop.description && (
-                        <div style={{ 
-                          fontSize: '11px', 
-                          color: '#888', 
-                          marginTop: '2px',
-                          maxWidth: '300px'
-                        }}>
-                          {prop.description}
-                        </div>
-                      )}
+            return (
+              <>
+                {nodeValidationErrors.length > 0 && (
+                  <div className="validation-warnings">
+                    <div className="validation-header">
+                      <AlertTriangle size={14} />
+                      <span>{nodeValidationErrors.length} validation issue(s)</span>
                     </div>
-                    
-                    <div style={{ flex: '0 0 auto', minWidth: '200px', maxWidth: '300px' }}>
-                      {propType === 'boolean' ? (
-                        <label style={{ 
-                          position: 'relative',
-                          display: 'inline-block',
-                          width: '50px',
-                          height: '24px',
-                          cursor: 'pointer'
-                        }}>
-                          <input 
-                            type="checkbox"
-                            checked={displayValue === true}
-                            onChange={(e) => updateValueAtPath(selectedNode.id, key, e.target.checked)}
-                            style={{ 
-                              position: 'absolute',
-                              opacity: 0,
-                              width: '100%',
-                              height: '100%',
-                              cursor: 'pointer',
-                              zIndex: 1
-                            }}
-                          />
-                          <span style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundColor: displayValue ? '#4da6ff' : '#444',
-                            borderRadius: '24px',
-                            transition: 'background-color 0.2s',
-                            pointerEvents: 'none'
-                          }}>
-                            <span style={{
-                              position: 'absolute',
-                              content: '""',
-                              height: '18px',
-                              width: '18px',
-                              left: displayValue ? '28px' : '4px',
-                              bottom: '3px',
-                              backgroundColor: 'white',
-                              borderRadius: '50%',
-                              transition: 'left 0.2s'
-                            }} />
-                          </span>
-                        </label>
-                      ) : prop.enum ? (
-                        <select 
-                          className="form-input"
-                          value={displayValue || ''}
-                          onChange={(e) => updateValueAtPath(selectedNode.id, key, e.target.value)}
-                          style={{ width: '100%' }}
-                        >
-                          <option value="">-- Select --</option>
-                          {prop.enum.map((enumValue: any) => (
-                            <option key={enumValue} value={enumValue}>
-                              {enumValue}
-                            </option>
-                          ))}
-                        </select>
-                      ) : propType === 'array' ? (
-                        // Check if it's a simple array (POD items)
-                        (() => {
-                          // Determine item type: use schema items.type, or infer from default/values
-                          let itemType = prop.items?.type
-                          if (!itemType) {
-                            // Infer from default values or current values
-                            const sampleArray = Array.isArray(displayValue) && displayValue.length > 0 
-                              ? displayValue 
-                              : (Array.isArray(prop.default) ? prop.default : [])
-                            if (sampleArray.length > 0) {
-                              const sampleType = typeof sampleArray[0]
-                              if (sampleType === 'string' || sampleType === 'number' || sampleType === 'boolean') {
-                                itemType = sampleType === 'number' ? 'number' : sampleType
-                              }
-                            } else {
-                              // Default to string for empty arrays with no type info
-                              itemType = 'string'
-                            }
-                          }
-                          const isSimpleArray = itemType && isPODType(itemType)
-                          const arrayValue = Array.isArray(displayValue) ? displayValue : (Array.isArray(prop.default) ? prop.default : [])
-                          
-                          if (isSimpleArray) {
-                            return (
-                              <ArrayEditor
-                                value={arrayValue}
-                                onChange={(newValue) => updateValueAtPath(selectedNode.id, key, newValue)}
-                                itemType={itemType as 'string' | 'number' | 'integer' | 'boolean'}
-                                placeholder={`Enter ${itemType}`}
-                              />
-                            )
-                          }
-                          
-                          // Fallback to textarea for complex arrays
-                          return (
-                            <textarea 
-                              className="form-input"
-                              rows={2}
-                              value={Array.isArray(displayValue) ? JSON.stringify(displayValue) : '[]'}
-                              onChange={(e) => {
-                                try {
-                                  const parsed = JSON.parse(e.target.value)
-                                  updateValueAtPath(selectedNode.id, key, parsed)
-                                } catch (err) {
-                                  // Invalid JSON - don't update yet
-                                }
-                              }}
-                              placeholder="[...]"
-                              style={{ width: '100%', fontSize: '12px' }}
-                            />
-                          )
-                        })()
-                      ) : (
-                        <input 
-                          type={propType === 'integer' || propType === 'number' ? 'number' : 'text'}
-                          className="form-input"
-                          value={displayValue !== undefined ? displayValue : ''}
-                          onChange={(e) => {
-                            const newValue = (propType === 'integer' || propType === 'number') 
-                              ? parseFloat(e.target.value) || 0
-                              : e.target.value
-                            updateValueAtPath(selectedNode.id, key, newValue)
-                          }}
-                          placeholder={prop.default !== undefined ? String(prop.default) : ''}
-                          style={{ width: '100%' }}
-                        />
+                    <ul className="validation-list">
+                      {nodeValidationErrors.slice(0, 5).map((error, idx) => (
+                        <li key={idx}>{error.message}</li>
+                      ))}
+                      {nodeValidationErrors.length > 5 && (
+                        <li className="validation-more">...and {nodeValidationErrors.length - 5} more</li>
                       )}
-                    </div>
+                    </ul>
                   </div>
-                </div>
-              )
-            })
+                )}
+                {configuredProps.length > 0 ? (
+                  <div className="property-summary">
+                    {configuredProps.slice(0, 6).map(({ key }) => (
+                      <div key={key} className="property-summary-row">
+                        <span className="property-summary-key">{key}</span>
+                        <span className="property-summary-value">{formatValue(objValue[key])}</span>
+                      </div>
+                    ))}
+                    {configuredProps.length > 6 && (
+                      <div className="property-summary-more">
+                        +{configuredProps.length - 6} more properties
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="info-box">
+                    {podProps.length > 0
+                      ? `${podProps.length} property(s) available. Click "Edit" to configure.`
+                      : 'Expand in tree to edit nested objects.'}
+                  </div>
+                )}
+              </>
+            )
           })()}
         </div>
       </div>

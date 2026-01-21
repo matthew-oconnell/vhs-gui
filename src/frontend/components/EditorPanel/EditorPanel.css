@@ -253,3 +253,147 @@
 select.form-input {
   cursor: pointer;
 }
+
+/* Validation warnings */
+.validation-warnings {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background-color: rgba(255, 193, 7, 0.1);
+  border: 1px solid #ffc107;
+  border-radius: 4px;
+  border-left: 3px solid #ffc107;
+}
+
+.validation-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ffc107;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.validation-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 11px;
+  color: #d4a500;
+}
+
+.validation-list li {
+  margin-bottom: 3px;
+}
+
+.validation-list li:last-child {
+  margin-bottom: 0;
+}
+
+.validation-more {
+  color: #999;
+  font-style: italic;
+}
+
+/* Property summary (read-only values) */
+.property-summary {
+  background-color: #2d2d30;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  padding: 8px 0;
+}
+
+.property-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.property-summary-row:hover {
+  background-color: #333337;
+}
+
+.property-summary-key {
+  color: #9cdcfe;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.property-summary-value {
+  color: #ce9178;
+  font-family: 'Consolas', 'Monaco', monospace;
+  text-align: right;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-summary-more {
+  padding: 6px 12px 2px;
+  font-size: 11px;
+  color: #858585;
+  font-style: italic;
+  border-top: 1px solid #3e3e42;
+  margin-top: 4px;
+}
+
+/* Primitive value editor */
+.primitive-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.primitive-editor .form-input {
+  width: 100%;
+}
+
+/* Toggle switch for booleans */
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.toggle-container input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: relative;
+  width: 50px;
+  height: 26px;
+  background-color: #444;
+  border-radius: 26px;
+  transition: background-color 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  border-radius: 50%;
+  transition: left 0.2s;
+}
+
+.toggle-container input:checked + .toggle-slider {
+  background-color: #4da6ff;
+}
+
+.toggle-container input:checked + .toggle-slider::before {
+  left: 27px;
+}
+
+.toggle-label {
+  color: #cccccc;
+  font-size: 14px;
+}

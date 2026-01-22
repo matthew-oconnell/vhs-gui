@@ -8,6 +8,88 @@ echo "======================================"
 echo "Building VHS Server"
 echo "======================================"
 
+# Step 0: Check and download ESP128 if needed
+echo ""
+echo "Step 0: Checking ESP128 installation..."
+
+ESP_DIR="third-party/ESP128"
+ESP_BASE_URL="https://acdl.mit.edu/ESP/PreBuilts"
+
+# Function to detect OS and architecture
+detect_platform() {
+    local os=$(uname -s)
+    local arch=$(uname -m)
+    
+    case "$os" in
+        Darwin)
+            if [ "$arch" = "arm64" ]; then
+                echo "ESP128-macos-arm64.tgz"
+            else
+                echo "ESP128-macos-x86_64.tgz"
+            fi
+            ;;
+        Linux)
+            if [ "$arch" = "aarch64" ]; then
+                echo "ESP128-linux-aarch64.tgz"
+            else
+                echo "ESP128-linux-x86_64.tgz"
+            fi
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            echo "ESP128-win-x64.zip"
+            ;;
+        *)
+            echo "unsupported"
+            ;;
+    esac
+}
+
+# Check if ESP128 is already installed
+if [ -d "$ESP_DIR" ] && [ "$(ls -A $ESP_DIR 2>/dev/null)" ]; then
+    echo "✅ ESP128 found in $ESP_DIR"
+else
+    echo "ESP128 not found. Downloading..."
+    
+    # Detect platform
+    TARBALL=$(detect_platform)
+    
+    if [ "$TARBALL" = "unsupported" ]; then
+        echo "❌ Error: Unsupported platform $(uname -s) $(uname -m)"
+        echo "Please download ESP128 manually from $ESP_BASE_URL"
+        exit 1
+    fi
+    
+    # Create third-party directory
+    mkdir -p third-party
+    
+    # Download ESP128
+    echo "Downloading $TARBALL..."
+    if command -v curl > /dev/null; then
+        curl -L -o "third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL"
+    elif command -v wget > /dev/null; then
+        wget -O "third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL"
+    else
+        echo "❌ Error: Neither curl nor wget found. Please install one of them."
+        exit 1
+    fi
+    
+    # Extract tarball
+    echo "Extracting ESP128..."
+    cd third-party
+    if [[ "$TARBALL" == *.zip ]]; then
+        unzip -q "$TARBALL"
+    else
+        tar -xzf "$TARBALL"
+    fi
+    
+    # Remove tarball to save space
+    rm "$TARBALL"
+    
+    cd ..
+    
+    echo "✅ ESP128 installed successfully"
+fi
+
 # Step 1: Build React frontend
 echo ""
 echo "Step 1: Building React frontend..."
@@ -51,98 +133,28 @@ echo ""
 echo "Server binary: src/server/build/vhs_server"
 echo "Frontend files: src/server/build/public/"
 echo ""
-
-# Go back to project root
-cd ../../..
-PROJECT_ROOT=$(pwd)
-
-echo "Launching servers..."
+echo "Launching servers and opening browser..."
 echo ""
 
-# Track PIDs for cleanup
-VHS_PID=""
-ESP_PID=""
+# Launch ESP server in background (for CSM file support)
+echo "Starting ESP Gateway Server (port 8081)..."
+cd ../../esp-server
+./start.sh > /dev/null 2>&1 &
+ESP_SERVER_PID=$!
+cd ../server/build
 
-# Cleanup function for Ctrl+C
-cleanup() {
-    echo ""
-    echo "======================================"
-    echo "Shutting down servers..."
-    echo "======================================"
-    
-    if [ -n "$VHS_PID" ] && kill -0 "$VHS_PID" 2>/dev/null; then
-        echo "Stopping VHS server (PID: $VHS_PID)..."
-        kill "$VHS_PID" 2>/dev/null || true
-    fi
-    
-    if [ -n "$ESP_PID" ] && kill -0 "$ESP_PID" 2>/dev/null; then
-        echo "Stopping ESP server (PID: $ESP_PID)..."
-        kill "$ESP_PID" 2>/dev/null || true
-    fi
-    
-    # Wait a moment for processes to terminate
-    sleep 1
-    
-    # Force kill if still running
-    if [ -n "$VHS_PID" ] && kill -0 "$VHS_PID" 2>/dev/null; then
-        kill -9 "$VHS_PID" 2>/dev/null || true
-    fi
-    
-    if [ -n "$ESP_PID" ] && kill -0 "$ESP_PID" 2>/dev/null; then
-        kill -9 "$ESP_PID" 2>/dev/null || true
-    fi
-    
-    echo "All servers stopped."
-    exit 0
-}
-
-# Set trap for Ctrl+C (SIGINT) and SIGTERM
-trap cleanup SIGINT SIGTERM
-
-# Launch VHS C++ server in background
-echo "Starting VHS server on port 8080..."
-cd "$PROJECT_ROOT/src/server/build"
-./vhs_server > /dev/null 2>&1 &
-VHS_PID=$!
-echo "  VHS server started (PID: $VHS_PID)"
-
-# Launch ESP Python server in background
-echo "Starting ESP server on port 8081..."
-cd "$PROJECT_ROOT/src/esp-server"
-
-# Set ESP environment
-export ESP_ROOT="$PROJECT_ROOT/third-party/ESP128/EngSketchPad"
-export LD_LIBRARY_PATH="$ESP_ROOT/lib:$PROJECT_ROOT/third-party/ESP128/OpenCASCADE-7.8.1/lib:$LD_LIBRARY_PATH"
-export PYTHONPATH="$ESP_ROOT/pyESP:$PYTHONPATH"
-
-# Use ESP's bundled Python if available
-ESP_PYTHON="$PROJECT_ROOT/third-party/ESP128/Python-3.12.10/bin/python3"
-if [ -x "$ESP_PYTHON" ]; then
-    PYTHON="$ESP_PYTHON"
-else
-    PYTHON="python3"
-fi
-
-$PYTHON server.py > /dev/null 2>&1 &
-ESP_PID=$!
-echo "  ESP server started (PID: $ESP_PID)"
-
-# Wait for servers to start
+# Wait a moment for ESP server to initialize
 sleep 2
 
-# Check if servers are running
-if ! kill -0 "$VHS_PID" 2>/dev/null; then
-    echo "ERROR: VHS server failed to start"
-    cleanup
-fi
+# Launch main server in background
+echo "Starting VHS Server (port 8080)..."
+./vhs_server > /dev/null 2>&1 &
+SERVER_PID=$!
 
-if ! kill -0 "$ESP_PID" 2>/dev/null; then
-    echo "WARNING: ESP server failed to start (CSM loading will not work)"
-    echo "  Make sure uvicorn is installed: pip install uvicorn fastapi"
-fi
+# Wait a moment for server to start
+sleep 2
 
 # Open browser
-cd "$PROJECT_ROOT"
 if command -v xdg-open > /dev/null; then
     xdg-open http://127.0.0.1:8080
 elif command -v open > /dev/null; then
@@ -151,17 +163,26 @@ else
     echo "Please open http://127.0.0.1:8080 in your browser"
 fi
 
-echo ""
-echo "======================================"
 echo "Servers running:"
-echo "  VHS server:  http://127.0.0.1:8080 (PID: $VHS_PID)"
-echo "  ESP server:  http://127.0.0.1:8081 (PID: $ESP_PID)"
+echo "  - VHS Server PID: $SERVER_PID"
+echo "  - ESP Server PID: $ESP_SERVER_PID"
 echo ""
-echo "Press Ctrl+C to stop all servers and exit"
+echo "To stop servers: kill $SERVER_PID $ESP_SERVER_PID"
+echo ""
+echo "Press Ctrl+C to stop both servers and exit"
 echo "======================================"
 
-# Wait for either server to exit (or Ctrl+C)
-wait $VHS_PID $ESP_PID 2>/dev/null || true
+# Function to cleanup on exit
+cleanup() {
+    echo ""
+    echo "Shutting down servers..."
+    kill $SERVER_PID 2>/dev/null
+    kill $ESP_SERVER_PID 2>/dev/null
+    exit 0
+}
 
-# If we get here, a server exited unexpectedly
-cleanup
+# Trap Ctrl+C
+trap cleanup INT TERM
+
+# Wait for user to stop
+wait $SERVER_PID

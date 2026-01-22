@@ -12,6 +12,7 @@ import BoundaryConditionDialog from '../BoundaryConditionDialog/BoundaryConditio
 import { ArrowGizmo } from './CylinderGizmo'
 import SurfaceAlreadyAssignedDialog from '../SurfaceAlreadyAssignedDialog/SurfaceAlreadyAssignedDialog'
 import ConfirmBCDeletionDialog from '../ConfirmBCDeletionDialog/ConfirmBCDeletionDialog'
+import SetBCNameDialog from '../SetBCNameDialog/SetBCNameDialog'
 import { getColorForSurface } from '../../utils/surfaceColorUtils'
 import './Viewport3D.css'
 
@@ -48,10 +49,11 @@ function ClickableSurface({
   // Track right-click position and time to differentiate click from drag
   const rightClickStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   
-  const { selectedSurface, setSelectedSurface, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings, globalRenderSettings, configData, rootSolverKey } = useAppStore()
+  const { selectedSurface, setSelectedSurface, selectedSurfaces, toggleSurfaceSelection, clearSurfaceSelection, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings, globalRenderSettings, configData, rootSolverKey, cameraSettings } = useAppStore()
   const [hovered, setHovered] = useState(false)
   
-  const isSelected = selectedSurface?.id === surface.id
+  // Check if this surface is in the multi-selection
+  const isSelected = selectedSurfaces.some(s => s.id === surface.id)
   
   // Get boundary conditions for color logic
   const rootKey = rootSolverKey || 'HyperSolve'
@@ -122,7 +124,21 @@ function ClickableSurface({
   
   const handleClick = (e: any) => {
     e.stopPropagation()
-    setSelectedSurface(surface)
+    
+    // Check if modifier key is pressed for multi-selection
+    const modifierKey = cameraSettings.multiSelectModifier
+    const isModifierPressed = 
+      (modifierKey === 'shift' && e.shiftKey) ||
+      (modifierKey === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
+      (modifierKey === 'alt' && e.altKey)
+    
+    if (isModifierPressed) {
+      // Multi-select mode: toggle this surface in/out of selection
+      toggleSurfaceSelection(surface)
+    } else {
+      // Normal mode: select only this surface (clears others)
+      setSelectedSurface(surface)
+    }
   }
   
   const handlePointerDown = (e: any) => {
@@ -1110,7 +1126,7 @@ function VisualizationLine({ viz, isSelected, vizIndex, controlsRef }: { viz: an
 
 function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surface: Surface) => void }) {
   const { scene, gl } = useThree()
-  const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData, rootSolverKey } = useAppStore()
+  const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData, rootSolverKey, clearSurfaceSelection } = useAppStore()
   const controlsRef = useRef<any>(null)
   const isDraggingCamera = useRef(false)
   
@@ -1240,6 +1256,19 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
         fadeStrength={1}
         followCamera={false}
         infiniteGrid={false}
+        onClick={(e) => {
+          // Only clear selection if clicking on grid (not on a surface)
+          // Check if shift/ctrl/alt is held - if so, don't clear
+          const modifierKey = cameraSettings.multiSelectModifier
+          const isModifierPressed = 
+            (modifierKey === 'shift' && e.shiftKey) ||
+            (modifierKey === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
+            (modifierKey === 'alt' && e.altKey)
+          
+          if (!isModifierPressed) {
+            clearSurfaceSelection()
+          }
+        }}
       />
 
       {/* Camera controls - Trackball style like Paraview */}
@@ -1273,6 +1302,7 @@ function Viewport3D() {
     setOverlayPosition, 
     selectedSurface,
     setSelectedSurface,
+    selectedSurfaces,
     configData,
     addBoundaryCondition,
     setSelectedBC,
@@ -1291,6 +1321,7 @@ function Viewport3D() {
   const [bcDialogInitialSurface, setBCDialogInitialSurface] = useState<Surface | undefined>(undefined)
   const [showAlreadyAssignedDialog, setShowAlreadyAssignedDialog] = useState(false)
   const [showConfirmDeletionDialog, setShowConfirmDeletionDialog] = useState(false)
+  const [showSetBCNameDialog, setShowSetBCNameDialog] = useState(false)
   const [conflictingSurface, setConflictingSurface] = useState<Surface | null>(null)
   const [conflictingBC, setConflictingBC] = useState<BoundaryCondition | null>(null)
   
@@ -1432,6 +1463,17 @@ function Viewport3D() {
     
     toggleSurfaceVisibility(contextMenu.surface.id)
     // Don't call closeContextMenu() - let the useEffect handle it
+  }
+  
+  const handleSetBCName = () => {
+    setShowSetBCNameDialog(true)
+    closeContextMenu()
+  }
+  
+  const handleBCNameSet = (bcName: string) => {
+    const { updateSurfaceBCName, selectedSurfaces } = useAppStore.getState()
+    const surfaceIds = selectedSurfaces.map(s => s.id)
+    updateSurfaceBCName(surfaceIds, bcName)
   }
   
   const handleGoToBC = () => {
@@ -1640,6 +1682,8 @@ function Viewport3D() {
               style={{ left: contextMenu.x, top: contextMenu.y }}
               onClick={(e) => e.stopPropagation()}
             >
+              <div className="context-menu-item" onClick={handleSetBCName}>Set BC Name...</div>
+              <div className="context-menu-separator" />
               <div className="context-menu-item" onClick={handleHideSurface}>Hide Surface</div>
               <div className="context-menu-separator" />
               {hasBCs && <div className="context-menu-item" onClick={handleAddToBC}>Add to BC</div>}
@@ -1691,6 +1735,15 @@ function Viewport3D() {
           onConfirm={handleConfirmDeletion}
         />
       )}
+      
+      {/* Set BC Name Dialog */}
+      <SetBCNameDialog
+        isOpen={showSetBCNameDialog}
+        onClose={() => setShowSetBCNameDialog(false)}
+        onSet={handleBCNameSet}
+        surfaceCount={selectedSurfaces.length}
+        currentBCName={selectedSurfaces.length === 1 ? selectedSurfaces[0]?.metadata.bcName : undefined}
+      />
     </div>
   )
 }

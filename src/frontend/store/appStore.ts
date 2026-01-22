@@ -14,6 +14,7 @@ export interface CameraSettings {
   zoomSpeed: number
   panSpeed: number
   invertZoom: boolean
+  multiSelectModifier: 'shift' | 'ctrl' | 'alt'
 }
 
 export interface OverlayPosition {
@@ -44,6 +45,9 @@ interface AppState {
   setSelectedNode: (node: TreeNode | null) => void
   selectedSurface: Surface | null
   setSelectedSurface: (surface: Surface | null) => void
+  selectedSurfaces: Surface[]
+  toggleSurfaceSelection: (surface: Surface) => void
+  clearSurfaceSelection: () => void
   selectedBC: BoundaryCondition | null
   setSelectedBC: (bc: BoundaryCondition | null) => void
   selectedState: State | null
@@ -71,6 +75,7 @@ interface AppState {
   toggleSurfaceWireframe: (surfaceId: string) => void
   surfaceRenderSettings: Record<string, SurfaceRenderSettings>
   updateSurfaceRenderSettings: (surfaceId: string, settings: Partial<SurfaceRenderSettings>) => void
+  updateSurfaceBCName: (surfaceIds: string[], bcName: string) => void
   globalRenderSettings: GlobalRenderSettings
   setColorMode: (mode: ColorMode) => void
   toggleHideAssignedSurfaces: () => void
@@ -92,9 +97,29 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set) => ({
   selectedNode: null,
-  setSelectedNode: (node) => set({ selectedNode: node, selectedSurface: null, selectedBC: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
+  setSelectedNode: (node) => set({ selectedNode: node, selectedSurface: null, selectedSurfaces: [], selectedBC: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
   selectedSurface: null,
-  setSelectedSurface: (surface) => set({ selectedSurface: surface, selectedNode: null, selectedBC: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
+  setSelectedSurface: (surface) => set({ selectedSurface: surface, selectedSurfaces: surface ? [surface] : [], selectedNode: null, selectedBC: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
+  selectedSurfaces: [],
+  toggleSurfaceSelection: (surface) => set((state) => {
+    const isSelected = state.selectedSurfaces.some(s => s.id === surface.id)
+    if (isSelected) {
+      // Remove from selection
+      const newSelection = state.selectedSurfaces.filter(s => s.id !== surface.id)
+      return {
+        selectedSurfaces: newSelection,
+        selectedSurface: newSelection.length > 0 ? newSelection[newSelection.length - 1] : null
+      }
+    } else {
+      // Add to selection
+      const newSelection = [...state.selectedSurfaces, surface]
+      return {
+        selectedSurfaces: newSelection,
+        selectedSurface: surface
+      }
+    }
+  }),
+  clearSurfaceSelection: () => set({ selectedSurfaces: [], selectedSurface: null }),
   selectedBC: null,
   setSelectedBC: (bc) => set({ selectedBC: bc, selectedNode: null, selectedSurface: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
   selectedState: null,
@@ -157,7 +182,8 @@ export const useAppStore = create<AppState>((set) => ({
     rotateSpeed: 1.5,
     zoomSpeed: 1.2,
     panSpeed: 0.8,
-    invertZoom: true // Pulling back zooms in (Paraview-like)
+    invertZoom: true, // Pulling back zooms in (Paraview-like)
+    multiSelectModifier: 'shift' as const // Default modifier for multi-selection
   },
   
   updateCameraSettings: (settings) => set((state) => ({
@@ -206,6 +232,22 @@ export const useAppStore = create<AppState>((set) => ({
         ...settings
       }
     }
+  })),
+
+  updateSurfaceBCName: (surfaceIds, bcName) => set((state) => ({
+    availableSurfaces: state.availableSurfaces.map(surface => 
+      surfaceIds.includes(surface.id)
+        ? { ...surface, metadata: { ...surface.metadata, bcName } }
+        : surface
+    ),
+    selectedSurfaces: state.selectedSurfaces.map(surface =>
+      surfaceIds.includes(surface.id)
+        ? { ...surface, metadata: { ...surface.metadata, bcName } }
+        : surface
+    ),
+    selectedSurface: state.selectedSurface && surfaceIds.includes(state.selectedSurface.id)
+      ? { ...state.selectedSurface, metadata: { ...state.selectedSurface.metadata, bcName } }
+      : state.selectedSurface
   })),
   
   // Global render settings with defaults

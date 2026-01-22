@@ -21,6 +21,7 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [zoomSpeed, setZoomSpeed] = useState(cameraSettings.zoomSpeed)
   const [panSpeed, setPanSpeed] = useState(cameraSettings.panSpeed)
   const [invertZoom, setInvertZoom] = useState(cameraSettings.invertZoom)
+  const [multiSelectModifier, setMultiSelectModifier] = useState(cameraSettings.multiSelectModifier)
   
   const [editorFontSize, setEditorFontSize] = useState(() => {
     const saved = localStorage.getItem('editorFontSize')
@@ -73,7 +74,8 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
       rotateSpeed,
       zoomSpeed,
       panSpeed,
-      invertZoom
+      invertZoom,
+      multiSelectModifier
     })
     
     onClose()
@@ -255,6 +257,25 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
                     />
                     Invert zoom direction (pull back to zoom in)
                   </label>
+
+                <div className="settings-item">
+                  <label htmlFor="multi-select-modifier" className="settings-label-column">
+                    <span>Multi-Select Modifier Key</span>
+                    <select
+                      id="multi-select-modifier"
+                      value={multiSelectModifier}
+                      onChange={(e) => setMultiSelectModifier(e.target.value as 'shift' | 'ctrl' | 'alt')}
+                      className="settings-select"
+                    >
+                      <option value="shift">Shift</option>
+                      <option value="ctrl">Ctrl / Cmd</option>
+                      <option value="alt">Alt / Option</option>
+                    </select>
+                  </label>
+                  <div className="settings-hint">
+                    Hold this key and click surfaces to add/remove from selection
+                  </div>
+                </div>
                 </div>
               </div>
             )}

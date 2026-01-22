@@ -1,4 +1,12 @@
-# Single Server Architecture
+# ⚠️ OUTDATED - See ARCHITECTURE.md
+
+This document is outdated. The project now uses TWO servers (C++ + ESP).
+
+**See:** [ARCHITECTURE.md](ARCHITECTURE.md) for current architecture.
+
+---
+
+# Single Server Architecture (OBSOLETE)
 
 ## Overview
 

@@ -13,6 +13,8 @@ import os
 import sys
 import json
 import tempfile
+import base64
+import re
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -95,6 +97,13 @@ class ExportCSMResponse(BaseModel):
     success: bool
     message: str
     csm_content: str
+
+
+class CSMBuildWithDepsRequest(BaseModel):
+    """Request to build geometry from CSM with dependency files"""
+    csm_content: str
+    dependencies: dict[str, str]  # filename -> base64 encoded content
+    tess_params: Optional[dict] = None
 
 
 def check_esp_available() -> bool:
@@ -302,6 +311,230 @@ async def build_csm(request: CSMBuildRequest):
         raise HTTPException(
             status_code=500,
             detail=f"Failed to build CSM: {str(e)}"
+        )
+
+
+@app.post("/csm/build-with-deps", response_model=TessellationResponse)
+async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
+    """
+    Build geometry from CSM content with dependency files (e.g., imported .stp files).
+    
+    The CSM and all dependency files are written to the same temp directory,
+    allowing relative import statements to resolve correctly.
+    """
+    if not check_esp_available():
+        raise HTTPException(
+            status_code=503,
+            detail="ESP/pyOCSM not available. Set ESP_ROOT environment variable."
+        )
+    
+    try:
+        from pyOCSM import ocsm
+        from pyEGADS import egads
+        
+        # Create temp directory for CSM and dependencies
+        tmpdir = tempfile.mkdtemp(prefix='csm_build_')
+        
+        try:
+            # Write all dependency files FIRST
+            for filename, base64_content in request.dependencies.items():
+                dep_path = os.path.join(tmpdir, filename)
+                
+                # Decode base64 content
+                file_content = base64.b64decode(base64_content)
+                
+                # Write as binary (works for both text and binary files)
+                with open(dep_path, 'wb') as f:
+                    f.write(file_content)
+                
+                print(f"[ESP] Dependency written: {dep_path} ({len(file_content)} bytes)")
+                
+                # Verify file exists and is readable
+                if os.path.exists(dep_path):
+                    file_size = os.path.getsize(dep_path)
+                    print(f"[ESP]   Verified: {dep_path} exists ({file_size} bytes)")
+                else:
+                    print(f"[ESP]   ERROR: {dep_path} does not exist after writing!")
+            
+            # Replace relative import paths with absolute paths in CSM content
+            # This ensures EGADS can find the files
+            modified_csm_content = request.csm_content
+            for filename in request.dependencies.keys():
+                abs_path = os.path.join(tmpdir, filename)
+                # Replace "import filename" with "import /full/path/filename"
+                # Also handle "restore filename"
+                import re
+                # Match import/restore followed by whitespace and the filename
+                pattern = r'((?:import|restore)\s+)' + re.escape(filename)
+                replacement = r'\1' + abs_path
+                modified_csm_content = re.sub(pattern, replacement, modified_csm_content, flags=re.IGNORECASE)
+                print(f"[ESP] Replaced '{filename}' with '{abs_path}' in CSM")
+            
+            # Write modified CSM file
+            csm_path = os.path.join(tmpdir, 'main.csm')
+            with open(csm_path, 'w') as f:
+                f.write(modified_csm_content)
+            
+            print(f"[ESP] CSM written to: {csm_path}")
+            
+            # List all files in temp directory for debugging
+            print(f"[ESP] Temp directory contents:")
+            for item in os.listdir(tmpdir):
+                item_path = os.path.join(tmpdir, item)
+                size = os.path.getsize(item_path)
+                print(f"[ESP]   - {item} ({size} bytes)")
+            
+            # Load and build the CSM file (same logic as /csm/build)
+            modl = ocsm.Ocsm(csm_path)
+            modl.Build(0, 0)
+            
+            # Get model info
+            model_info = modl.Info()
+            npmtr = model_info[1]
+            nbody = model_info[2]
+            
+            print(f"[ESP] Built model: {npmtr} parameters, {nbody} bodies")
+            
+            # Extract design parameters
+            parameters = []
+            for ipmtr in range(1, npmtr + 1):
+                pmtr_info = modl.GetPmtr(ipmtr)
+                if pmtr_info[0] == ocsm.DESPMTR:
+                    nrow = pmtr_info[1]
+                    ncol = pmtr_info[2]
+                    name = pmtr_info[3]
+                    
+                    if nrow == 1 and ncol == 1:
+                        value = modl.GetValu(ipmtr, 1, 1)
+                        parameters.append({
+                            "name": name,
+                            "value": value[0],
+                            "type": "scalar"
+                        })
+                    else:
+                        values = []
+                        for i in range(1, nrow + 1):
+                            row = []
+                            for j in range(1, ncol + 1):
+                                val = modl.GetValu(ipmtr, i, j)
+                                row.append(val[0])
+                            values.append(row)
+                        parameters.append({
+                            "name": name,
+                            "value": values,
+                            "type": "array",
+                            "nrow": nrow,
+                            "ncol": ncol
+                        })
+            
+            # Extract tessellation (same logic as /csm/build)
+            regions = []
+            total_vertices = 0
+            total_faces = 0
+            
+            print(f"[ESP] Processing {nbody} bodies...")
+            
+            for ibody in range(1, nbody + 1):
+                try:
+                    body_ego = modl.GetEgo(ibody, ocsm.BODY, 0)
+                except Exception as e:
+                    print(f"[ESP] Body {ibody}: No body ego - {e}")
+                    continue
+                    
+                try:
+                    tess_ego = modl.GetEgo(ibody, ocsm.BODY, 1)
+                except Exception as e:
+                    print(f"[ESP] Body {ibody}: No tessellation ego - {e}")
+                    continue
+                
+                if body_ego is None or tess_ego is None:
+                    print(f"[ESP] Body {ibody}: Skipping (ego is None)")
+                    continue
+                
+                try:
+                    faces = body_ego.getBodyTopos(egads.FACE)
+                    nface = len(faces)
+                    print(f"[ESP] Body {ibody}: {nface} faces")
+                except Exception as e:
+                    print(f"[ESP] Body {ibody}: Cannot get faces - {e}")
+                    continue
+                
+                for iface in range(1, nface + 1):
+                    try:
+                        face_data = tess_ego.getTessFace(iface)
+                        
+                        xyz = face_data[0]
+                        tris = face_data[4]
+                        
+                        if not xyz or not tris:
+                            continue
+                        
+                        nvert = len(xyz)
+                        ntri = len(tris)
+                        
+                        vertices = []
+                        for v in xyz:
+                            vertices.append([float(v[0]), float(v[1]), float(v[2])])
+                        
+                        cells = []
+                        for t in tris:
+                            cells.append([int(t[0]) - 1, int(t[1]) - 1, int(t[2]) - 1])
+                        
+                        face_name = f"Body{ibody}_Face{iface}"
+                        bc_name = None
+                        try:
+                            face_ego = faces[iface - 1]
+                            
+                            attr = face_ego.attributeRet("_name")
+                            if attr is not None:
+                                face_name = str(attr)
+                            
+                            bc_attr = face_ego.attributeRet("bc_name")
+                            if bc_attr is not None:
+                                bc_name = str(bc_attr)
+                        except Exception as e:
+                            print(f"[ESP] Warning: Could not get attributes for Body {ibody} Face {iface}: {e}")
+                            pass
+                        
+                        print(f"[ESP]   Face {iface}: {face_name}, bc_name={bc_name}, {nvert} verts, {ntri} tris")
+                        
+                        regions.append({
+                            "name": face_name,
+                            "tag": ibody * 100000 + iface,
+                            "body": ibody,
+                            "face": iface,
+                            "vertices": vertices,
+                            "cells": cells,
+                            "bc_name": bc_name
+                        })
+                        
+                        total_vertices += nvert
+                        total_faces += ntri
+                        
+                    except Exception as e:
+                        print(f"Warning: Could not get tessellation for Body {ibody} Face {iface}: {e}")
+                        continue
+            
+            print(f"[ESP] Extracted {len(regions)} regions, {total_vertices} vertices, {total_faces} faces")
+            
+            return TessellationResponse(
+                success=True,
+                message=f"Built {nbody} bodies with {len(regions)} faces (with {len(request.dependencies)} dependencies)",
+                regions=regions,
+                parameters=parameters,
+                total_vertices=total_vertices,
+                total_faces=total_faces
+            )
+            
+        finally:
+            # Clean up temp directory and all files
+            import shutil
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to build CSM with dependencies: {str(e)}"
         )
 
 

@@ -102,6 +102,67 @@ export const buildCSM = async (csmContent: string): Promise<CSMBuildResponse> =>
 }
 
 /**
+ * Convert ArrayBuffer to base64 string (handles large files)
+ */
+const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
+  const bytes = new Uint8Array(buffer)
+  const chunkSize = 8192 // Process 8KB at a time to avoid stack overflow
+  let binary = ''
+  
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length))
+    binary += String.fromCharCode(...chunk)
+  }
+  
+  return btoa(binary)
+}
+
+/**
+ * Build CSM content with dependency files and return tessellated geometry
+ * 
+ * @param csmContent The main CSM file content
+ * @param dependencies Map of filename -> File object for imported files
+ */
+export const buildCSMWithDeps = async (
+  csmContent: string,
+  dependencies: Map<string, File>
+): Promise<CSMBuildResponse> => {
+  console.log('[ESP API] Building CSM with', dependencies.size, 'dependencies')
+  
+  // Convert File objects to base64 for JSON transfer
+  const depsBase64: Record<string, string> = {}
+  
+  for (const [filename, file] of dependencies.entries()) {
+    const arrayBuffer = await file.arrayBuffer()
+    const base64 = arrayBufferToBase64(arrayBuffer)
+    depsBase64[filename] = base64
+    console.log('[ESP API] Encoded dependency:', filename, '(', file.size, 'bytes )')
+  }
+  
+  const response = await fetch(`${ESP_API_BASE_URL}/csm/build-with-deps`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      csm_content: csmContent,
+      dependencies: depsBase64
+    })
+  })
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Build failed' }))
+    throw new Error(error.detail || `Build failed with status ${response.status}`)
+  }
+  
+  const result = await response.json()
+  console.log('[ESP API] Build with deps successful:', result.message)
+  console.log('[ESP API] Regions:', result.regions.length, 'Parameters:', result.parameters.length)
+  
+  return result
+}
+
+/**
  * Load CSM file from disk and build it
  */
 export const loadAndBuildCSMFile = async (file: File): Promise<CSMBuildResponse> => {

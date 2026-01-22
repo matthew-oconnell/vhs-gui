@@ -369,9 +369,55 @@ function App() {
       const csmContent = await file.text()
       console.log('[App] CSM content length:', csmContent.length, 'chars')
       
-      // Build CSM and get tessellation
-      console.log('[App] Building CSM geometry via ESP gateway...')
-      const response = await buildCSM(csmContent)
+      // Check for import/restore statements
+      const { parseCSMImports } = await import('./utils/csmParser')
+      const imports = parseCSMImports(csmContent)
+      
+      let response
+      
+      if (imports.length > 0) {
+        console.log('[App] CSM has', imports.length, 'import statements:', imports)
+        
+        // Prompt user for each dependency file
+        const dependencies = new Map<string, File>()
+        
+        for (const importPath of imports) {
+          try {
+            console.log('[App] Prompting for dependency:', importPath)
+            
+            const [depHandle] = await window.showOpenFilePicker({
+              types: [{
+                description: `Dependency: ${importPath}`,
+                accept: { '*/*': [] }  // Accept any file type
+              }]
+            })
+            
+            const depFile = await depHandle.getFile()
+            console.log('[App] Selected dependency:', depFile.name, '(', depFile.size, 'bytes )')
+            
+            // Use the import path as the key (preserves relative path semantics)
+            dependencies.set(importPath, depFile)
+            
+          } catch (depError) {
+            if ((depError as any).name === 'AbortError') {
+              console.log('[App] User cancelled dependency selection for:', importPath)
+              alert(`CSM file requires: ${importPath}\n\nCancelling CSM load.`)
+              return
+            }
+            throw depError
+          }
+        }
+        
+        // Build CSM with dependencies
+        console.log('[App] Building CSM with', dependencies.size, 'dependencies...')
+        const { buildCSMWithDeps } = await import('./utils/espApi')
+        response = await buildCSMWithDeps(csmContent, dependencies)
+        
+      } else {
+        // No imports - use standard build
+        console.log('[App] Building CSM geometry via ESP gateway...')
+        response = await buildCSM(csmContent)
+      }
       
       if (!response.success) {
         throw new Error(response.message)

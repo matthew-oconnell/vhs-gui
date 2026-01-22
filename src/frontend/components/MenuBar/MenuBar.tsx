@@ -9,9 +9,10 @@ interface MenuBarProps {
   onExit?: () => void
   onSettings?: () => void
   onLoadMesh?: () => void
+  onLoadCSM?: () => void
 }
 
-function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh }: MenuBarProps) {
+function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -80,6 +81,12 @@ function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoad
               onClick={() => handleMenuItemClick(onLoadMesh || (() => console.log('Load Mesh')))}
             >
               <span className="menu-option-label">Load Mesh</span>
+            </button>
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onLoadCSM || (() => console.log('Open CSM')))}
+            >
+              <span className="menu-option-label">Open CSM (ESP)</span>
             </button>
             <div className="menu-separator" />
             <button 

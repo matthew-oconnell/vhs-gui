@@ -1,0 +1,111 @@
+/**
+ * ESP Gateway API Client
+ * 
+ * Communicates with the Python ESP server for CSM geometry operations
+ */
+
+export interface ESPParameter {
+  name: string
+  value: number | number[][]
+  type: 'scalar' | 'array'
+  nrow?: number
+  ncol?: number
+}
+
+export interface ESPRegion {
+  name: string
+  tag: number
+  body: number
+  face: number
+  vertices: number[][]  // [[x,y,z], [x,y,z], ...]
+  cells: number[][]     // [[v1,v2,v3], [v1,v2,v3], ...]
+}
+
+export interface CSMBuildResponse {
+  success: boolean
+  message: string
+  regions: ESPRegion[]
+  parameters: ESPParameter[]
+  total_vertices: number
+  total_faces: number
+}
+
+export interface ESPHealthResponse {
+  status: string
+  esp_available: boolean
+  esp_root: string | null
+  message: string
+}
+
+/**
+ * Configuration for ESP Gateway API
+ */
+const ESP_API_BASE_URL = (import.meta as any).env?.VITE_ESP_API_URL || 'http://127.0.0.1:8081'
+
+/**
+ * Check if ESP server is available
+ */
+export const checkESPHealth = async (): Promise<ESPHealthResponse> => {
+  try {
+    const response = await fetch(`${ESP_API_BASE_URL}/health`, {
+      method: 'GET',
+      signal: AbortSignal.timeout(3000)
+    })
+    
+    if (!response.ok) {
+      return {
+        status: 'error',
+        esp_available: false,
+        esp_root: null,
+        message: `Server returned ${response.status}`
+      }
+    }
+    
+    return response.json()
+  } catch (error) {
+    return {
+      status: 'error',
+      esp_available: false,
+      esp_root: null,
+      message: error instanceof Error ? error.message : 'Connection failed'
+    }
+  }
+}
+
+/**
+ * Build CSM content and return tessellated geometry
+ */
+export const buildCSM = async (csmContent: string): Promise<CSMBuildResponse> => {
+  console.log('[ESP API] Building CSM, content length:', csmContent.length)
+  
+  const response = await fetch(`${ESP_API_BASE_URL}/csm/build`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      csm_content: csmContent
+    })
+  })
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Build failed' }))
+    throw new Error(error.detail || `Build failed with status ${response.status}`)
+  }
+  
+  const result = await response.json()
+  console.log('[ESP API] Build successful:', result.message)
+  console.log('[ESP API] Regions:', result.regions.length, 'Parameters:', result.parameters.length)
+  
+  return result
+}
+
+/**
+ * Load CSM file from disk and build it
+ */
+export const loadAndBuildCSMFile = async (file: File): Promise<CSMBuildResponse> => {
+  console.log('[ESP API] Loading CSM file:', file.name)
+  
+  const content = await file.text()
+  return buildCSM(content)
+}

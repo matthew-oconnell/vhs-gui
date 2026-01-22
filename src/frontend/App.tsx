@@ -15,6 +15,8 @@ import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValida
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
 import { loadSchemaWithSolverKey } from './utils/schemaUtils'
+import { buildCSM, checkESPHealth } from './utils/espApi'
+import { lumpESPRegionsByBody } from './utils/espAdapter'
 import './App.css'
 
 function App() {
@@ -25,7 +27,7 @@ function App() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrorItem[]>([])
   const [pendingMesh, setPendingMesh] = useState<{ parsedMesh: any; filename: string } | null>(null)
   const [pendingConfig, setPendingConfig] = useState<any>(null) // Store config until mesh loads
-  const { configData, initializeConfig, loadMesh, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
+  const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
 
   // Load schema on startup to determine root solver key (Vulcan or HyperSolve)
   useEffect(() => {
@@ -341,6 +343,62 @@ function App() {
     }
   }
 
+  const handleLoadCSM = async () => {
+    console.log('[App] Open CSM clicked')
+    
+    try {
+      // First check if ESP server is available
+      const health = await checkESPHealth()
+      if (!health.esp_available) {
+        alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
+        return
+      }
+      
+      // Open file picker for .csm files
+      const [fileHandle] = await window.showOpenFilePicker({
+        types: [{
+          description: 'CSM Files',
+          accept: { 'application/octet-stream': ['.csm'] }
+        }]
+      })
+      
+      const file = await fileHandle.getFile()
+      console.log('[App] Selected CSM file:', file.name)
+      
+      // Read file contents
+      const csmContent = await file.text()
+      console.log('[App] CSM content length:', csmContent.length, 'chars')
+      
+      // Build CSM and get tessellation
+      console.log('[App] Building CSM geometry via ESP gateway...')
+      const response = await buildCSM(csmContent)
+      
+      if (!response.success) {
+        throw new Error(response.message)
+      }
+      
+      console.log('[App] ESP build successful:', response.message)
+      console.log('[App] Got', response.regions.length, 'regions,', response.total_vertices, 'vertices')
+      
+      // Convert ESP regions to our Surface format (lumped by body)
+      const surfaces = lumpESPRegionsByBody(response, { centerAndScale: true })
+      console.log('[App] Converted to', surfaces.length, 'surfaces')
+      
+      // Load into the store
+      loadESPSurfaces(surfaces, file.name)
+      
+      console.log('[App] CSM loaded successfully!')
+      
+    } catch (error) {
+      if ((error as any).name === 'AbortError') {
+        console.log('[App] File selection cancelled')
+        return
+      }
+      console.error('[App] Error loading CSM:', error)
+      alert(`Failed to load CSM file: ${(error as Error).message}`)
+    }
+  }
+
   const handleLumpChoice = (lump: boolean) => {
     if (pendingMesh) {
       console.log('[App] Loading mesh with lump =', lump)
@@ -374,6 +432,7 @@ function App() {
         onExit={handleExit}
         onSettings={handleSettings}
         onLoadMesh={handleLoadMesh}
+        onLoadCSM={handleLoadCSM}
       />
       <PanelGroup direction="horizontal">
         {/* Left Panel Group - contains tree, editor, and surfaces vertically stacked */}

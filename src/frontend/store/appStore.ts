@@ -87,6 +87,7 @@ interface AppState {
   updateProperty: (path: string, key: string, value: any) => void
   initializeConfig: (projectConfig: any) => void
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
+  loadESPSurfaces: (surfaces: Surface[], filename: string) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -753,6 +754,37 @@ export const useAppStore = create<AppState>((set) => ({
       availableSurfaces: surfaces,
       totalVertices: parsedMesh.totalVertices,
       totalFaces: parsedMesh.totalFaces,
+      selectedSurface: null
+    }
+  }),
+  
+  loadESPSurfaces: (surfaces, filename) => set((s) => {
+    console.log('[App Store] Loading ESP surfaces from:', filename, 'with', surfaces.length, 'surfaces')
+    
+    // Calculate totals
+    let totalVertices = 0
+    let totalFaces = 0
+    surfaces.forEach(surf => {
+      if (surf.geometry) {
+        totalVertices += surf.geometry.vertices.length / 3
+        totalFaces += surf.geometry.vertices.length / 9  // Each triangle is 9 floats (3 vertices * 3 coords)
+      }
+    })
+    
+    console.log('[App Store] ESP mesh totals:', totalVertices, 'vertices,', totalFaces, 'faces')
+    
+    // Update config with CSM filename  
+    const updatedConfigData = {
+      ...s.configData,
+      'csm filename': filename
+    }
+    
+    return {
+      ...s,
+      configData: updatedConfigData,
+      availableSurfaces: surfaces,
+      totalVertices,
+      totalFaces,
       selectedSurface: null
     }
   })

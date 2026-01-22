@@ -6,8 +6,8 @@ import { Surface } from '../../types/surface'
 import { BoundaryCondition } from '../../types/config'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
-import { CameraControls, CameraToolbar } from './CameraToolbar'
-import { RenderingToolbar } from './RenderingToolbar'
+import { CameraControls } from './CameraToolbar'
+import { ViewportToolbar } from './ViewportToolbar'
 import BoundaryConditionDialog from '../BoundaryConditionDialog/BoundaryConditionDialog'
 import { ArrowGizmo } from './CylinderGizmo'
 import SurfaceAlreadyAssignedDialog from '../SurfaceAlreadyAssignedDialog/SurfaceAlreadyAssignedDialog'
@@ -1637,11 +1637,8 @@ function Viewport3D() {
           <Scene onSurfaceContextMenu={handleSurfaceContextMenu} />
         </Canvas>
         
-        {/* Camera Toolbar */}
-        <CameraToolbar />
-        
-        {/* Rendering Toolbar */}
-        <RenderingToolbar />
+        {/* Combined Viewport Toolbar */}
+        <ViewportToolbar />
         
         {/* Overlay UI */}
         <div className="viewport-overlay">

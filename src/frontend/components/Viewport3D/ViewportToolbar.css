@@ -1,0 +1,100 @@
+.viewport-toolbar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid #404040;
+  border-radius: 6px;
+  padding: 6px 8px;
+  z-index: 10;
+  pointer-events: auto;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: #404040;
+  margin: 0 4px;
+}
+
+.toolbar-label {
+  font-size: 11px;
+  color: #808080;
+  font-weight: 500;
+  user-select: none;
+}
+
+.toolbar-select {
+  background: #2a2a2a;
+  color: #cccccc;
+  border: 1px solid #404040;
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.toolbar-select:hover {
+  background: #333333;
+  border-color: #505050;
+}
+
+.toolbar-select:focus {
+  border-color: #0e639c;
+}
+
+.toolbar-button {
+  background: transparent;
+  border: none;
+  color: #cccccc;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.toolbar-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.toolbar-button.active {
+  background: #0e639c;
+  color: #ffffff;
+}
+
+.toolbar-button.active:hover {
+  background: #1177bb;
+}
+
+.toolbar-button svg {
+  flex-shrink: 0;
+}
+
+.toolbar-button span {
+  white-space: nowrap;
+}

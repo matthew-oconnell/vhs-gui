@@ -359,16 +359,29 @@ async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
             # Replace relative import paths with absolute paths in CSM content
             # This ensures EGADS can find the files
             modified_csm_content = request.csm_content
+            
+            # First extract 'store' statements to identify internal objects vs. file dependencies
+            store_pattern = r'^\s*store\s+(\S+)'
+            stored_objects = set(re.findall(store_pattern, request.csm_content, flags=re.IGNORECASE|re.MULTILINE))
+            print(f"[ESP] Identified stored objects: {stored_objects}")
+            
+            # Now process dependencies
             for filename in request.dependencies.keys():
                 abs_path = os.path.join(tmpdir, filename)
-                # Replace "import filename" with "import /full/path/filename"
-                # Also handle "restore filename"
-                import re
-                # Match import/restore followed by whitespace and the filename
-                pattern = r'((?:import|restore)\s+)' + re.escape(filename)
-                replacement = r'\1' + abs_path
-                modified_csm_content = re.sub(pattern, replacement, modified_csm_content, flags=re.IGNORECASE)
-                print(f"[ESP] Replaced '{filename}' with '{abs_path}' in CSM")
+                
+                # 1. Always update import statements with absolute paths
+                import_pattern = r'(import\s+)' + re.escape(filename)
+                modified_csm_content = re.sub(import_pattern, r'\1' + abs_path, modified_csm_content, flags=re.IGNORECASE)
+                print(f"[ESP] Replaced 'import {filename}' with 'import {abs_path}' in CSM")
+                
+                # 2. Only update restore statements for actual files, not internal objects
+                basename = os.path.basename(filename)
+                if basename not in stored_objects:  # Skip if this is a stored object name
+                    restore_pattern = r'(restore\s+)' + re.escape(filename)
+                    modified_csm_content = re.sub(restore_pattern, r'\1' + abs_path, modified_csm_content, flags=re.IGNORECASE)
+                    print(f"[ESP] Replaced 'restore {filename}' with 'restore {abs_path}' in CSM")
+                else:
+                    print(f"[ESP] Preserving 'restore {filename}' as it matches a stored object name")
             
             # Write modified CSM file
             csm_path = os.path.join(tmpdir, 'main.csm')

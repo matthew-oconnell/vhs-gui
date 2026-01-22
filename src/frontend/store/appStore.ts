@@ -94,7 +94,8 @@ interface AppState {
   updateProperty: (path: string, key: string, value: any) => void
   initializeConfig: (projectConfig: any) => void
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
-  loadESPSurfaces: (surfaces: Surface[], filename: string) => void
+  loadESPSurfaces: (surfaces: Surface[], filename: string, csmContent?: string) => void
+
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -178,6 +179,8 @@ export const useAppStore = create<AppState>((set) => ({
   availableSurfaces: [],
   totalVertices: 0,
   totalFaces: 0,
+  originalCSMContent: null as string | null,
+  csmFilename: null as string | null,
   
   // Camera settings with defaults matching Paraview behavior
   cameraSettings: {
@@ -806,7 +809,7 @@ export const useAppStore = create<AppState>((set) => ({
     }
   }),
   
-  loadESPSurfaces: (surfaces, filename) => set((s) => {
+  loadESPSurfaces: (surfaces, filename, csmContent) => set((s) => {
     console.log('[App Store] Loading ESP surfaces from:', filename, 'with', surfaces.length, 'surfaces')
     
     // Calculate totals
@@ -833,7 +836,9 @@ export const useAppStore = create<AppState>((set) => ({
       availableSurfaces: surfaces,
       totalVertices,
       totalFaces,
-      selectedSurface: null
+      selectedSurface: null,
+      originalCSMContent: csmContent || null,
+      csmFilename: filename
     }
   })
 }))

@@ -10,9 +10,10 @@ interface MenuBarProps {
   onSettings?: () => void
   onLoadMesh?: () => void
   onLoadCSM?: () => void
+  onExportCSM?: () => void
 }
 
-function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM }: MenuBarProps) {
+function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onExportCSM }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -87,6 +88,12 @@ function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoad
               onClick={() => handleMenuItemClick(onLoadCSM || (() => console.log('Open CSM')))}
             >
               <span className="menu-option-label">Open CSM (ESP)</span>
+            </button>
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onExportCSM || (() => console.log('Export CSM')))}
+            >
+              <span className="menu-option-label">Export CSM</span>
             </button>
             <div className="menu-separator" />
             <button 

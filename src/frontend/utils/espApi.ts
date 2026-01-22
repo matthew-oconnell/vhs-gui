@@ -110,3 +110,38 @@ export const loadAndBuildCSMFile = async (file: File): Promise<CSMBuildResponse>
   const content = await file.text()
   return buildCSM(content)
 }
+
+/**
+ * Export CSM with updated bc_name attributes
+ */
+export const exportCSMWithBCNames = async (
+  csmContent: string,
+  bcNameUpdates: Array<{ body: number; face: number; bc_name: string }>
+): Promise<string> => {
+  console.log('[ESP API] Exporting CSM with', bcNameUpdates.length, 'bc_name updates')
+  
+  try {
+    const response = await fetch(`${ESP_API_BASE_URL}/csm/export-with-bc-names`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        csm_content: csmContent,
+        bc_name_updates: bcNameUpdates
+      })
+    })
+    
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.detail || 'Export failed')
+    }
+    
+    const result = await response.json()
+    console.log('[ESP API] Export successful:', result.message)
+    return result.csm_content
+  } catch (error) {
+    console.error('[ESP API] Export failed:', error)
+    throw error
+  }
+}

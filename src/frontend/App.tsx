@@ -384,8 +384,8 @@ function App() {
       const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
       console.log('[App] Converted to', surfaces.length, 'surfaces')
       
-      // Load into the store
-      loadESPSurfaces(surfaces, file.name)
+      // Load into the store (pass CSM content for export)
+      loadESPSurfaces(surfaces, file.name, csmContent)
       
       console.log('[App] CSM loaded successfully!')
       
@@ -422,6 +422,56 @@ function App() {
     setPendingMesh(null)
   }
 
+  const handleExportCSM = async () => {
+    const { originalCSMContent, csmFilename, availableSurfaces } = useAppStore.getState()
+    
+    if (!originalCSMContent) {
+      alert('No CSM file loaded to export')
+      return
+    }
+    
+    try {
+      // Build list of bc_name updates from current surfaces
+      const bcNameUpdates = availableSurfaces
+        .filter(s => s.metadata.bcName && s.metadata.bodyId !== undefined && s.metadata.faceId !== undefined)
+        .map(s => ({
+          body: s.metadata.bodyId!,
+          face: s.metadata.faceId!,
+          bc_name: s.metadata.bcName!
+        }))
+      
+      console.log('[App] Exporting CSM with', bcNameUpdates.length, 'bc_name updates')
+      
+      // Call ESP server to generate updated CSM
+      const { exportCSMWithBCNames } = await import('./utils/espApi')
+      const updatedContent = await exportCSMWithBCNames(originalCSMContent, bcNameUpdates)
+      
+      // Use File System Access API to show save dialog
+      const handle = await window.showSaveFilePicker({
+        suggestedName: csmFilename || 'exported.csm',
+        types: [{
+          description: 'CSM Files',
+          accept: { 'application/octet-stream': ['.csm'] }
+        }]
+      })
+      
+      // Write the updated content
+      const writable = await handle.createWritable()
+      await writable.write(updatedContent)
+      await writable.close()
+      
+      console.log('[App] CSM exported successfully as:', handle.name)
+      alert(`CSM file saved successfully as ${handle.name}`)
+    } catch (error) {
+      if ((error as any).name === 'AbortError') {
+        console.log('[App] Export cancelled by user')
+        return
+      }
+      console.error('[App] Error exporting CSM:', error)
+      alert(`Failed to export CSM: ${(error as Error).message}`)
+    }
+  }
+
   return (
     <div className="app-container">
       <MenuBar 
@@ -433,6 +483,7 @@ function App() {
         onSettings={handleSettings}
         onLoadMesh={handleLoadMesh}
         onLoadCSM={handleLoadCSM}
+        onExportCSM={handleExportCSM}
       />
       <PanelGroup direction="horizontal">
         {/* Left Panel Group - contains tree, editor, and surfaces vertically stacked */}

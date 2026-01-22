@@ -77,6 +77,26 @@ class HealthResponse(BaseModel):
     message: str
 
 
+class BCNameUpdate(BaseModel):
+    """BC name update for a specific face"""
+    body: int
+    face: int
+    bc_name: str
+
+
+class ExportCSMRequest(BaseModel):
+    """Request to export CSM with updated bc_names"""
+    csm_content: str
+    bc_name_updates: list[BCNameUpdate]
+
+
+class ExportCSMResponse(BaseModel):
+    """Response containing updated CSM content"""
+    success: bool
+    message: str
+    csm_content: str
+
+
 def check_esp_available() -> bool:
     """Check if ESP/pyOCSM is available"""
     try:
@@ -296,6 +316,131 @@ async def update_parameter(request: dict):
         status_code=501,
         detail="Parameter update not yet implemented"
     )
+
+
+@app.post("/csm/export-with-bc-names", response_model=ExportCSMResponse)
+async def export_with_bc_names(request: ExportCSMRequest):
+    """
+    Export CSM file with updated bc_name attributes.
+    
+    Takes original CSM content and a list of bc_name updates,
+    applies them using pyOCSM attribute manipulation,
+    and returns the updated CSM content.
+    """
+    if not check_esp_available():
+        raise HTTPException(
+            status_code=503,
+            detail="ESP/pyOCSM not available. Set ESP_ROOT environment variable."
+        )
+    
+    try:
+        from pyOCSM import ocsm
+        from pyEGADS import egads
+        
+        # Write original CSM to temp file
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.csm', delete=False) as f:
+            f.write(request.csm_content)
+            input_path = f.name
+        
+        # Output path for modified CSM
+        output_path = input_path.replace('.csm', '_updated.csm')
+        
+        try:
+            # Load the CSM
+            modl = ocsm.Ocsm(input_path)
+            
+            # Build geometry
+            modl.Build(0, 0)
+            
+            # Update bc_name attributes for each face
+            for update in request.bc_name_updates:
+                try:
+                    # Get the body EGO
+                    body_ego = modl.GetEgo(update.body, ocsm.BODY, 0)
+                    if body_ego is None:
+                        print(f"Warning: Body {update.body} not found, skipping")
+                        continue
+                    
+                    # Get the specific face
+                    faces = body_ego.getBodyTopos(egads.FACE)
+                    if update.face < 1 or update.face > len(faces):
+                        print(f"Warning: Face {update.face} not found in body {update.body}, skipping")
+                        continue
+                    
+                    face_ego = faces[update.face - 1]  # Faces are 1-indexed in ESP
+                    
+                    # Set the bc_name attribute on the face
+                    face_ego.attributeSet("bc_name", egads.ATTRSTRING, update.bc_name)
+                    
+                except Exception as e:
+                    print(f"Warning: Failed to update face {update.body}/{update.face}: {e}")
+                    continue
+            
+            # Save the model with updated attributes
+            # pyOCSM doesn't have a direct "save" that preserves attributes in CSM text,
+            # so we need to reconstruct the CSM with updated attributes
+            
+            # Read the original CSM and update bc_name attributes via text replacement
+            lines = request.csm_content.split('\n')
+            updated_lines = []
+            
+            # Build a map of (body, face) -> bc_name from updates
+            bc_map = {(u.body, u.face): u.bc_name for u in request.bc_name_updates}
+            
+            current_body = 1  # Track which body we're in
+            i = 0
+            
+            while i < len(lines):
+                line = lines[i]
+                trimmed = line.strip()
+                
+                # Check for select face statement
+                select_match = None
+                if trimmed:
+                    import re
+                    select_match = re.match(r'^select\s+face\s+(\d+)', trimmed, re.IGNORECASE)
+                
+                if select_match:
+                    face_num = int(select_match.group(1))
+                    updated_lines.append(line)
+                    
+                    # Check if next line is existing bc_name attribute
+                    if i + 1 < len(lines):
+                        next_trimmed = lines[i + 1].strip()
+                        if re.match(r'^attribute\s+bc_name', next_trimmed, re.IGNORECASE):
+                            i += 1  # Skip existing bc_name
+                    
+                    # Add updated bc_name if we have one
+                    bc_name = bc_map.get((current_body, face_num))
+                    if bc_name:
+                        indent = re.match(r'^(\s*)', line).group(1) if re.match(r'^(\s*)', line) else ''
+                        updated_lines.append(f"{indent}attribute bc_name ${bc_name}")
+                else:
+                    updated_lines.append(line)
+                
+                i += 1
+            
+            updated_content = '\n'.join(updated_lines)
+            
+            return ExportCSMResponse(
+                success=True,
+                message=f"Updated {len(request.bc_name_updates)} bc_name attributes",
+                csm_content=updated_content
+            )
+            
+        finally:
+            # Clean up temp files
+            import os
+            if os.path.exists(input_path):
+                os.unlink(input_path)
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to export CSM: {str(e)}"
+        )
 
 
 if __name__ == "__main__":

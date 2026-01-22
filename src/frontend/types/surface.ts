@@ -5,6 +5,8 @@ export interface SurfaceMetadata {
   isLumped?: boolean
   originalRegionCount?: number
   bcName?: string  // Boundary condition name (from ESP or user-assigned)
+  bodyId?: number  // ESP body ID (for CSM export)
+  faceId?: number  // ESP face ID (for CSM export)
 }
 
 export interface MeshGeometry {

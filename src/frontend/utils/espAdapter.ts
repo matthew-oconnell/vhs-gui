@@ -64,7 +64,9 @@ export const convertESPRegionsToSurfaces = (
         id: `esp-${region.body}-${region.face}`,
         tag: region.tag,
         tagName: region.name,
-        bcName: region.bc_name  // Pass through bc_name from ESP
+        bcName: region.bc_name,  // Pass through bc_name from ESP
+        bodyId: region.body,     // Store body ID for export
+        faceId: region.face      // Store face ID for export
       },
       geometry
     }

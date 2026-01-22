@@ -163,6 +163,9 @@ function SurfacesPanel() {
                       <div className="detail-section">
                         <div className="metadata-label">Metadata:</div>
                         <div className="metadata-item">Tag: {surface.metadata.tag}</div>
+                        {surface.metadata.bcName && (
+                          <div className="metadata-item">BC Name: {surface.metadata.bcName}</div>
+                        )}
                         {surface.metadata.isLumped && surface.metadata.originalRegionCount && (
                           <div className="metadata-item">
                             Lumped: {surface.metadata.originalRegionCount} region{surface.metadata.originalRegionCount > 1 ? 's' : ''}

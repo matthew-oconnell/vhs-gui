@@ -229,21 +229,33 @@ async def build_csm(request: CSMBuildRequest):
                         
                         # Try to get face name from attributes
                         face_name = f"Body{ibody}_Face{iface}"
+                        bc_name = None
                         try:
                             face_ego = faces[iface - 1]  # 0-indexed array
+                            
+                            # Get _name attribute
                             attr = face_ego.attributeRet("_name")
                             if attr is not None:
-                                face_name = str(attr[1])
-                        except:
+                                # attributeRet returns the string directly for string attributes
+                                face_name = str(attr)
+                            
+                            # Try to get bc_name attribute
+                            bc_attr = face_ego.attributeRet("bc_name")
+                            if bc_attr is not None:
+                                # attributeRet returns the string directly for string attributes
+                                bc_name = str(bc_attr)
+                        except Exception as e:
+                            print(f"Warning: Could not get attributes for Body {ibody} Face {iface}: {e}")
                             pass
                         
                         regions.append({
                             "name": face_name,
-                            "tag": ibody * 1000 + iface,  # Unique tag
+                            "tag": ibody * 100000 + iface,  # Unique tag (supports 99,999 faces per body)
                             "body": ibody,
                             "face": iface,
                             "vertices": vertices,
-                            "cells": cells
+                            "cells": cells,
+                            "bc_name": bc_name
                         })
                         
                         total_vertices += nvert

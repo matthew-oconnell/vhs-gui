@@ -4,6 +4,7 @@ export interface SurfaceMetadata {
   tagName: string
   isLumped?: boolean
   originalRegionCount?: number
+  bcName?: string  // Boundary condition name (from ESP or user-assigned)
 }
 
 export interface MeshGeometry {

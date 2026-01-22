@@ -1582,6 +1582,9 @@ function Viewport3D() {
               <div className="surface-metadata">
                 <div className="metadata-header">{selectedSurface.name}</div>
                 <div className="metadata-row">Tag: {selectedSurface.metadata.tag}</div>
+                {selectedSurface.metadata.bcName && (
+                  <div className="metadata-row">BC Name: {selectedSurface.metadata.bcName}</div>
+                )}
                 {selectedSurface.metadata.isLumped && selectedSurface.metadata.originalRegionCount && (
                   <div className="metadata-row">
                     Lumped: {selectedSurface.metadata.originalRegionCount} region{selectedSurface.metadata.originalRegionCount > 1 ? 's' : ''}

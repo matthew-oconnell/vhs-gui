@@ -19,6 +19,7 @@ export interface ESPRegion {
   face: number
   vertices: number[][]  // [[x,y,z], [x,y,z], ...]
   cells: number[][]     // [[v1,v2,v3], [v1,v2,v3], ...]
+  bc_name?: string      // Optional boundary condition name from ESP attribute
 }
 
 export interface CSMBuildResponse {

@@ -16,7 +16,7 @@ import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
 import { loadSchemaWithSolverKey } from './utils/schemaUtils'
 import { buildCSM, checkESPHealth } from './utils/espApi'
-import { lumpESPRegionsByBody } from './utils/espAdapter'
+import { convertESPRegionsToSurfaces } from './utils/espAdapter'
 import './App.css'
 
 function App() {
@@ -380,8 +380,8 @@ function App() {
       console.log('[App] ESP build successful:', response.message)
       console.log('[App] Got', response.regions.length, 'regions,', response.total_vertices, 'vertices')
       
-      // Convert ESP regions to our Surface format (lumped by body)
-      const surfaces = lumpESPRegionsByBody(response, { centerAndScale: true })
+      // Convert ESP regions to our Surface format (individual faces)
+      const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
       console.log('[App] Converted to', surfaces.length, 'surfaces')
       
       // Load into the store

@@ -15,6 +15,7 @@ export interface CameraSettings {
   panSpeed: number
   invertZoom: boolean
   multiSelectModifier: 'shift' | 'ctrl' | 'alt'
+  selectionMode: 'face' | 'group'
 }
 
 export interface OverlayPosition {
@@ -67,6 +68,7 @@ interface AppState {
   totalFaces: number
   cameraSettings: CameraSettings
   updateCameraSettings: (settings: Partial<CameraSettings>) => void
+  setSelectionMode: (mode: 'face' | 'group') => void
   overlayPosition: OverlayPosition
   setOverlayPosition: (position: OverlayPosition) => void
   surfaceVisibility: Record<string, boolean>
@@ -183,11 +185,15 @@ export const useAppStore = create<AppState>((set) => ({
     zoomSpeed: 1.2,
     panSpeed: 0.8,
     invertZoom: true, // Pulling back zooms in (Paraview-like)
-    multiSelectModifier: 'shift' as const // Default modifier for multi-selection
+    multiSelectModifier: 'shift' as const, // Default modifier for multi-selection
+    selectionMode: 'face' as const // Default to individual face selection
   },
   
   updateCameraSettings: (settings) => set((state) => ({
     cameraSettings: { ...state.cameraSettings, ...settings }
+  })),
+  setSelectionMode: (mode) => set((state) => ({
+    cameraSettings: { ...state.cameraSettings, selectionMode: mode }
   })),
   
   // Overlay position with default in top-left

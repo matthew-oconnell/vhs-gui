@@ -1,7 +1,15 @@
 import { Layers, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useAppStore } from '../../store/appStore'
+import { Surface } from '../../types/surface'
 import './SurfacesPanel.css'
+
+interface SurfaceGroup {
+  groupId: string
+  displayName: string
+  surfaces: Surface[]
+  bcName?: string
+}
 
 function SurfacesPanel() {
   const { 
@@ -14,19 +22,53 @@ function SurfacesPanel() {
     rootSolverKey
   } = useAppStore()
   
-  const [expandedSurfaces, setExpandedSurfaces] = useState<Set<string>>(new Set())
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   
-  const toggleExpanded = (surfaceId: string) => {
-    setExpandedSurfaces(prev => {
+  const toggleExpanded = (groupId: string) => {
+    setExpandedGroups(prev => {
       const next = new Set(prev)
-      if (next.has(surfaceId)) {
-        next.delete(surfaceId)
+      if (next.has(groupId)) {
+        next.delete(groupId)
       } else {
-        next.add(surfaceId)
+        next.add(groupId)
       }
       return next
     })
   }
+  
+  // Group surfaces by bc_name
+  const surfaceGroups = useMemo(() => {
+    const groups = new Map<string, SurfaceGroup>()
+    
+    for (const surface of availableSurfaces) {
+      const bcName = surface.metadata.bcName
+      
+      if (bcName) {
+        // Group by bc_name
+        const groupId = `bcname-${bcName}`
+        if (!groups.has(groupId)) {
+          groups.set(groupId, {
+            groupId,
+            displayName: bcName,
+            surfaces: [],
+            bcName
+          })
+        }
+        groups.get(groupId)!.surfaces.push(surface)
+      } else {
+        // Individual entry for unnamed surfaces
+        const groupId = `surface-${surface.id}`
+        groups.set(groupId, {
+          groupId,
+          displayName: surface.name,
+          surfaces: [surface],
+          bcName: undefined
+        })
+      }
+    }
+    
+    return Array.from(groups.values())
+  }, [availableSurfaces])
   
   const getDefaultSettings = (surfaceId: string) => ({
     surfaceColor: surfaceRenderSettings[surfaceId]?.surfaceColor ?? '#4a9eff',
@@ -42,23 +84,30 @@ function SurfacesPanel() {
         <span>Mesh Surfaces</span>
       </div>
       <div className="panel-content">
-        {availableSurfaces.length === 0 ? (
+        {surfaceGroups.length === 0 ? (
           <div className="empty-message">
             No mesh loaded. Load a mesh file to see surfaces.
           </div>
         ) : (
           <div className="surfaces-list">
-            {availableSurfaces.map((surface) => {
-              const isVisible = surfaceVisibility[surface.id] ?? true
-              const isExpanded = expandedSurfaces.has(surface.id)
-              const settings = getDefaultSettings(surface.id)
+            {surfaceGroups.map((group) => {
+              const isExpanded = expandedGroups.has(group.groupId)
+              const isMultiFace = group.surfaces.length > 1
               
-              // Find associated BC
+              // For groups, check if all surfaces are visible
+              const allVisible = group.surfaces.every(s => surfaceVisibility[s.id] ?? true)
+              const someVisible = group.surfaces.some(s => surfaceVisibility[s.id] ?? true)
+              
+              // For single surface groups, use the surface directly
+              const primarySurface = group.surfaces[0]
+              const isVisible = surfaceVisibility[primarySurface.id] ?? true
+              
+              // Find associated BC for the group
               const rootKey = rootSolverKey || 'HyperSolve'
               const rootConfig = (configData as any)[rootKey]
               const associatedBC = rootConfig?.['boundary conditions']?.find(bc => {
                 const tags = bc['mesh boundary tags']
-                const surfaceTag = surface.metadata.tag
+                const surfaceTag = primarySurface.metadata.tag
                 
                 if (Array.isArray(tags)) {
                   return tags.includes(surfaceTag) || tags.includes(String(surfaceTag))
@@ -70,29 +119,48 @@ function SurfacesPanel() {
                 return false
               })
               
+              const handleToggleVisibility = (e: React.MouseEvent) => {
+                e.stopPropagation()
+                if (isMultiFace) {
+                  // Toggle all surfaces in the group
+                  group.surfaces.forEach(surface => {
+                    const currentlyVisible = surfaceVisibility[surface.id] ?? true
+                    if (allVisible || currentlyVisible) {
+                      toggleSurfaceVisibility(surface.id)
+                    } else if (!someVisible) {
+                      toggleSurfaceVisibility(surface.id)
+                    }
+                  })
+                } else {
+                  toggleSurfaceVisibility(primarySurface.id)
+                }
+              }
+              
               return (
-                <div key={surface.id} className="surface-item-container">
+                <div key={group.groupId} className="surface-item-container">
                   <div className="surface-item">
                     <button
                       className="visibility-toggle"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        toggleSurfaceVisibility(surface.id)
-                      }}
-                      title={isVisible ? 'Hide surface' : 'Show surface'}
+                      onClick={handleToggleVisibility}
+                      title={isMultiFace 
+                        ? (allVisible ? 'Hide all faces' : 'Show all faces')
+                        : (isVisible ? 'Hide surface' : 'Show surface')}
                     >
-                      {isVisible ? <Eye size={16} /> : <EyeOff size={16} />}
+                      {isMultiFace 
+                        ? (allVisible ? <Eye size={16} /> : someVisible ? <Eye size={16} style={{ opacity: 0.5 }} /> : <EyeOff size={16} />)
+                        : (isVisible ? <Eye size={16} /> : <EyeOff size={16} />)}
                     </button>
                     <div 
                       className={`surface-name ${!associatedBC ? 'unassigned' : ''}`}
-                      onClick={() => toggleExpanded(surface.id)}
+                      onClick={() => toggleExpanded(group.groupId)}
                       title={!associatedBC ? 'Not assigned to any boundary condition' : ''}
                     >
-                      {surface.name}
+                      {group.displayName}
+                      {isMultiFace && <span className="face-count"> ({group.surfaces.length} faces)</span>}
                     </div>
                     <button
                       className="expand-toggle"
-                      onClick={() => toggleExpanded(surface.id)}
+                      onClick={() => toggleExpanded(group.groupId)}
                       title={isExpanded ? 'Collapse' : 'Expand'}
                     >
                       {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
@@ -101,80 +169,64 @@ function SurfacesPanel() {
                   
                   {isExpanded && (
                     <div className="surface-details">
-                      {/* Render Mode */}
-                      <div className="detail-row">
-                        <label>Render Mode:</label>
-                        <div className="render-mode-buttons">
-                          <button
-                            className={settings.renderMode === 'surface' ? 'active' : ''}
-                            onClick={() => updateSurfaceRenderSettings(surface.id, { renderMode: 'surface' })}
-                          >
-                            Surface
-                          </button>
-                          <button
-                            className={settings.renderMode === 'mesh' ? 'active' : ''}
-                            onClick={() => updateSurfaceRenderSettings(surface.id, { renderMode: 'mesh' })}
-                          >
-                            Mesh
-                          </button>
-                          <button
-                            className={settings.renderMode === 'both' ? 'active' : ''}
-                            onClick={() => updateSurfaceRenderSettings(surface.id, { renderMode: 'both' })}
-                          >
-                            Both
-                          </button>
+                      {isMultiFace ? (
+                        // Show list of faces in the group
+                        <div className="grouped-faces">
+                          {group.surfaces.map((surface) => {
+                            const faceVisible = surfaceVisibility[surface.id] ?? true
+                            return (
+                              <div key={surface.id} className="face-detail-item">
+                                <button
+                                  className="visibility-toggle small"
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    toggleSurfaceVisibility(surface.id)
+                                  }}
+                                  title={faceVisible ? 'Hide face' : 'Show face'}
+                                >
+                                  {faceVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                                </button>
+                                <div className="face-name">{surface.name}</div>
+                                <div className="surface-tag">Tag: {surface.metadata.tag}</div>
+                              </div>
+                            )
+                          })}
                         </div>
-                      </div>
-                      
-                      {/* Surface Color */}
-                      <div className="detail-row">
-                        <label>Surface Color:</label>
-                        <input
-                          type="color"
-                          value={settings.surfaceColor}
-                          onChange={(e) => updateSurfaceRenderSettings(surface.id, { surfaceColor: e.target.value })}
-                        />
-                      </div>
-                      
-                      {/* Mesh Color */}
-                      <div className="detail-row">
-                        <label>Mesh Color:</label>
-                        <input
-                          type="color"
-                          value={settings.meshColor}
-                          onChange={(e) => updateSurfaceRenderSettings(surface.id, { meshColor: e.target.value })}
-                        />
-                      </div>
-                      
-                      {/* Opacity */}
-                      <div className="detail-row">
-                        <label>Opacity:</label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={settings.opacity * 100}
-                          onChange={(e) => updateSurfaceRenderSettings(surface.id, { opacity: parseInt(e.target.value) / 100 })}
-                        />
-                        <span className="opacity-value">{Math.round(settings.opacity * 100)}%</span>
-                      </div>
-                      
-                      {/* Metadata */}
-                      <div className="detail-section">
-                        <div className="metadata-label">Metadata:</div>
-                        <div className="metadata-item">Tag: {surface.metadata.tag}</div>
-                        {surface.metadata.bcName && (
-                          <div className="metadata-item">BC Name: {surface.metadata.bcName}</div>
-                        )}
-                        {surface.metadata.isLumped && surface.metadata.originalRegionCount && (
-                          <div className="metadata-item">
-                            Lumped: {surface.metadata.originalRegionCount} region{surface.metadata.originalRegionCount > 1 ? 's' : ''}
+                      ) : (
+                        // Show single surface details
+                        <>
+                          <div className="detail-row">
+                            <span className="detail-label">ID:</span>
+                            <span className="detail-value">{primarySurface.id}</span>
                           </div>
-                        )}
-                        {associatedBC && (
-                          <div className="metadata-item">BC: {associatedBC.name || 'Unnamed'}</div>
-                        )}
-                      </div>
+                          <div className="detail-row">
+                            <span className="detail-label">Tag:</span>
+                            <span className="detail-value">{primarySurface.metadata.tag}</span>
+                          </div>
+                          <div className="detail-row">
+                            <span className="detail-label">Type:</span>
+                            <span className="detail-value">{primarySurface.type}</span>
+                          </div>
+                          {primarySurface.metadata.bodyId !== undefined && (
+                            <div className="detail-row">
+                              <span className="detail-label">Body ID:</span>
+                              <span className="detail-value">{primarySurface.metadata.bodyId}</span>
+                            </div>
+                          )}
+                          {primarySurface.metadata.faceId !== undefined && (
+                            <div className="detail-row">
+                              <span className="detail-label">Face ID:</span>
+                              <span className="detail-value">{primarySurface.metadata.faceId}</span>
+                            </div>
+                          )}
+                          {associatedBC && (
+                            <div className="detail-row">
+                              <span className="detail-label">BC Type:</span>
+                              <span className="detail-value">{associatedBC.type}</span>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>

@@ -148,6 +148,45 @@
   color: #f48771;
 }
 
+/* Selection feedback */
+.selection-feedback {
+  background-color: rgba(0, 0, 0, 0.7);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #ffd700;
+  font-family: 'Courier New', monospace;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.selection-count {
+  font-weight: bold;
+}
+
+.group-info {
+  color: #858585;
+  font-weight: normal;
+  font-size: 10px;
+}
+
+.clear-selection-button {
+  background-color: #3e3e42;
+  color: #cccccc;
+  border: none;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-size: 10px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.clear-selection-button:hover {
+  background-color: #505050;
+}
+
 /* Context menu */
 .context-menu {
   position: fixed;

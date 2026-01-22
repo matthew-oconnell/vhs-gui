@@ -132,12 +132,53 @@ function ClickableSurface({
       (modifierKey === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
       (modifierKey === 'alt' && e.altKey)
     
-    if (isModifierPressed) {
-      // Multi-select mode: toggle this surface in/out of selection
-      toggleSurfaceSelection(surface)
+    // Get selection mode from store
+    const selectionMode = cameraSettings.selectionMode || 'face'
+    
+    if (selectionMode === 'group' && surface.metadata.bcName) {
+      // Group selection mode: select all surfaces with same bc_name
+      const { availableSurfaces } = useAppStore.getState()
+      const groupSurfaces = availableSurfaces.filter(
+        s => s.metadata.bcName === surface.metadata.bcName
+      )
+      
+      if (isModifierPressed) {
+        // Toggle entire group in/out of selection
+        const allSelected = groupSurfaces.every(gs => 
+          selectedSurfaces.some(s => s.id === gs.id)
+        )
+        
+        if (allSelected) {
+          // Remove all group surfaces from selection
+          groupSurfaces.forEach(gs => {
+            const isInSelection = selectedSurfaces.some(s => s.id === gs.id)
+            if (isInSelection) {
+              toggleSurfaceSelection(gs)
+            }
+          })
+        } else {
+          // Add all group surfaces to selection
+          groupSurfaces.forEach(gs => {
+            const isInSelection = selectedSurfaces.some(s => s.id === gs.id)
+            if (!isInSelection) {
+              toggleSurfaceSelection(gs)
+            }
+          })
+        }
+      } else {
+        // Replace selection with entire group
+        clearSurfaceSelection()
+        groupSurfaces.forEach(gs => toggleSurfaceSelection(gs))
+      }
     } else {
-      // Normal mode: select only this surface (clears others)
-      setSelectedSurface(surface)
+      // Face selection mode (or ungrouped surface)
+      if (isModifierPressed) {
+        // Multi-select mode: toggle this surface in/out of selection
+        toggleSurfaceSelection(surface)
+      } else {
+        // Normal mode: select only this surface (clears others)
+        setSelectedSurface(surface)
+      }
     }
   }
   
@@ -1656,6 +1697,34 @@ function Viewport3D() {
                     <div className="metadata-row unassigned">No BC assigned</div>
                   )
                 })()}
+              </div>
+            </div>
+          )}
+          
+          {/* Multi-selection feedback */}
+          {selectedSurfaces.length > 1 && (
+            <div className="overlay-corner bottom-left" style={{ marginTop: selectedSurface ? '8px' : '0' }}>
+              <div className="selection-feedback">
+                <div className="selection-count">
+                  {selectedSurfaces.length} face{selectedSurfaces.length > 1 ? 's' : ''} selected
+                  {(() => {
+                    const { cameraSettings } = useAppStore.getState()
+                    if (cameraSettings.selectionMode === 'group' && selectedSurfaces.length > 0) {
+                      const bcNames = new Set(selectedSurfaces.map(s => s.metadata.bcName).filter(Boolean))
+                      if (bcNames.size > 0) {
+                        return <span className="group-info"> ({bcNames.size} group{bcNames.size > 1 ? 's' : ''})</span>
+                      }
+                    }
+                    return null
+                  })()}
+                </div>
+                <button 
+                  className="clear-selection-button"
+                  onClick={() => useAppStore.getState().clearSurfaceSelection()}
+                  title="Clear selection"
+                >
+                  Clear Selection
+                </button>
               </div>
             </div>
           )}

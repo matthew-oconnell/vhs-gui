@@ -188,3 +188,51 @@
   text-align: center;
   padding: 20px;
 }
+
+/* Grouped faces display */
+.face-count {
+  color: #858585;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.grouped-faces {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.face-detail-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background-color: #2a2a2a;
+  border-radius: 3px;
+  border: 1px solid #3e3e42;
+}
+
+.face-detail-item .visibility-toggle.small {
+  padding: 2px;
+}
+
+.face-name {
+  flex: 1;
+  color: #cccccc;
+  font-size: 12px;
+}
+
+.surface-tag {
+  color: #858585;
+  font-size: 11px;
+}
+
+.detail-label {
+  color: #cccccc;
+  min-width: 80px;
+  font-weight: 500;
+}
+
+.detail-value {
+  color: #999999;
+}

@@ -1,4 +1,4 @@
-import { EyeOff, Palette } from 'lucide-react'
+import { EyeOff, Palette, Mouse } from 'lucide-react'
 import { useAppStore, ColorMode } from '../../store/appStore'
 import './RenderingToolbar.css'
 
@@ -13,13 +13,20 @@ export function RenderingToolbar() {
   const { 
     globalRenderSettings, 
     setColorMode, 
-    toggleHideAssignedSurfaces 
+    toggleHideAssignedSurfaces,
+    cameraSettings,
+    setSelectionMode
   } = useAppStore()
   
   const { colorMode, hideAssignedSurfaces } = globalRenderSettings
+  const { selectionMode } = cameraSettings
 
   const handleColorModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setColorMode(e.target.value as ColorMode)
+  }
+  
+  const handleSelectionModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelectionMode(e.target.value as 'face' | 'group')
   }
 
   return (
@@ -38,6 +45,22 @@ export function RenderingToolbar() {
               {option.label}
             </option>
           ))}
+        </select>
+      </div>
+      
+      <div className="toolbar-separator" />
+      
+      <div className="toolbar-group">
+        <Mouse size={14} color="#808080" />
+        <span className="toolbar-label">Select</span>
+        <select 
+          className="toolbar-select"
+          value={selectionMode}
+          onChange={handleSelectionModeChange}
+          title="Select individual faces or entire groups (by bc_name)"
+        >
+          <option value="face">Faces</option>
+          <option value="group">Groups</option>
         </select>
       </div>
       

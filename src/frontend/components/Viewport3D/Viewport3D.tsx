@@ -1323,7 +1323,7 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
         panSpeed={cameraSettings.panSpeed}
         staticMoving={false}
         dynamicDampingFactor={0.2}
-        minDistance={1}
+        minDistance={0.01}
         maxDistance={100}
         mouseButtons={{
           LEFT: THREE.MOUSE.ROTATE,
@@ -1630,7 +1630,7 @@ function Viewport3D() {
       </div>
       <div className="viewport-content">
         <Canvas
-          camera={{ position: [5, 5, 5], fov: 50 }}
+          camera={{ position: [5, 5, 5], fov: 50, near: 0.01, far: 1000 }}
           shadows
           onContextMenu={(e) => e.preventDefault()}
         >

@@ -202,8 +202,8 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
       : { valid: true }
     
     return (
-      <div className="form-group">
-        <label className="form-label">Species Mass Fractions</label>
+      <div className="state-form-group-vertical">
+        <label className="state-form-label">Species Mass Fractions</label>
         
         {!isMultispecies ? (
           <div className="info-box" style={{ marginBottom: '8px' }}>
@@ -310,11 +310,11 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
             </>
           ) : (
             <div className="wizard-form">
-              <div className="form-group">
-                <label className="form-label">State Name *</label>
+              <div className="state-form-group">
+                <label className="state-form-label">State Name *</label>
                 <input
                   type="text"
-                  className="form-input"
+                  className="state-form-input"
                   value={stateName}
                   onChange={(e) => setStateName(e.target.value)}
                   placeholder="e.g., freestream, inlet_total"
@@ -324,11 +324,11 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
 
               {mode === 'static' && (
                 <>
-                  <div className="form-group">
-                    <label className="form-label">Mach Number *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Mach Number *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={machNumber}
                       onChange={(e) => setMachNumber(e.target.value)}
                       placeholder="e.g., 0.8"
@@ -336,22 +336,22 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Static Temperature (K) *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Static Temperature (K) *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={temperature}
                       onChange={(e) => setTemperature(e.target.value)}
                       placeholder="e.g., 288.15"
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Static Pressure (Pa) *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Static Pressure (Pa) *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={pressure}
                       onChange={(e) => setPressure(e.target.value)}
                       placeholder="e.g., 101325"
@@ -364,11 +364,11 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
 
               {mode === 'total' && (
                 <>
-                  <div className="form-group">
-                    <label className="form-label">Mach Number *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Mach Number *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={machNumber}
                       onChange={(e) => setMachNumber(e.target.value)}
                       placeholder="e.g., 0.8"
@@ -376,22 +376,22 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Total Temperature (K) *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Total Temperature (K) *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={totalTemperature}
                       onChange={(e) => setTotalTemperature(e.target.value)}
                       placeholder="e.g., 300"
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Total Pressure (Pa) *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Total Pressure (Pa) *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={totalPressure}
                       onChange={(e) => setTotalPressure(e.target.value)}
                       placeholder="e.g., 150000"
@@ -404,11 +404,11 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
 
               {mode === 'densities' && (
                 <>
-                  <div className="form-group">
-                    <label className="form-label">Mach Number *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Mach Number *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={machNumber}
                       onChange={(e) => setMachNumber(e.target.value)}
                       placeholder="e.g., 2.0"
@@ -416,22 +416,22 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Speed (m/s) *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Speed (m/s) *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={speed}
                       onChange={(e) => setSpeed(e.target.value)}
                       placeholder="e.g., 680"
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label className="form-label">Temperature (K) *</label>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Temperature (K) *</label>
                     <input
                       type="number"
-                      className="form-input"
+                      className="state-form-input"
                       value={temperature}
                       onChange={(e) => setTemperature(e.target.value)}
                       placeholder="e.g., 288.15"
@@ -451,11 +451,11 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
                 </>
               )}
 
-              <div className="form-group">
-                <label className="form-label">Angle of Attack (deg)</label>
+              <div className="state-form-group">
+                <label className="state-form-label">Angle of Attack (deg)</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="state-form-input"
                   value={angleOfAttack}
                   onChange={(e) => setAngleOfAttack(e.target.value)}
                   placeholder="0"
@@ -463,11 +463,11 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
                 />
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Angle of Yaw (deg)</label>
+              <div className="state-form-group">
+                <label className="state-form-label">Angle of Yaw (deg)</label>
                 <input
                   type="number"
-                  className="form-input"
+                  className="state-form-input"
                   value={angleOfYaw}
                   onChange={(e) => setAngleOfYaw(e.target.value)}
                   placeholder="0"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
+import { X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition, State } from '../../types/config'
 import { Surface } from '../../types/surface'
@@ -99,6 +99,7 @@ export default function BoundaryConditionDialog({
   const [showStateWizard, setShowStateWizard] = useState(false)
   const [showThermoWizard, setShowThermoWizard] = useState(false)
   const [savedStateWizardState, setSavedStateWizardState] = useState<SavedWizardState | undefined>(undefined)
+  const [surfaceSelectionExpanded, setSurfaceSelectionExpanded] = useState(false)
 
   // Get list of unassigned surfaces
   const getUnassignedSurfaces = (): Surface[] => {
@@ -337,14 +338,27 @@ export default function BoundaryConditionDialog({
 
           {/* Surface Selection */}
           <div className="form-group-vertical">
-            <label className="form-label">
-              Mesh Surfaces * 
-              <span className="label-hint">
-                ({selectedSurfaceTags.length} selected)
+            <div 
+              className="form-label" 
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}
+              onClick={() => setSurfaceSelectionExpanded(!surfaceSelectionExpanded)}
+            >
+              {surfaceSelectionExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              <span>
+                Mesh Surfaces * 
+                <span className="label-hint">
+                  ({selectedSurfaceTags.length} selected)
+                </span>
               </span>
-            </label>
+            </div>
             
-            {unassignedSurfaces.length === 0 ? (
+            {surfaceSelectionExpanded && (unassignedSurfaces.length === 0 ? (
               <div className="warning-message">
                 All surfaces are already assigned to boundary conditions.
               </div>
@@ -389,7 +403,7 @@ export default function BoundaryConditionDialog({
                   ))}
                 </div>
               </>
-            )}
+            ))}
           </div>
         </div>
 

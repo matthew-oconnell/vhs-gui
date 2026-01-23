@@ -96,6 +96,63 @@
   margin-top: 20px;
 }
 
+/* State wizard specific form styles - compact row layout */
+.state-form-group {
+  margin-bottom: 14px;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 6px 12px;
+  align-items: center;
+}
+
+.state-form-label {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 0;
+}
+
+.state-form-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+
+.state-form-input:focus {
+  outline: none;
+  border-color: var(--accent-color);
+}
+
+.state-form-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.state-form-help {
+  grid-column: 2;
+  padding: 6px 10px;
+  background-color: rgba(66, 135, 245, 0.1);
+  border-left: 3px solid var(--accent-color);
+  border-radius: 3px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+/* Vertical layout for special cases like mass fractions */
+.state-form-group-vertical {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .modal-footer {
   padding: 16px 20px;
   border-top: 1px solid #3e3e42;

@@ -67,4 +67,42 @@ describe('appStore - state management', () => {
     
     expect(useAppStore.getState().selectedState).toEqual(state)
   })
+  
+  it('adds a state with mass fractions for multispecies', () => {
+    const state = {
+      id: 'state-1',
+      name: 'freestream',
+      'mach number': 5.0,
+      temperature: 300,
+      pressure: 101325,
+      'mass fractions': {
+        'N2': 0.78,
+        'O2': 0.22
+      }
+    }
+    
+    useAppStore.getState().addState(state)
+    
+    const result = useAppStore.getState()
+    expect(result.configData.HyperSolve?.states?.freestream).toEqual(state)
+    expect(result.configData.HyperSolve?.states?.freestream['mass fractions']).toEqual({
+      'N2': 0.78,
+      'O2': 0.22
+    })
+  })
+  
+  it('adds a state without mass fractions for single-species', () => {
+    const state = {
+      id: 'state-1',
+      name: 'freestream',
+      'mach number': 5.0,
+      temperature: 300,
+      pressure: 101325
+    }
+    
+    useAppStore.getState().addState(state)
+    
+    const result = useAppStore.getState()
+    expect(result.configData.HyperSolve?.states?.freestream['mass fractions']).toBeUndefined()
+  })
 })

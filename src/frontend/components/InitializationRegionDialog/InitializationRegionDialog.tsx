@@ -830,6 +830,10 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
         <StateWizard
           onClose={() => setShowStateWizard(false)}
           onCreate={handleStateCreated}
+          onOpenThermodynamics={() => {
+            setShowStateWizard(false)
+            setShowThermoWizard(true)
+          }}
         />
       )}
     </div>

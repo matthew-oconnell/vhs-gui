@@ -136,3 +136,47 @@
 .modal-button-secondary:hover {
   background-color: #505050;
 }
+
+/* Link button for "setup Thermodynamics" */
+.link-button {
+  background: none;
+  border: none;
+  color: #4a9eff;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  font-family: inherit;
+}
+
+.link-button:hover {
+  color: #6db3ff;
+}
+
+.link-button:active {
+  color: #2d7acc;
+}
+
+/* Error box for mass fraction validation */
+.error-box {
+  background-color: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  border-radius: 3px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #f48771;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Info box styling (already exists in other wizards, ensuring consistency) */
+.info-box {
+  background-color: rgba(75, 158, 255, 0.1);
+  border: 1px solid rgba(75, 158, 255, 0.3);
+  border-radius: 3px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #b0d4ff;
+  line-height: 1.4;
+}

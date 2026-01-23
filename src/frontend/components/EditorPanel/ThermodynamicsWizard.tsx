@@ -175,7 +175,7 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content wizard-content">
+      <div className="modal-content wizard-content" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Configure Thermodynamics</h2>
           <button className="icon-button" onClick={onClose}>

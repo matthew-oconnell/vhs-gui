@@ -20,6 +20,7 @@ export interface State {
   speed?: number
   'angle of attack'?: number
   'angle of yaw'?: number
+  'mass fractions'?: Record<string, number> // Species name to mass fraction mapping
   [key: string]: any // Allow additional properties based on state type
 }
 

@@ -214,10 +214,16 @@ When the schema adds new visualization types or changes required fields, update 
 **File:** `src/components/EditorPanel/StateWizard.tsx`
 
 **Hardcoded Wizard Options:**
-- "State from Static Conditions" → Mach + Static Temp + Static Pressure
-- "State from Total Conditions" → Mach + Total Temp + Total Pressure
+- "State from Static Conditions" → Mach + Static Temp + Static Pressure + Mass Fractions
+- "State from Total Conditions" → Mach + Total Temp + Total Pressure + Mass Fractions
 - "State from Mach and Densities" → Mach + Speed + Temperature
-- "It's Complicated" → Manual entry
+- "It's Complicated" → Manual entry + Mass Fractions
+
+**Mass Fractions Integration:**
+- Property name: `"mass fractions"` (map of species→value)
+- Only shown for multispecies simulations (not "perfect gas")
+- Relies on `thermodynamics.species` to get available species list
+- Validated to ensure sum equals 1.0 (within 0.001 tolerance)
 
 **How to Update:**
 1. Look in schema at: `definitions["State"].oneOf[]`
@@ -225,6 +231,8 @@ When the schema adds new visualization types or changes required fields, update 
 3. Check the `required` array for each oneOf option
 4. Update wizard modes if new state definition types are added
 5. Update field validation in `isValid()` function
+6. **NEW:** Check `definitions["Gas State Composition"]` if mass fractions format changes
+7. **NEW:** Update `utils/thermodynamicsUtils.ts` if species detection logic changes
 
 **Example from Schema:**
 ```json
@@ -234,10 +242,15 @@ When the schema adds new visualization types or changes required fields, update 
   "properties": {
     "mach number": { "type": "number" },
     "temperature": { ... },
-    "pressure": { ... }
+    "pressure": { ... },
+    "mass fractions": { "$ref": "#/definitions/Gas State Composition" }
   }
 }
 ```
+
+**Related Files:**
+- `src/frontend/utils/thermodynamicsUtils.ts` - Helper functions for species detection
+- `src/frontend/types/config.ts` - State interface with `"mass fractions"` property
 
 ---
 
@@ -466,6 +479,60 @@ if (!itemType) {
 ```
 
 **Note:** The workaround code is kept for robustness in case other arrays without `items` appear in future schema updates. The explicit `items.type` check takes precedence when present.
+
+---
+
+### 9. Species Mass Fractions in States
+**File:** `src/frontend/utils/thermodynamicsUtils.ts` (lines ~1-85)
+
+**Hardcoded Logic:**
+```typescript
+// Detection of single-species mode
+export function isSingleSpecies(configData: ConfigData): boolean {
+  // Returns true if species array contains only "perfect gas"
+  return species.length === 1 && species[0] === 'perfect gas'
+}
+```
+
+**Schema Dependencies:**
+- Relies on `thermodynamics.species` containing `['perfect gas']` for ideal gas mode
+- Relies on `"mass fractions"` property in State definitions
+- Validates against `Gas State Composition` definition (map or array format)
+
+**How to Update:**
+1. Check schema at `definitions["Gas State Composition"]` for format changes
+2. If schema changes how single-species is indicated (e.g., new property like `"gas model": "ideal"`), update `isSingleSpecies()`
+3. If "perfect gas" string changes in schema, update hardcoded check
+4. If mass fraction property name changes from `"mass fractions"`, update State interface and StateWizard
+
+**Files Affected:**
+- `src/frontend/utils/thermodynamicsUtils.ts` - Helper functions
+- `src/frontend/components/EditorPanel/StateWizard.tsx` - Uses helpers to show/hide mass fractions UI
+- `src/frontend/types/config.ts` - State interface with `"mass fractions"` property
+
+**Example from Schema:**
+```json
+{
+  "Gas State Composition": {
+    "oneOf": [
+      { "type": "array", "items": { "type": "number" } },
+      { "type": "object", "patternProperties": { ".*": { "type": "number" } } }
+    ]
+  }
+}
+```
+
+**Current Implementation:**
+- Uses **map format**: `{ "N2": 0.78, "O2": 0.22 }`
+- Could support array format: `[0.78, 0.22]` (order matches species array)
+- If schema requires array format, update MapEditor calls to ArrayEditor in StateWizard
+
+**Test After Update:**
+```bash
+cd src/frontend
+npm test -- --run thermodynamicsUtils.test.ts
+npm test -- --run appStore.states.test.ts
+```
 
 ---
 

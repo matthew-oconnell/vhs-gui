@@ -4,7 +4,8 @@ import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition, State } from '../../types/config'
 import { Surface } from '../../types/surface'
 import { loadBCTypeDescriptions, loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
-import StateWizard from '../EditorPanel/StateWizard'
+import StateWizard, { SavedWizardState } from '../EditorPanel/StateWizard'
+import ThermodynamicsWizard from '../EditorPanel/ThermodynamicsWizard'
 import './BoundaryConditionDialog.css'
 
 // BC types that require a state reference
@@ -96,6 +97,8 @@ export default function BoundaryConditionDialog({
   const [bcDescriptions, setBcDescriptions] = useState<Record<string, string>>({})
   const [availableBCTypes, setAvailableBCTypes] = useState<string[]>(BC_TYPES)
   const [showStateWizard, setShowStateWizard] = useState(false)
+  const [showThermoWizard, setShowThermoWizard] = useState(false)
+  const [savedStateWizardState, setSavedStateWizardState] = useState<SavedWizardState | undefined>(undefined)
 
   // Get list of unassigned surfaces
   const getUnassignedSurfaces = (): Surface[] => {
@@ -407,6 +410,28 @@ export default function BoundaryConditionDialog({
         <StateWizard
           onClose={() => setShowStateWizard(false)}
           onCreate={handleCreateState}
+          onOpenThermodynamics={(savedState) => {
+            setSavedStateWizardState(savedState)
+            setShowStateWizard(false)
+            setShowThermoWizard(true)
+          }}
+          savedState={savedStateWizardState}
+          onSaveState={setSavedStateWizardState}
+        />
+      )}
+      
+      {showThermoWizard && (
+        <ThermodynamicsWizard
+          onClose={() => {
+            setShowThermoWizard(false)
+            // Reopen state wizard with saved state if it existed
+            if (savedStateWizardState) {
+              setShowStateWizard(true)
+            }
+          }}
+          onUpdate={() => {
+            // Wizard updates configData directly via updateThermodynamics store action
+          }}
         />
       )}
     </div>

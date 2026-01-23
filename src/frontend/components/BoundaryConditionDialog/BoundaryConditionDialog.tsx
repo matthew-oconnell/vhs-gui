@@ -336,7 +336,7 @@ export default function BoundaryConditionDialog({
           )}
 
           {/* Surface Selection */}
-          <div className="form-group">
+          <div className="form-group-vertical">
             <label className="form-label">
               Mesh Surfaces * 
               <span className="label-hint">

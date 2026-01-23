@@ -15,9 +15,15 @@ import json
 import tempfile
 import base64
 import re
+import io
+import threading
+import queue
+import select
+from contextlib import redirect_stdout, redirect_stderr
 from typing import Optional
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import numpy as np
 
@@ -69,6 +75,7 @@ class TessellationResponse(BaseModel):
     parameters: list  # Design parameters from the CSM
     total_vertices: int
     total_faces: int
+    build_log: list[str] = []  # Captured stdout/stderr during build
 
 
 class HealthResponse(BaseModel):
@@ -314,6 +321,260 @@ async def build_csm(request: CSMBuildRequest):
         )
 
 
+@app.post("/csm/build-with-deps-stream")
+async def build_csm_with_deps_stream(request: CSMBuildWithDepsRequest):
+    """
+    Build geometry from CSM with streaming output (Server-Sent Events).
+    Yields progress updates line-by-line as pyOCSM generates them.
+    """
+    if not check_esp_available():
+        raise HTTPException(
+            status_code=503,
+            detail="ESP/pyOCSM not available. Set ESP_ROOT environment variable."
+        )
+    
+    async def event_generator():
+        try:
+            from pyOCSM import ocsm
+            from pyEGADS import egads
+            
+            # Create temp directory for CSM and dependencies
+            tmpdir = tempfile.mkdtemp(prefix='csm_build_')
+            
+            try:
+                # Write dependency files
+                for filename, base64_content in request.dependencies.items():
+                    dep_path = os.path.join(tmpdir, filename)
+                    file_content = base64.b64decode(base64_content)
+                    with open(dep_path, 'wb') as f:
+                        f.write(file_content)
+                    
+                    msg = json.dumps({"type": "log", "message": f"Dependency: {filename} ({len(file_content)} bytes)"})
+                    yield f"data: {msg}\n\n"
+                
+                # Process CSM content (replace import paths)
+                modified_csm_content = request.csm_content
+                store_pattern = r'^\s*store\s+(\S+)'
+                stored_objects = set(re.findall(store_pattern, request.csm_content, flags=re.IGNORECASE|re.MULTILINE))
+                
+                for filename in request.dependencies.keys():
+                    abs_path = os.path.join(tmpdir, filename)
+                    import_pattern = r'(import\s+)' + re.escape(filename)
+                    modified_csm_content = re.sub(import_pattern, r'\1' + abs_path, modified_csm_content, flags=re.IGNORECASE)
+                    
+                    basename = os.path.basename(filename)
+                    if basename not in stored_objects:
+                        restore_pattern = r'(restore\s+)' + re.escape(filename)
+                        modified_csm_content = re.sub(restore_pattern, r'\1' + abs_path, modified_csm_content, flags=re.IGNORECASE)
+                
+                # Write CSM file
+                csm_path = os.path.join(tmpdir, 'main.csm')
+                with open(csm_path, 'w') as f:
+                    f.write(modified_csm_content)
+                
+                msg = json.dumps({"type": "log", "message": "Building geometry..."})
+                yield f"data: {msg}\n\n"
+                
+                # Create pipe for capturing output
+                read_fd, write_fd = os.pipe()
+                output_queue = queue.Queue()
+                
+                # Thread to read from pipe and put lines in queue
+                def read_output():
+                    try:
+                        os.set_blocking(read_fd, False)  # Non-blocking reads
+                        buffer = ""
+                        while True:
+                            try:
+                                chunk = os.read(read_fd, 4096).decode('utf-8', errors='replace')
+                                if not chunk:
+                                    break
+                                buffer += chunk
+                                while '\n' in buffer:
+                                    line, buffer = buffer.split('\n', 1)
+                                    if line.strip():
+                                        output_queue.put(line)
+                            except BlockingIOError:
+                                # No data available, sleep briefly
+                                import time
+                                time.sleep(0.01)
+                        # Put remaining buffer
+                        if buffer.strip():
+                            output_queue.put(buffer)
+                        output_queue.put(None)  # Signal completion
+                    finally:
+                        os.close(read_fd)
+                
+                reader_thread = threading.Thread(target=read_output, daemon=True)
+                reader_thread.start()
+                
+                # Redirect stdout/stderr to pipe
+                stdout_fd = sys.stdout.fileno()
+                stderr_fd = sys.stderr.fileno()
+                stdout_dup = os.dup(stdout_fd)
+                stderr_dup = os.dup(stderr_fd)
+                
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os.dup2(write_fd, stdout_fd)
+                os.dup2(write_fd, stderr_fd)
+                os.close(write_fd)
+                
+                # Build in background thread
+                build_error = [None]
+                build_result = [None]
+                
+                def build_model():
+                    try:
+                        modl = ocsm.Ocsm(csm_path)
+                        modl.Build(0, 0)
+                        build_result[0] = modl
+                    except Exception as e:
+                        build_error[0] = str(e)
+                
+                build_thread = threading.Thread(target=build_model, daemon=True)
+                build_thread.start()
+                
+                # Stream output lines as they arrive
+                while True:
+                    try:
+                        line = output_queue.get(timeout=0.1)
+                        if line is None:  # Reader thread finished
+                            break
+                        # Send line as SSE event
+                        msg = json.dumps({"type": "log", "message": line})
+                        yield f"data: {msg}\n\n"
+                    except queue.Empty:
+                        if not build_thread.is_alive():
+                            break
+                
+                # Wait for build thread to complete
+                build_thread.join(timeout=5)
+                
+                # Restore stdout/stderr (this closes the pipe write end)
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os.dup2(stdout_dup, stdout_fd)
+                os.dup2(stderr_dup, stderr_fd)
+                os.close(stdout_dup)
+                os.close(stderr_dup)
+                
+                # Now wait for reader to finish reading remaining output
+                reader_thread.join(timeout=2)
+                
+                # Drain any remaining messages from queue
+                while True:
+                    try:
+                        line = output_queue.get_nowait()
+                        if line is None:
+                            break
+                        msg = json.dumps({"type": "log", "message": line})
+                        yield f"data: {msg}\n\n"
+                    except queue.Empty:
+                        break
+                
+                if build_error[0]:
+                    msg = json.dumps({"type": "error", "message": str(build_error[0])})
+                    yield f"data: {msg}\n\n"
+                    return
+                
+                modl = build_result[0]
+                if not modl:
+                    msg = json.dumps({"type": "error", "message": "Build failed"})
+                    yield f"data: {msg}\n\n"
+                    return
+                
+                # Extract tessellation
+                model_info = modl.Info()
+                nbody = model_info[2]
+                
+                msg = json.dumps({"type": "log", "message": f"Processing {nbody} bodies..."})
+                yield f"data: {msg}\n\n"
+                
+                regions = []
+                for ibody in range(1, nbody + 1):
+                    try:
+                        body_ego = modl.GetEgo(ibody, ocsm.BODY, 0)
+                        tess_ego = modl.GetEgo(ibody, ocsm.BODY, 1)
+                        if not body_ego or not tess_ego:
+                            continue
+                        
+                        faces = body_ego.getBodyTopos(egads.FACE)
+                        nface = len(faces)
+                        
+                        for iface in range(1, nface + 1):
+                            try:
+                                face_data = tess_ego.getTessFace(iface)
+                                xyz = face_data[0]
+                                tris = face_data[4]
+                                
+                                if not xyz or not tris:
+                                    continue
+                                
+                                vertices = [[float(v[0]), float(v[1]), float(v[2])] for v in xyz]
+                                cells = [[int(t[0]-1), int(t[1]-1), int(t[2]-1)] for t in tris]
+                                
+                                bc_name = None
+                                try:
+                                    face_ego = faces[iface - 1]
+                                    # attributeRet("bc_name") returns the string directly
+                                    bc_attr = face_ego.attributeRet("bc_name")
+                                    if bc_attr is not None:
+                                        bc_name = str(bc_attr)
+                                except Exception as e:
+                                    # Silent fail - bc_name will be None
+                                    pass
+                                
+                                regions.append({
+                                    "name": f"Body{ibody}_Face{iface}",
+                                    "tag": (ibody - 1) * 1000 + iface,  # Unique tag per face
+                                    "body": ibody,
+                                    "face": iface,
+                                    "vertices": vertices,
+                                    "cells": cells,
+                                    "bc_name": bc_name
+                                })
+                            except:
+                                continue
+                    except:
+                        continue
+                
+                # Send final result
+                result = {
+                    "type": "complete",
+                    "data": {
+                        "success": True,
+                        "message": f"Built {nbody} bodies with {len(regions)} faces",
+                        "regions": regions,
+                        "parameters": [],
+                        "total_vertices": sum(len(r['vertices']) for r in regions),
+                        "total_faces": sum(len(r['cells']) for r in regions)
+                    }
+                }
+                yield f"data: {json.dumps(result)}\n\n"
+                
+            finally:
+                # Clean up temp directory
+                import shutil
+                shutil.rmtree(tmpdir, ignore_errors=True)
+                
+        except Exception as e:
+            msg = json.dumps({"type": "error", "message": str(e)})
+            yield f"data: {msg}\n\n"
+    
+    return StreamingResponse(
+        event_generator(), 
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "POST, OPTIONS",
+            "Access-Control-Allow-Headers": "*"
+        }
+    )
+
+
 @app.post("/csm/build-with-deps", response_model=TessellationResponse)
 async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
     """
@@ -332,6 +593,11 @@ async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
         from pyOCSM import ocsm
         from pyEGADS import egads
         
+        # Capture stdout and stderr during build
+        stdout_capture = io.StringIO()
+        stderr_capture = io.StringIO()
+        build_log = []
+        
         # Create temp directory for CSM and dependencies
         tmpdir = tempfile.mkdtemp(prefix='csm_build_')
         
@@ -348,6 +614,7 @@ async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
                     f.write(file_content)
                 
                 print(f"[ESP] Dependency written: {dep_path} ({len(file_content)} bytes)")
+                build_log.append(f"Dependency written: {filename} ({len(file_content)} bytes)")
                 
                 # Verify file exists and is readable
                 if os.path.exists(dep_path):
@@ -397,9 +664,75 @@ async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
                 size = os.path.getsize(item_path)
                 print(f"[ESP]   - {item} ({size} bytes)")
             
-            # Load and build the CSM file (same logic as /csm/build)
-            modl = ocsm.Ocsm(csm_path)
-            modl.Build(0, 0)
+            # Capture pyOCSM/EGADS output using OS-level file descriptor redirection
+            # (pyOCSM is a C extension that writes directly to stdout/stderr, bypassing Python's sys.stdout)
+            build_log.append("Building geometry...")
+            print("[ESP] Starting pyOCSM build...")
+            
+            # Create temp file to capture output
+            output_fd, output_path = tempfile.mkstemp(suffix='.log', text=True)
+            
+            # Save original stdout/stderr file descriptors
+            stdout_fd = sys.stdout.fileno()
+            stderr_fd = sys.stderr.fileno()
+            stdout_dup = os.dup(stdout_fd)
+            stderr_dup = os.dup(stderr_fd)
+            
+            try:
+                # Flush Python's buffers before redirecting
+                sys.stdout.flush()
+                sys.stderr.flush()
+                
+                # Redirect stdout and stderr to temp file
+                os.dup2(output_fd, stdout_fd)
+                os.dup2(output_fd, stderr_fd)
+                
+                # Build the model (output goes to temp file)
+                modl = ocsm.Ocsm(csm_path)
+                modl.Build(0, 0)
+                
+                # Flush to temp file and restore original stdout/stderr immediately
+                sys.stdout.flush()
+                sys.stderr.flush()
+                os.dup2(stdout_dup, stdout_fd)
+                os.dup2(stderr_dup, stderr_fd)
+                
+                # Close the duplicated FDs and the temp file write FD
+                os.close(stdout_dup)
+                os.close(stderr_dup)
+                os.close(output_fd)
+                
+                # Now we can safely read from the temp file
+                with open(output_path, 'r') as f:
+                    captured_output = f.read()
+                
+                # Parse output into log lines
+                output_lines = captured_output.split('\n')
+                for line in output_lines:
+                    if line.strip():
+                        build_log.append(line)
+                
+                print(f"[ESP] Captured {len([l for l in output_lines if l.strip()])} output lines")
+                print(f"[ESP] Total build_log entries: {len(build_log)}")
+                
+            except Exception as e:
+                # Make sure to restore stdout/stderr even on error
+                try:
+                    os.dup2(stdout_dup, stdout_fd)
+                    os.dup2(stderr_dup, stderr_fd)
+                    os.close(stdout_dup)
+                    os.close(stderr_dup)
+                except:
+                    pass
+                raise
+            finally:
+                # Clean up temp file
+                try:
+                    if os.path.exists(output_path):
+                        os.unlink(output_path)
+                except:
+                    pass
+
             
             # Get model info
             model_info = modl.Info()
@@ -529,6 +862,7 @@ async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
                         continue
             
             print(f"[ESP] Extracted {len(regions)} regions, {total_vertices} vertices, {total_faces} faces")
+            build_log.append(f"Extracted {len(regions)} faces from {nbody} bodies")
             
             return TessellationResponse(
                 success=True,
@@ -536,7 +870,8 @@ async def build_csm_with_deps(request: CSMBuildWithDepsRequest):
                 regions=regions,
                 parameters=parameters,
                 total_vertices=total_vertices,
-                total_faces=total_faces
+                total_faces=total_faces,
+                build_log=build_log
             )
             
         finally:

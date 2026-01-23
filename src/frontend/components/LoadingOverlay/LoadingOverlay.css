@@ -1,0 +1,131 @@
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  backdrop-filter: blur(2px);
+}
+
+.loading-overlay-content {
+  background-color: #252526;
+  border: 1px solid #3e3e42;
+  border-radius: 6px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.loading-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.loading-header h3 {
+  margin: 0;
+  color: #cccccc;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #3e3e42;
+  border-top-color: #007acc;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-log {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  max-height: 500px;
+}
+
+.loading-log-header {
+  color: #858585;
+  font-size: 12px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.loading-log-content {
+  flex: 1;
+  background-color: #1e1e1e;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  padding: 12px;
+  overflow-y: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.loading-log-line {
+  color: #d4d4d4;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.loading-log-line:not(:last-child) {
+  margin-bottom: 4px;
+}
+
+/* Auto-scroll behavior */
+.loading-log-content {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar for log */
+.loading-log-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.loading-log-content::-webkit-scrollbar-track {
+  background: #1e1e1e;
+}
+
+.loading-log-content::-webkit-scrollbar-thumb {
+  background: #424242;
+  border-radius: 5px;
+}
+
+.loading-log-content::-webkit-scrollbar-thumb:hover {
+  background: #4e4e4e;
+}
+
+.loading-cancel-btn {
+  margin-top: 16px;
+  align-self: flex-end;
+  padding: 8px 16px;
+  background-color: #3e3e42;
+  color: #cccccc;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.loading-cancel-btn:hover {
+  background-color: #505050;
+}

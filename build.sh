@@ -139,20 +139,62 @@ echo ""
 # Launch ESP server in background (for CSM file support)
 echo "Starting ESP Gateway Server (port 8081)..."
 cd ../../esp-server
-./start.sh > /dev/null 2>&1 &
+
+# Kill any existing process on port 8081
+if lsof -ti:8081 > /dev/null 2>&1; then
+    echo "Stopping existing process on port 8081..."
+    kill $(lsof -ti:8081) 2>/dev/null || true
+    sleep 1
+fi
+
+# Start ESP server in background
+./start.sh > esp_server.log 2>&1 &
 ESP_SERVER_PID=$!
 cd ../server/build
 
-# Wait a moment for ESP server to initialize
-sleep 2
+# Wait for ESP server to be ready (check health endpoint)
+echo "Waiting for ESP server to start..."
+ESP_READY=false
+for i in {1..30}; do
+    if curl -s http://127.0.0.1:8081/health > /dev/null 2>&1; then
+        echo "✅ ESP server ready"
+        ESP_READY=true
+        break
+    fi
+    echo -n "."
+    sleep 1
+done
+
+if [ "$ESP_READY" != "true" ]; then
+    echo ""
+    echo "❌ ESP server failed to start within 30 seconds"
+    echo "Last 20 lines of ESP server log:"
+    tail -20 ../../esp-server/esp_server.log
+    kill $ESP_SERVER_PID 2>/dev/null
+    exit 1
+fi
+echo ""
 
 # Launch main server in background
 echo "Starting VHS Server (port 8080)..."
 ./vhs_server > /dev/null 2>&1 &
 SERVER_PID=$!
 
-# Wait a moment for server to start
-sleep 2
+# Wait for VHS server to be ready
+echo "Waiting for VHS server to start..."
+for i in {1..10}; do
+    if curl -s http://127.0.0.1:8080 > /dev/null 2>&1; then
+        echo "✅ VHS server ready"
+        break
+    fi
+    if [ $i -eq 10 ]; then
+        echo "❌ VHS server failed to start within 10 seconds"
+        kill $SERVER_PID 2>/dev/null
+        kill $ESP_SERVER_PID 2>/dev/null
+        exit 1
+    fi
+    sleep 1
+done
 
 # Open browser
 if command -v xdg-open > /dev/null; then
@@ -163,26 +205,60 @@ else
     echo "Please open http://127.0.0.1:8080 in your browser"
 fi
 
-echo "Servers running:"
-echo "  - VHS Server PID: $SERVER_PID"
-echo "  - ESP Server PID: $ESP_SERVER_PID"
 echo ""
-echo "To stop servers: kill $SERVER_PID $ESP_SERVER_PID"
+echo "======================================"
+echo "✅ All systems running!"
+echo "======================================"
+echo "  VHS Server:     http://127.0.0.1:8080 (PID: $SERVER_PID)"
+echo "  ESP Gateway:    http://127.0.0.1:8081 (PID: $ESP_SERVER_PID)"
 echo ""
-echo "Press Ctrl+C to stop both servers and exit"
+echo "Press Ctrl+C to stop servers and exit"
 echo "======================================"
 
 # Function to cleanup on exit
 cleanup() {
     echo ""
     echo "Shutting down servers..."
-    kill $SERVER_PID 2>/dev/null
-    kill $ESP_SERVER_PID 2>/dev/null
+    
+    # Kill VHS server
+    if kill -0 $SERVER_PID 2>/dev/null; then
+        echo "  Stopping VHS server (PID: $SERVER_PID)..."
+        kill $SERVER_PID 2>/dev/null
+    fi
+    
+    # Kill ESP server and any child processes
+    if kill -0 $ESP_SERVER_PID 2>/dev/null; then
+        echo "  Stopping ESP server (PID: $ESP_SERVER_PID)..."
+        kill $ESP_SERVER_PID 2>/dev/null
+    fi
+    
+    # Also kill any processes still on the ports (cleanup stragglers)
+    if lsof -ti:8080 > /dev/null 2>&1; then
+        kill $(lsof -ti:8080) 2>/dev/null || true
+    fi
+    if lsof -ti:8081 > /dev/null 2>&1; then
+        kill $(lsof -ti:8081) 2>/dev/null || true
+    fi
+    
+    echo "✅ Servers stopped"
     exit 0
 }
 
-# Trap Ctrl+C
-trap cleanup INT TERM
+# Trap exit signals (Ctrl+C, kill, script exit)
+trap cleanup EXIT INT TERM
 
-# Wait for user to stop
-wait $SERVER_PID
+# Keep script running - wait for any server to exit or user interrupt
+while kill -0 $SERVER_PID 2>/dev/null && kill -0 $ESP_SERVER_PID 2>/dev/null; do
+    sleep 1
+done
+
+# If we get here, one of the servers died
+echo ""
+echo "⚠️  A server has stopped unexpectedly"
+if ! kill -0 $SERVER_PID 2>/dev/null; then
+    echo "  VHS server (PID: $SERVER_PID) is not running"
+fi
+if ! kill -0 $ESP_SERVER_PID 2>/dev/null; then
+    echo "  ESP server (PID: $ESP_SERVER_PID) is not running"
+fi
+cleanup

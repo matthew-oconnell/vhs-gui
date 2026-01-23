@@ -8,6 +8,7 @@ import MenuBar from './components/MenuBar/MenuBar'
 import NewProjectWizard, { ProjectConfig } from './components/MenuBar/NewProjectWizard'
 import SettingsDialog from './components/SettingsDialog/SettingsDialog'
 import ValidationErrorDialog from './components/ValidationErrorDialog/ValidationErrorDialog'
+import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
 import { useAppStore } from './store/appStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
 import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fileUtils'
@@ -27,6 +28,12 @@ function App() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrorItem[]>([])
   const [pendingMesh, setPendingMesh] = useState<{ parsedMesh: any; filename: string } | null>(null)
   const [pendingConfig, setPendingConfig] = useState<any>(null) // Store config until mesh loads
+  
+  // Loading overlay state
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('')
+  const [loadingLog, setLoadingLog] = useState<string[]>([])
+  
   const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
 
   // Load schema on startup to determine root solver key (Vulcan or HyperSolve)
@@ -347,12 +354,19 @@ function App() {
     console.log('[App] Open CSM clicked')
     
     try {
+      setIsLoading(true)
+      setLoadingMessage('Checking ESP server')
+      setLoadingLog([])
+      
       // First check if ESP server is available
       const health = await checkESPHealth()
       if (!health.esp_available) {
+        setIsLoading(false)
         alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
         return
       }
+      
+      setLoadingMessage('Selecting CSM file')
       
       // Open file picker for .csm files
       const [fileHandle] = await window.showOpenFilePicker({
@@ -367,6 +381,9 @@ function App() {
       
       // Read file contents
       const csmContent = await file.text()
+      setLoadingMessage('Parsing CSM file')
+      setLoadingLog([`CSM file: ${file.name}`, `Size: ${csmContent.length} chars`])
+      
       console.log('[App] CSM content length:', csmContent.length, 'chars')
       
       // Check for import/restore statements
@@ -377,6 +394,7 @@ function App() {
       
       if (imports.length > 0) {
         console.log('[App] CSM has', imports.length, 'import statements:', imports)
+        setLoadingLog(prev => [...prev, `Found ${imports.length} dependencies: ${imports.join(', ')}`])
         
         // Prompt user for each dependency file
         const dependencies = new Map<string, File>()
@@ -384,23 +402,27 @@ function App() {
         for (const importPath of imports) {
           try {
             console.log('[App] Prompting for dependency:', importPath)
+            setLoadingMessage(`Select file: ${importPath}`)
             
             const [depHandle] = await window.showOpenFilePicker({
               types: [{
-                description: `Dependency: ${importPath}`,
+                description: `Required file: ${importPath}`,
                 accept: { '*/*': [] }  // Accept any file type
-              }]
+              }],
+              suggestedName: importPath,
+              multiple: false
             })
             
             const depFile = await depHandle.getFile()
             console.log('[App] Selected dependency:', depFile.name, '(', depFile.size, 'bytes )')
+            setLoadingLog(prev => [...prev, `Loaded: ${depFile.name} (${depFile.size} bytes)`])
             
             // Use the import path as the key (preserves relative path semantics)
             dependencies.set(importPath, depFile)
             
           } catch (depError) {
             if ((depError as any).name === 'AbortError') {
-              console.log('[App] User cancelled dependency selection for:', importPath)
+              setIsLoading(false)
               alert(`CSM file requires: ${importPath}\n\nCancelling CSM load.`)
               return
             }
@@ -410,30 +432,53 @@ function App() {
         
         // Build CSM with dependencies
         console.log('[App] Building CSM with', dependencies.size, 'dependencies...')
-        const { buildCSMWithDeps } = await import('./utils/espApi')
-        response = await buildCSMWithDeps(csmContent, dependencies)
+        setLoadingMessage('Building CSM geometry')
+        setLoadingLog(prev => [...prev, 'Sending to ESP server...'])
+        
+        const { buildCSMWithDepsStreaming } = await import('./utils/espApi')
+        response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
+          setLoadingLog(prev => [...prev, logLine])
+        })
         
       } else {
         // No imports - use standard build
         console.log('[App] Building CSM geometry via ESP gateway...')
+        setLoadingMessage('Building CSM geometry')
+        setLoadingLog(prev => [...prev, 'No dependencies', 'Sending to ESP server...'])
         response = await buildCSM(csmContent)
       }
       
       if (!response.success) {
+        setIsLoading(false)
         throw new Error(response.message)
       }
       
+      // Add server build log (only for non-streaming builds)
+      if (response.build_log?.length) {
+        console.log('[App] Received', response.build_log.length, 'build log lines')
+        setLoadingLog(prev => [...prev, '', '--- ESP Server Build Log ---', ...response.build_log, '--- End Build Log ---', ''])
+      } else {
+        console.log('[App] Build log already streamed or not available')
+      }
+      
       console.log('[App] ESP build successful:', response.message)
-      console.log('[App] Got', response.regions.length, 'regions,', response.total_vertices, 'vertices')
+      console.log('[App] Got', response.regions?.length || 0, 'regions,', response.total_vertices, 'vertices')
+      
+      setLoadingMessage('Processing geometry')
+      setLoadingLog(prev => [...prev, '', `✓ Received ${response.regions?.length || 0} faces`])
       
       // Convert ESP regions to our Surface format (individual faces)
       const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
-      console.log('[App] Converted to', surfaces.length, 'surfaces')
+      console.log('[App] Converted to', surfaces?.length || 0, 'surfaces')
       
       // Load into the store (pass CSM content for export)
       loadESPSurfaces(surfaces, file.name, csmContent)
       
       console.log('[App] CSM loaded successfully!')
+      setLoadingLog(prev => [...prev, '✓ CSM loaded successfully!'])
+      
+      // Keep overlay visible briefly
+      setTimeout(() => setIsLoading(false), 1500)
       
     } catch (error) {
       if ((error as any).name === 'AbortError') {
@@ -655,6 +700,14 @@ function App() {
           </div>
         )
       })()}
+      
+      {/* Loading Overlay */}
+      {isLoading && (
+        <LoadingOverlay
+          message={loadingMessage}
+          logLines={loadingLog}
+        />
+      )}
     </div>
   )
 }

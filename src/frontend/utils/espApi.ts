@@ -29,6 +29,7 @@ export interface CSMBuildResponse {
   parameters: ESPParameter[]
   total_vertices: number
   total_faces: number
+  build_log?: string[]  // Server output during build
 }
 
 export interface ESPHealthResponse {
@@ -160,6 +161,93 @@ export const buildCSMWithDeps = async (
   console.log('[ESP API] Regions:', result.regions.length, 'Parameters:', result.parameters.length)
   
   return result
+}
+
+/**
+ * Build CSM with dependencies - STREAMING VERSION
+ * Provides real-time log updates via callback as build progresses
+ * 
+ * @param csmContent The main CSM file content
+ * @param dependencies Map of filename -> File object for imported files
+ * @param onLog Callback function to receive log messages as they arrive
+ */
+export const buildCSMWithDepsStreaming = async (
+  csmContent: string,
+  dependencies: Map<string, File>,
+  onLog: (message: string) => void
+): Promise<CSMBuildResponse> => {
+  console.log('[ESP API] Building CSM with streaming (', dependencies.size, 'dependencies )')
+  
+  // Convert File objects to base64
+  const depsBase64: Record<string, string> = {}
+  for (const [filename, file] of dependencies.entries()) {
+    const arrayBuffer = await file.arrayBuffer()
+    const base64 = arrayBufferToBase64(arrayBuffer)
+    depsBase64[filename] = base64
+  }
+  
+  const response = await fetch(`${ESP_API_BASE_URL}/csm/build-with-deps-stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      csm_content: csmContent,
+      dependencies: depsBase64
+    })
+  })
+  
+  if (!response.ok) {
+    throw new Error(`Build failed with status ${response.status}`)
+  }
+  
+  const reader = response.body?.getReader()
+  if (!reader) {
+    throw new Error('No response body')
+  }
+  
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalResult: CSMBuildResponse | null = null
+  
+  // Read stream and parse Server-Sent Events
+  while (true) {
+    const { done, value } = await reader.read()
+    
+    if (done) break
+    
+    buffer += decoder.decode(value, { stream: true })
+    
+    // Process complete lines
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || '' // Keep incomplete line in buffer
+    
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const jsonStr = line.slice(6) // Remove "data: " prefix
+        try {
+          const event = JSON.parse(jsonStr)
+          
+          if (event.type === 'log') {
+            onLog(event.message)
+          } else if (event.type === 'complete') {
+            finalResult = event.data
+          } else if (event.type === 'error') {
+            throw new Error(event.message)
+          }
+        } catch (e) {
+          console.error('[ESP API] Failed to parse SSE:', e, 'Line:', jsonStr)
+        }
+      }
+    }
+  }
+  
+  if (!finalResult) {
+    throw new Error('Build completed but no result received')
+  }
+  
+  console.log('[ESP API] Streaming build complete:', finalResult.message)
+  return finalResult
 }
 
 /**

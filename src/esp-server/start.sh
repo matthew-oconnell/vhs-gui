@@ -47,4 +47,12 @@ echo ""
 
 # Start server
 cd "$SCRIPT_DIR"
-$PYTHON -m uvicorn server:app --host 127.0.0.1 --port 8081 --reload
+
+# Detect if running in background (no terminal)
+if [ -t 1 ]; then
+    # Interactive mode - use reload for development
+    $PYTHON -m uvicorn server:app --host 127.0.0.1 --port 8081 --reload
+else
+    # Background mode - no reload, just run
+    exec $PYTHON -m uvicorn server:app --host 127.0.0.1 --port 8081
+fi

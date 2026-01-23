@@ -151,7 +151,7 @@ export default function BoundaryConditionDialog({
   useEffect(() => {
     if (isOpen && initialSurface) {
       setSelectedSurfaceTags([initialSurface.metadata.tag])
-      setBcName(initialSurface.metadata.tagName)
+      setBcName(initialSurface.metadata.bcName || initialSurface.metadata.tagName)
     } else if (isOpen) {
       // Reset form when dialog opens
       setBcName('')

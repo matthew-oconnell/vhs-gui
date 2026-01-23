@@ -81,7 +81,7 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
     
     // Only auto-initialize for multispecies with no existing mass fractions
     if (isMultispecies && species.length > 0) {
-      const initialized = initializeMassFractions(species)
+      const initialized = initializeMassFractions(species, configData, rootSolverKey || undefined)
       setMassFractions(initialized)
     }
   }, [configData, rootSolverKey]) // Re-run when thermodynamics changes
@@ -93,7 +93,7 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
       return
     }
     
-    // Save current wizard state before closing
+    // Save current wizard state before opening thermodynamics
     if (onSaveState) {
       onSaveState({
         mode,
@@ -110,7 +110,7 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
       })
     }
     
-    onClose()
+    // Don't call onClose() here - let the parent handle closing when onOpenThermodynamics is called
     onOpenThermodynamics()
   }
 

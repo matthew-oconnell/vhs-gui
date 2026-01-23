@@ -157,34 +157,96 @@ describe('thermodynamicsUtils', () => {
   })
   
   describe('initializeMassFractions', () => {
-    it('creates equal mass fractions for all species', () => {
+    it('uses Earth 5-species composition when matching species are detected', () => {
+      const configData = {
+        HyperSolve: {
+          thermodynamics: {
+            species: ['N2', 'O2', 'NO', 'N', 'O']
+          }
+        }
+      }
+      const species = ['N2', 'O2', 'NO', 'N', 'O']
+      
+      const result = initializeMassFractions(species, configData)
+      
+      // Should use atmospheric composition, not equal distribution
+      expect(result['N2']).toBeCloseTo(0.7651, 3)
+      expect(result['O2']).toBeCloseTo(0.2349, 3)
+      expect(result['NO']).toBe(0.0000)
+      expect(result['N']).toBe(0.0000)
+      expect(result['O']).toBe(0.0000)
+    })
+    
+    it('uses Earth 7-species composition when matching species are detected', () => {
+      const configData = {
+        HyperSolve: {
+          thermodynamics: {
+            species: ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
+          }
+        }
+      }
+      const species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
+      
+      const result = initializeMassFractions(species, configData)
+      
+      expect(result['N2']).toBeCloseTo(0.7651, 3)
+      expect(result['O2']).toBeCloseTo(0.2349, 3)
+      expect(result['NO+']).toBe(0.0000)
+      expect(result['e-']).toBe(0.0000)
+    })
+    
+    it('uses Mars composition when Mars species are detected', () => {
+      const configData = {
+        HyperSolve: {
+          thermodynamics: {
+            species: ['CO2', 'CO', 'N2', 'O2', 'NO']
+          }
+        }
+      }
+      const species = ['CO2', 'CO', 'N2', 'O2', 'NO']
+      
+      const result = initializeMassFractions(species, configData)
+      
+      expect(result['CO2']).toBeCloseTo(0.9532, 3)
+      expect(result['N2']).toBeCloseTo(0.0270, 3)
+      expect(result['NO']).toBe(0.0000)
+    })
+    
+    it('normalizes Earth atmosphere when subset of species requested', () => {
       const species = ['N2', 'O2']
       
       const result = initializeMassFractions(species)
       
-      expect(result).toEqual({ 'N2': 0.5, 'O2': 0.5 })
+      // Should use Earth atmosphere composition, normalized
+      const total = 0.7551 + 0.2314 // N2 + O2 from Earth
+      expect(result['N2']).toBeCloseTo(0.7551 / total, 3)
+      expect(result['O2']).toBeCloseTo(0.2314 / total, 3)
     })
     
-    it('handles single species', () => {
+    it('filters out perfect gas from species list', () => {
+      const species = ['perfect gas', 'N2']
+      
+      const result = initializeMassFractions(species)
+      
+      // Should only have N2
+      expect(result['N2']).toBe(1.0)
+      expect(result['perfect gas']).toBeUndefined()
+    })
+    
+    it('returns empty object when only perfect gas is provided', () => {
       const species = ['perfect gas']
       
       const result = initializeMassFractions(species)
       
-      expect(result).toEqual({ 'perfect gas': 1.0 })
+      expect(result).toEqual({})
     })
     
-    it('handles multispecies with equal distribution', () => {
-      const species = ['N2', 'O2', 'NO', 'N', 'O']
+    it('falls back to equal distribution for unknown species', () => {
+      const species = ['H2', 'He']
       
       const result = initializeMassFractions(species)
       
-      expect(result).toEqual({
-        'N2': 0.2,
-        'O2': 0.2,
-        'NO': 0.2,
-        'N': 0.2,
-        'O': 0.2
-      })
+      expect(result).toEqual({ 'H2': 0.5, 'He': 0.5 })
     })
     
     it('returns empty object for empty species list', () => {

@@ -181,6 +181,7 @@ export default function BoundaryConditionDialog({
     console.log('[BoundaryConditionDialog] States in config:', Object.keys(rootConfig.states || {}))
     setStateName(state.name)
     setShowStateWizard(false)
+    setSavedStateWizardState(undefined) // Clear saved state after successful creation
   }
 
   const handleSurfaceToggle = (tag: number) => {
@@ -408,10 +409,13 @@ export default function BoundaryConditionDialog({
 
       {showStateWizard && (
         <StateWizard
-          onClose={() => setShowStateWizard(false)}
+          onClose={() => {
+            setShowStateWizard(false)
+            setSavedStateWizardState(undefined) // Clear saved state on cancel
+          }}
           onCreate={handleCreateState}
-          onOpenThermodynamics={(savedState) => {
-            setSavedStateWizardState(savedState)
+          onOpenThermodynamics={() => {
+            // State is already saved via onSaveState callback
             setShowStateWizard(false)
             setShowThermoWizard(true)
           }}

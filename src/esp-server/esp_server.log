@@ -7,16 +7,14 @@ ESP Gateway Server
 ESP_ROOT: /home/matthew/Projects/vulcan-gui/third-party/ESP128/EngSketchPad
 Server will start on http://127.0.0.1:8081
 
-INFO:     Started server process [30774]
+INFO:     Started server process [36802]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8081 (Press CTRL+C to quit)
-INFO:     127.0.0.1:53706 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55820 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55820 - "OPTIONS /csm/build-with-deps-stream HTTP/1.1" 200 OK
-INFO:     127.0.0.1:55826 - "POST /csm/build-with-deps-stream HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60744 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:60744 - "POST /csm/build-with-deps-stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47748 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47754 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47754 - "OPTIONS /csm/build-with-deps-stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:47762 - "POST /csm/build-with-deps-stream HTTP/1.1" 200 OK
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
@@ -2603,7 +2601,7 @@ INFO:     127.0.0.1:60744 - "POST /csm/build-with-deps-stream HTTP/1.1" 200 OK
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
- EGADS Warning: Del Attributes = -33 (EG_destroyObjectException ignored in: <function Context.__del__ at 0x7f750431b100>
+ EGADS Warning: Del Attributes = -33 (EG_destroyObjectException ignored in: <function Context.__del__ at 0x7f7f2ff17100>
 Traceback (most recent call last):
   File "/home/matthew/Projects/vulcan-gui/third-party/ESP128/EngSketchPad/pyESP/pyEGADS/egads_common.py", line 500, in __del__
     self._finalize()
@@ -2619,7 +2617,7 @@ pyEGADS.egads_common.EGADSError: EGADS error code: EGADS_CNTXTHRD
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [30774]
+INFO:     Finished server process [36802]
 )!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!

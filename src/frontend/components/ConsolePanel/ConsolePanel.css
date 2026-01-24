@@ -7,8 +7,14 @@
   font-size: 13px;
   color: #cccccc;
   position: relative;
-  user-select: none;
   transition: height 0.1s ease;
+}
+
+/* Prevent selection on UI controls, but allow on log content */
+.console-header,
+.console-resize-handle,
+.console-pane-header {
+  user-select: none;
 }
 
 .console-panel.collapsed {
@@ -141,7 +147,9 @@
 }
 
 /* Clear Button */
-.console-clear-btn {
+.console-clear-btn,
+.console-copy-btn,
+.console-export-btn {
   background: none;
   border: 1px solid #3e3e42;
   border-radius: 3px;
@@ -155,9 +163,28 @@
   gap: 4px;
 }
 
-.console-clear-btn:hover {
+.console-clear-btn:hover,
+.console-copy-btn:hover,
+.console-export-btn:hover {
   background-color: #3e3e42;
   border-color: #858585;
+}
+
+.console-clear-btn:disabled,
+.console-copy-btn:disabled,
+.console-export-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.console-copy-btn.success {
+  border-color: #89d185;
+  color: #89d185;
+}
+
+.console-copy-btn.error {
+  border-color: #f48771;
+  color: #f48771;
 }
 
 /* Content Area */

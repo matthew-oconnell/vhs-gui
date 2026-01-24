@@ -23,10 +23,13 @@ const ConsolePanel: React.FC = () => {
     setHeight,
     getVisibleEntries,
     getLeftPaneEntries,
-    getRightPaneEntries
+    getRightPaneEntries,
+    copyLogsToClipboard,
+    exportLogsToFile
   } = useConsoleStore()
 
   const [isResizing, setIsResizing] = useState(false)
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'success' | 'error'>('idle')
   const panelRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -68,6 +71,39 @@ const ConsolePanel: React.FC = () => {
       document.removeEventListener('mouseup', handleMouseUp)
     }
   }, [isResizing, setHeight])
+
+  // Handle copy to clipboard
+  const handleCopy = async () => {
+    const entriesToCopy = isSplitView 
+      ? [...getLeftPaneEntries(), ...getRightPaneEntries()] 
+      : visibleEntries
+    
+    if (entriesToCopy.length === 0) {
+      return
+    }
+
+    try {
+      await copyLogsToClipboard(entriesToCopy)
+      setCopyStatus('success')
+      setTimeout(() => setCopyStatus('idle'), 2000)
+    } catch (error) {
+      setCopyStatus('error')
+      setTimeout(() => setCopyStatus('idle'), 2000)
+    }
+  }
+
+  // Handle export to file
+  const handleExport = () => {
+    const entriesToExport = isSplitView 
+      ? [...getLeftPaneEntries(), ...getRightPaneEntries()] 
+      : visibleEntries
+    
+    if (entriesToExport.length === 0) {
+      return
+    }
+
+    exportLogsToFile(entriesToExport)
+  }
 
   const formatTimestamp = (date: Date): string => {
     return date.toLocaleTimeString('en-US', { 
@@ -167,6 +203,22 @@ const ConsolePanel: React.FC = () => {
                 title={isSplitView ? 'Switch to single pane' : 'Split console view'}
               >
                 {isSplitView ? '⊟ Single' : '⊞ Split'}
+              </button>
+              <button 
+                className={`console-copy-btn ${copyStatus === 'success' ? 'success' : copyStatus === 'error' ? 'error' : ''}`}
+                onClick={handleCopy}
+                title="Copy visible logs to clipboard"
+                disabled={entries.length === 0}
+              >
+                {copyStatus === 'success' ? '✓ Copied' : copyStatus === 'error' ? '✗ Failed' : '📋 Copy'}
+              </button>
+              <button 
+                className="console-export-btn"
+                onClick={handleExport}
+                title="Export visible logs to text file"
+                disabled={entries.length === 0}
+              >
+                💾 Export
               </button>
               <button 
                 className="console-clear-btn"

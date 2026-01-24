@@ -81,6 +81,11 @@ interface ConsoleActions {
   toggleRightCategory: (category: LogCategory) => void
   getLeftPaneEntries: () => ConsoleLogEntry[]
   getRightPaneEntries: () => ConsoleLogEntry[]
+  
+  // Export actions
+  formatLogsAsText: (entries: ConsoleLogEntry[]) => string
+  copyLogsToClipboard: (entries: ConsoleLogEntry[]) => Promise<void>
+  exportLogsToFile: (entries: ConsoleLogEntry[], filename?: string) => void
 }
 
 // ============================================================================
@@ -313,5 +318,62 @@ export const useConsoleStore = create<ConsoleState & ConsoleActions>((set, get) 
   getRightPaneEntries: () => {
     const state = get()
     return state.entries.filter(e => state.rightPaneCategories.has(e.category))
+  },
+
+  // Export actions
+  formatLogsAsText: (entries) => {
+    if (entries.length === 0) {
+      return 'No logs to export.'
+    }
+
+    return entries.map(entry => {
+      const timestamp = entry.timestamp.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      })
+      
+      let line = `[${timestamp}] [${entry.category}] [${entry.level.toUpperCase()}] ${entry.message}`
+      
+      if (entry.metadata && Object.keys(entry.metadata).length > 0) {
+        line += `\n  Metadata: ${JSON.stringify(entry.metadata, null, 2).split('\n').join('\n  ')}`
+      }
+      
+      return line
+    }).join('\n\n')
+  },
+
+  copyLogsToClipboard: async (entries) => {
+    const text = get().formatLogsAsText(entries)
+    
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch (error) {
+      console.error('Failed to copy logs to clipboard:', error)
+      throw new Error('Failed to copy to clipboard. Please check browser permissions.')
+    }
+  },
+
+  exportLogsToFile: (entries, filename?) => {
+    const text = get().formatLogsAsText(entries)
+    
+    // Generate filename with timestamp if not provided
+    const defaultFilename = `console-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.txt`
+    const finalFilename = filename || defaultFilename
+    
+    // Create blob and download
+    const blob = new Blob([text], { type: 'text/plain' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = finalFilename
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
   }
 }))

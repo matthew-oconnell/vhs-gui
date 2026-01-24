@@ -14,6 +14,8 @@ import SurfaceAlreadyAssignedDialog from '../SurfaceAlreadyAssignedDialog/Surfac
 import ConfirmBCDeletionDialog from '../ConfirmBCDeletionDialog/ConfirmBCDeletionDialog'
 import SetBCNameDialog from '../SetBCNameDialog/SetBCNameDialog'
 import { getColorForSurface } from '../../utils/surfaceColorUtils'
+import { SelectionBox } from './SelectionBox'
+import { useBoxSelection } from './useBoxSelection'
 import './Viewport3D.css'
 
 // Sample surfaces with metadata
@@ -1166,7 +1168,7 @@ function VisualizationLine({ viz, isSelected, vizIndex, controlsRef }: { viz: an
 }
 
 function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surface: Surface) => void }) {
-  const { scene, gl } = useThree()
+  const { scene, gl, camera } = useThree()
   const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData, rootSolverKey, clearSurfaceSelection } = useAppStore()
   const controlsRef = useRef<any>(null)
   const isDraggingCamera = useRef(false)
@@ -1175,6 +1177,18 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
   useEffect(() => {
     scene.background = new THREE.Color(0x1a1a1a)
   }, [scene])
+  
+  // Expose canvas, camera, and controls for box selection
+  useEffect(() => {
+    ;(window as any).boxSelectionRefs = {
+      canvas: gl.domElement,
+      camera: camera,
+      getControls: () => controlsRef.current
+    }
+    return () => {
+      delete (window as any).boxSelectionRefs
+    }
+  }, [gl, camera])
   
   // Track camera dragging to prevent context menu during drag
   useEffect(() => {
@@ -1353,7 +1367,9 @@ function Viewport3D() {
     surfaceVisibility,
     selectedInitRegion,
     selectedViz,
-    rootSolverKey
+    rootSolverKey,
+    boxSelectionSettings,
+    boxSelectionState
   } = useAppStore()
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -1365,6 +1381,51 @@ function Viewport3D() {
   const [showSetBCNameDialog, setShowSetBCNameDialog] = useState(false)
   const [conflictingSurface, setConflictingSurface] = useState<Surface | null>(null)
   const [conflictingBC, setConflictingBC] = useState<BoundaryCondition | null>(null)
+  
+  // Track which modifier key is held for box selection hint
+  const [heldModifier, setHeldModifier] = useState<'all' | 'visible' | null>(null)
+  
+  // Ref for the viewport content container (for box selection)
+  const viewportContentRef = useRef<HTMLDivElement>(null)
+  
+  // Box selection hook
+  useBoxSelection({ viewportRef: viewportContentRef })
+  
+  // Track modifier keys for box selection hint
+  useEffect(() => {
+    const checkModifier = (e: KeyboardEvent) => {
+      const { boxSelectAllModifier, boxSelectVisibleModifier } = boxSelectionSettings
+      
+      const isAllModifier = 
+        (boxSelectAllModifier === 'shift' && e.shiftKey) ||
+        (boxSelectAllModifier === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
+        (boxSelectAllModifier === 'alt' && e.altKey)
+      
+      const isVisibleModifier = 
+        (boxSelectVisibleModifier === 'shift' && e.shiftKey) ||
+        (boxSelectVisibleModifier === 'ctrl' && (e.ctrlKey || e.metaKey)) ||
+        (boxSelectVisibleModifier === 'alt' && e.altKey)
+      
+      if (isAllModifier) {
+        setHeldModifier('all')
+      } else if (isVisibleModifier) {
+        setHeldModifier('visible')
+      } else {
+        setHeldModifier(null)
+      }
+    }
+    
+    const handleKeyDown = (e: KeyboardEvent) => checkModifier(e)
+    const handleKeyUp = (e: KeyboardEvent) => checkModifier(e)
+    
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [boxSelectionSettings])
   
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true)
@@ -1628,7 +1689,7 @@ function Viewport3D() {
           </button>
         </div>
       </div>
-      <div className="viewport-content">
+      <div className="viewport-content" ref={viewportContentRef}>
         <Canvas
           camera={{ position: [5, 5, 5], fov: 50, near: 0.01, far: 1000 }}
           shadows
@@ -1636,6 +1697,9 @@ function Viewport3D() {
         >
           <Scene onSurfaceContextMenu={handleSurfaceContextMenu} />
         </Canvas>
+        
+        {/* Box Selection Overlay */}
+        <SelectionBox containerRef={viewportContentRef} />
         
         {/* Combined Viewport Toolbar */}
         <ViewportToolbar />
@@ -1734,6 +1798,18 @@ function Viewport3D() {
             </div>
           </div>
         </div>
+        
+        {/* Box selection hint (shown when holding modifier key) */}
+        {heldModifier && !boxSelectionState.isBoxSelecting && (
+          <div className={`box-select-hint ${heldModifier === 'all' ? 'all-mode' : 'visible-mode'}`}>
+            <span className="hint-key">
+              {heldModifier === 'all' 
+                ? boxSelectionSettings.boxSelectAllModifier.toUpperCase()
+                : boxSelectionSettings.boxSelectVisibleModifier.toUpperCase()}
+            </span>
+            <span>+ Drag to select {heldModifier === 'all' ? 'all' : 'visible'} surfaces</span>
+          </div>
+        )}
         
         {/* Context menu */}
         {contextMenu && (() => {

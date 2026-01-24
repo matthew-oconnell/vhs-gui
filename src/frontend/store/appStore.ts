@@ -9,6 +9,32 @@ const updateConfig = (oldConfig: ConfigData, updates: Partial<ConfigData>): Conf
   return JSON.parse(JSON.stringify({ ...oldConfig, ...updates }))
 }
 
+// Box selection settings (persisted)
+export interface BoxSelectionSettings {
+  // Modifier keys
+  boxSelectAllModifier: 'shift' | 'ctrl' | 'alt'
+  boxSelectVisibleModifier: 'shift' | 'ctrl' | 'alt'
+  // Colors for selection box (configurable for accessibility)
+  boxSelectAllColor: string
+  boxSelectAllBorder: string
+  boxSelectVisibleColor: string
+  boxSelectVisibleBorder: string
+}
+
+// Bounding sphere for quick rejection during box selection
+export interface SurfaceBounds {
+  center: { x: number; y: number; z: number }
+  radius: number
+}
+
+// Runtime box selection state (not persisted)
+export interface BoxSelectionState {
+  isBoxSelecting: boolean
+  boxSelectStart: { x: number; y: number } | null
+  boxSelectEnd: { x: number; y: number } | null
+  boxSelectMode: 'all' | 'visible' | null
+}
+
 export interface CameraSettings {
   rotateSpeed: number
   zoomSpeed: number
@@ -95,7 +121,18 @@ interface AppState {
   initializeConfig: (projectConfig: any) => void
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
   loadESPSurfaces: (surfaces: Surface[], filename: string, csmContent?: string) => void
-
+  
+  // Box selection
+  boxSelectionSettings: BoxSelectionSettings
+  updateBoxSelectionSettings: (settings: Partial<BoxSelectionSettings>) => void
+  boxSelectionState: BoxSelectionState
+  setBoxSelectionState: (state: Partial<BoxSelectionState>) => void
+  startBoxSelection: (x: number, y: number, mode: 'all' | 'visible') => void
+  updateBoxSelection: (x: number, y: number) => void
+  endBoxSelection: () => void
+  addSurfacesToSelection: (surfaces: Surface[]) => void
+  surfaceBounds: Record<string, SurfaceBounds>
+  setSurfaceBounds: (bounds: Record<string, SurfaceBounds>) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -198,6 +235,80 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectionMode: (mode) => set((state) => ({
     cameraSettings: { ...state.cameraSettings, selectionMode: mode }
   })),
+  
+  // Box selection settings with defaults
+  boxSelectionSettings: {
+    boxSelectAllModifier: 'shift' as const,
+    boxSelectVisibleModifier: 'ctrl' as const,
+    boxSelectAllColor: 'rgba(0, 120, 255, 0.2)',
+    boxSelectAllBorder: 'rgba(0, 120, 255, 0.8)',
+    boxSelectVisibleColor: 'rgba(0, 255, 120, 0.2)',
+    boxSelectVisibleBorder: 'rgba(0, 255, 120, 0.8)'
+  },
+  
+  updateBoxSelectionSettings: (settings) => set((state) => ({
+    boxSelectionSettings: { ...state.boxSelectionSettings, ...settings }
+  })),
+  
+  // Box selection runtime state
+  boxSelectionState: {
+    isBoxSelecting: false,
+    boxSelectStart: null,
+    boxSelectEnd: null,
+    boxSelectMode: null
+  },
+  
+  setBoxSelectionState: (newState) => set((state) => ({
+    boxSelectionState: { ...state.boxSelectionState, ...newState }
+  })),
+  
+  startBoxSelection: (x, y, mode) => set({
+    boxSelectionState: {
+      isBoxSelecting: true,
+      boxSelectStart: { x, y },
+      boxSelectEnd: { x, y },
+      boxSelectMode: mode
+    }
+  }),
+  
+  updateBoxSelection: (x, y) => set((state) => ({
+    boxSelectionState: {
+      ...state.boxSelectionState,
+      boxSelectEnd: { x, y }
+    }
+  })),
+  
+  endBoxSelection: () => set({
+    boxSelectionState: {
+      isBoxSelecting: false,
+      boxSelectStart: null,
+      boxSelectEnd: null,
+      boxSelectMode: null
+    }
+  }),
+  
+  // Add surfaces to selection (additive, no duplicates)
+  addSurfacesToSelection: (surfaces) => set((state) => {
+    const existingIds = new Set(state.selectedSurfaces.map(s => s.id))
+    const newSurfaces = surfaces.filter(s => !existingIds.has(s.id))
+    if (newSurfaces.length === 0) return state
+    
+    const combined = [...state.selectedSurfaces, ...newSurfaces]
+    return {
+      selectedSurfaces: combined,
+      selectedSurface: combined[combined.length - 1],
+      selectedNode: null,
+      selectedBC: null,
+      selectedState: null,
+      selectedViz: null,
+      selectedInitRegion: null
+    }
+  }),
+  
+  // Bounding spheres cache for box selection performance
+  surfaceBounds: {},
+  
+  setSurfaceBounds: (bounds) => set({ surfaceBounds: bounds }),
   
   // Overlay position with default in top-left
   overlayPosition: {
@@ -793,6 +904,43 @@ export const useAppStore = create<AppState>((set) => ({
       console.log(`  - ${surf.name} (tag ${surf.metadata.tag}): ${surf.geometry!.vertices.length / 3} vertices`)
     })
     
+    // Compute bounding spheres for box selection performance
+    const bounds: Record<string, SurfaceBounds> = {}
+    surfaces.forEach(surface => {
+      if (surface.geometry) {
+        const vertices = surface.geometry.vertices
+        // Calculate center (average of all vertices)
+        let sumX = 0, sumY = 0, sumZ = 0
+        const vertexCount = vertices.length / 3
+        for (let i = 0; i < vertices.length; i += 3) {
+          sumX += vertices[i]
+          sumY += vertices[i + 1]
+          sumZ += vertices[i + 2]
+        }
+        const center = {
+          x: sumX / vertexCount,
+          y: sumY / vertexCount,
+          z: sumZ / vertexCount
+        }
+        
+        // Calculate radius (max distance from center)
+        let maxDistSq = 0
+        for (let i = 0; i < vertices.length; i += 3) {
+          const dx = vertices[i] - center.x
+          const dy = vertices[i + 1] - center.y
+          const dz = vertices[i + 2] - center.z
+          const distSq = dx * dx + dy * dy + dz * dz
+          if (distSq > maxDistSq) maxDistSq = distSq
+        }
+        
+        bounds[surface.id] = {
+          center,
+          radius: Math.sqrt(maxDistSq)
+        }
+      }
+    })
+    console.log('[App Store] Computed bounding spheres for', Object.keys(bounds).length, 'surfaces')
+    
     // Update mesh filename in config
     const updatedConfigData = {
       ...s.configData,
@@ -803,6 +951,7 @@ export const useAppStore = create<AppState>((set) => ({
       ...s,
       configData: updatedConfigData,
       availableSurfaces: surfaces,
+      surfaceBounds: bounds,
       totalVertices: parsedMesh.totalVertices,
       totalFaces: parsedMesh.totalFaces,
       selectedSurface: null
@@ -824,6 +973,43 @@ export const useAppStore = create<AppState>((set) => ({
     
     console.log('[App Store] ESP mesh totals:', totalVertices, 'vertices,', totalFaces, 'faces')
     
+    // Compute bounding spheres for box selection performance
+    const bounds: Record<string, SurfaceBounds> = {}
+    surfaces.forEach(surface => {
+      if (surface.geometry) {
+        const vertices = surface.geometry.vertices
+        // Calculate center (average of all vertices)
+        let sumX = 0, sumY = 0, sumZ = 0
+        const vertexCount = vertices.length / 3
+        for (let i = 0; i < vertices.length; i += 3) {
+          sumX += vertices[i]
+          sumY += vertices[i + 1]
+          sumZ += vertices[i + 2]
+        }
+        const center = {
+          x: sumX / vertexCount,
+          y: sumY / vertexCount,
+          z: sumZ / vertexCount
+        }
+        
+        // Calculate radius (max distance from center)
+        let maxDistSq = 0
+        for (let i = 0; i < vertices.length; i += 3) {
+          const dx = vertices[i] - center.x
+          const dy = vertices[i + 1] - center.y
+          const dz = vertices[i + 2] - center.z
+          const distSq = dx * dx + dy * dy + dz * dz
+          if (distSq > maxDistSq) maxDistSq = distSq
+        }
+        
+        bounds[surface.id] = {
+          center,
+          radius: Math.sqrt(maxDistSq)
+        }
+      }
+    })
+    console.log('[App Store] Computed bounding spheres for', Object.keys(bounds).length, 'ESP surfaces')
+    
     // Update config with CSM filename  
     const updatedConfigData = {
       ...s.configData,
@@ -834,6 +1020,7 @@ export const useAppStore = create<AppState>((set) => ({
       ...s,
       configData: updatedConfigData,
       availableSurfaces: surfaces,
+      surfaceBounds: bounds,
       totalVertices,
       totalFaces,
       selectedSurface: null,

@@ -7,9 +7,36 @@ interface SettingsDialogProps {
   onClose: () => void
 }
 
+type ModifierKey = 'shift' | 'ctrl' | 'alt'
+
+// Convert rgba string to hex color (for color picker)
+function rgbaToHex(rgba: string): string {
+  const match = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+  if (!match) return '#0078ff'
+  const r = parseInt(match[1]).toString(16).padStart(2, '0')
+  const g = parseInt(match[2]).toString(16).padStart(2, '0')
+  const b = parseInt(match[3]).toString(16).padStart(2, '0')
+  return `#${r}${g}${b}`
+}
+
+// Convert hex color to rgba string with specified alpha
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+// Get the border color (higher alpha version of fill color)
+function getBorderColor(fillColor: string): string {
+  const match = fillColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/)
+  if (!match) return 'rgba(0, 120, 255, 0.8)'
+  return `rgba(${match[1]}, ${match[2]}, ${match[3]}, 0.8)`
+}
+
 function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState('general')
-  const { cameraSettings, updateCameraSettings } = useAppStore()
+  const { cameraSettings, updateCameraSettings, boxSelectionSettings, updateBoxSelectionSettings } = useAppStore()
   
   // Feature flags state
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(() => {
@@ -21,7 +48,14 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [zoomSpeed, setZoomSpeed] = useState(cameraSettings.zoomSpeed)
   const [panSpeed, setPanSpeed] = useState(cameraSettings.panSpeed)
   const [invertZoom, setInvertZoom] = useState(cameraSettings.invertZoom)
-  const [multiSelectModifier, setMultiSelectModifier] = useState(cameraSettings.multiSelectModifier)
+  
+  // Box selection settings local state
+  const [boxSelectAllModifier, setBoxSelectAllModifier] = useState<ModifierKey>(boxSelectionSettings.boxSelectAllModifier)
+  const [boxSelectVisibleModifier, setBoxSelectVisibleModifier] = useState<ModifierKey>(boxSelectionSettings.boxSelectVisibleModifier)
+  const [boxSelectAllColor, setBoxSelectAllColor] = useState(boxSelectionSettings.boxSelectAllColor)
+  const [boxSelectAllBorder, setBoxSelectAllBorder] = useState(boxSelectionSettings.boxSelectAllBorder)
+  const [boxSelectVisibleColor, setBoxSelectVisibleColor] = useState(boxSelectionSettings.boxSelectVisibleColor)
+  const [boxSelectVisibleBorder, setBoxSelectVisibleBorder] = useState(boxSelectionSettings.boxSelectVisibleBorder)
   
   const [editorFontSize, setEditorFontSize] = useState(() => {
     const saved = localStorage.getItem('editorFontSize')
@@ -74,8 +108,17 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
       rotateSpeed,
       zoomSpeed,
       panSpeed,
-      invertZoom,
-      multiSelectModifier
+      invertZoom
+    })
+    
+    // Save box selection settings to store
+    updateBoxSelectionSettings({
+      boxSelectAllModifier,
+      boxSelectVisibleModifier,
+      boxSelectAllColor,
+      boxSelectAllBorder,
+      boxSelectVisibleColor,
+      boxSelectVisibleBorder
     })
     
     onClose()
@@ -257,25 +300,95 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
                     />
                     Invert zoom direction (pull back to zoom in)
                   </label>
-
+                </div>
+                
+                <h3 style={{ marginTop: '24px' }}>Box Selection</h3>
+                <p className="settings-description">
+                  Hold a modifier key and drag to select multiple surfaces at once.
+                </p>
+                
                 <div className="settings-item">
-                  <label htmlFor="multi-select-modifier" className="settings-label-column">
-                    <span>Multi-Select Modifier Key</span>
+                  <label htmlFor="box-select-all-modifier" className="settings-label-column">
+                    <span>Select All (in box)</span>
                     <select
-                      id="multi-select-modifier"
-                      value={multiSelectModifier}
-                      onChange={(e) => setMultiSelectModifier(e.target.value as 'shift' | 'ctrl' | 'alt')}
+                      id="box-select-all-modifier"
                       className="settings-select"
+                      value={boxSelectAllModifier}
+                      onChange={(e) => setBoxSelectAllModifier(e.target.value as ModifierKey)}
                     >
                       <option value="shift">Shift</option>
-                      <option value="ctrl">Ctrl / Cmd</option>
-                      <option value="alt">Alt / Option</option>
+                      <option value="ctrl">Ctrl</option>
+                      <option value="alt">Alt</option>
                     </select>
                   </label>
-                  <div className="settings-hint">
-                    Hold this key and click surfaces to add/remove from selection
-                  </div>
                 </div>
+                
+                <div className="settings-item">
+                  <label htmlFor="box-select-visible-modifier" className="settings-label-column">
+                    <span>Select Visible Only</span>
+                    <select
+                      id="box-select-visible-modifier"
+                      className="settings-select"
+                      value={boxSelectVisibleModifier}
+                      onChange={(e) => setBoxSelectVisibleModifier(e.target.value as ModifierKey)}
+                    >
+                      <option value="shift">Shift</option>
+                      <option value="ctrl">Ctrl</option>
+                      <option value="alt">Alt</option>
+                    </select>
+                  </label>
+                </div>
+                
+                <h4 style={{ marginTop: '16px', marginBottom: '8px', color: '#cccccc' }}>Box Colors (Accessibility)</h4>
+                
+                <div className="settings-item">
+                  <label className="settings-label-column">
+                    <span>"Select All" Box Color</span>
+                    <div className="color-picker-group">
+                      <input
+                        type="color"
+                        value={rgbaToHex(boxSelectAllColor)}
+                        onChange={(e) => {
+                          const fillColor = hexToRgba(e.target.value, 0.2)
+                          setBoxSelectAllColor(fillColor)
+                          setBoxSelectAllBorder(getBorderColor(fillColor))
+                        }}
+                        className="settings-color"
+                      />
+                      <div 
+                        className="color-preview" 
+                        style={{ 
+                          backgroundColor: boxSelectAllColor,
+                          border: `2px dashed ${boxSelectAllBorder}`
+                        }}
+                      />
+                    </div>
+                  </label>
+                </div>
+                
+                <div className="settings-item">
+                  <label className="settings-label-column">
+                    <span>"Select Visible" Box Color</span>
+                    <div className="color-picker-group">
+                      <input
+                        type="color"
+                        value={rgbaToHex(boxSelectVisibleColor)}
+                        onChange={(e) => {
+                          const fillColor = hexToRgba(e.target.value, 0.2)
+                          setBoxSelectVisibleColor(fillColor)
+                          setBoxSelectVisibleBorder(getBorderColor(fillColor))
+                        }}
+                        className="settings-color"
+                      />
+                      <div 
+                        className="color-preview" 
+                        style={{ 
+                          backgroundColor: boxSelectVisibleColor,
+                          border: `2px dashed ${boxSelectVisibleBorder}`
+                        }}
+                      />
+                    </div>
+                  </label>
                 </div>
               </div>
             )}

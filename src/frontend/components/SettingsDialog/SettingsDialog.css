@@ -423,9 +423,41 @@ input:checked + .settings-switch-slider:before {
   color: #0e639c;
 }
 
-.settings-hint {
-  margin-top: 6px;
+/* Color picker and preview for box selection */
+.color-picker-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-color {
+  width: 40px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid #555;
+  border-radius: 4px;
+  cursor: pointer;
+  background: none;
+}
+
+.settings-color::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.settings-color::-webkit-color-swatch {
+  border-radius: 2px;
+  border: none;
+}
+
+.color-preview {
+  width: 60px;
+  height: 28px;
+  border-radius: 4px;
+}
+
+.settings-description {
   font-size: 12px;
   color: #888;
-  font-style: italic;
+  margin-bottom: 16px;
+  line-height: 1.4;
 }

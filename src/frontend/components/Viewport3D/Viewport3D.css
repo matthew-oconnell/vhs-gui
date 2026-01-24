@@ -217,3 +217,36 @@
   background-color: #3a3a3a;
   margin: 4px 0;
 }
+
+/* Box selection modifier key hint */
+.box-select-hint {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.7);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #ffffff;
+  pointer-events: none;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.box-select-hint .hint-key {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
+.box-select-hint.all-mode .hint-key {
+  background: rgba(0, 120, 255, 0.3);
+}
+
+.box-select-hint.visible-mode .hint-key {
+  background: rgba(0, 255, 120, 0.3);
+}

@@ -560,10 +560,6 @@ export default function PropertyEditorDialog({
       <StateWizard
         onClose={() => setShowStateWizard(false)}
         onCreate={handleCreateState}
-        onOpenThermodynamics={() => {
-          setShowStateWizard(false)
-          setShowThermoWizard(true)
-        }}
       />
     )}
     </>

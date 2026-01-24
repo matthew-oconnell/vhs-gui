@@ -2,7 +2,7 @@ import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2, Settings,
 import { useState, useEffect, useMemo } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition } from '../../types/config'
-import StateWizard, { SavedWizardState } from './StateWizard'
+import StateWizard from './StateWizard'
 import BoundaryConditionDialog from '../BoundaryConditionDialog/BoundaryConditionDialog'
 import PropertyEditorDialog from '../PropertyEditorDialog/PropertyEditorDialog'
 import VisualizationDialog from '../VisualizationDialog/VisualizationDialog'
@@ -88,7 +88,6 @@ function EditorPanel() {
   const [selectedSurfaceForNormal, setSelectedSurfaceForNormal] = useState<string>('')
   const [schema, setSchema] = useState<Schema | null>(null)
   const [availableBCTypes, setAvailableBCTypes] = useState<string[]>(BC_TYPES)
-  const [savedStateWizardState, setSavedStateWizardState] = useState<SavedWizardState | null>(null)
   
   useEffect(() => {
     // Load the schema
@@ -1761,12 +1760,6 @@ function EditorPanel() {
         <StateWizard
           onClose={() => setShowStateWizard(false)}
           onCreate={(state) => addState(state)}
-          onOpenThermodynamics={() => {
-            setShowStateWizard(false)
-            setShowThermoWizard(true)
-          }}
-          savedState={savedStateWizardState}
-          onSaveState={setSavedStateWizardState}
         />
       )}
       
@@ -1808,13 +1801,7 @@ function EditorPanel() {
 
       {showThermoWizard && (
         <ThermodynamicsWizard
-          onClose={() => {
-            setShowThermoWizard(false)
-            // Reopen state wizard if we have saved state
-            if (savedStateWizardState) {
-              setShowStateWizard(true)
-            }
-          }}
+          onClose={() => setShowThermoWizard(false)}
           onUpdate={() => {
             // Wizard updates configData directly via updateThermodynamics store action
           }}

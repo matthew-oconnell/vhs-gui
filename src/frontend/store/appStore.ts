@@ -357,16 +357,16 @@ export const useAppStore = create<AppState>((set) => ({
   updateSurfaceBCName: (surfaceIds, bcName) => set((state) => ({
     availableSurfaces: state.availableSurfaces.map(surface => 
       surfaceIds.includes(surface.id)
-        ? { ...surface, metadata: { ...surface.metadata, bcName } }
+        ? { ...surface, metadata: { ...surface.metadata, tagName: bcName, bcName }, name: bcName }
         : surface
     ),
     selectedSurfaces: state.selectedSurfaces.map(surface =>
       surfaceIds.includes(surface.id)
-        ? { ...surface, metadata: { ...surface.metadata, bcName } }
+        ? { ...surface, metadata: { ...surface.metadata, tagName: bcName, bcName }, name: bcName }
         : surface
     ),
     selectedSurface: state.selectedSurface && surfaceIds.includes(state.selectedSurface.id)
-      ? { ...state.selectedSurface, metadata: { ...state.selectedSurface.metadata, bcName } }
+      ? { ...state.selectedSurface, metadata: { ...state.selectedSurface.metadata, tagName: bcName, bcName }, name: bcName }
       : state.selectedSurface
   })),
   

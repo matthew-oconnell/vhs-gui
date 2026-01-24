@@ -85,7 +85,8 @@ export default function BoundaryConditionDialog({
     addBoundaryCondition, 
     setSelectedBC,
     addState,
-    rootSolverKey
+    rootSolverKey,
+    selectedSurfaces
   } = useAppStore()
 
   const [bcName, setBcName] = useState('')
@@ -148,21 +149,31 @@ export default function BoundaryConditionDialog({
   const rootConfig = (configData as any)[rootKey] || {}
   const availableStates = Object.keys(rootConfig.states || {})
 
-  // Initialize with the surface that was right-clicked
+  // Initialize with the surfaces that are currently selected in the store
   useEffect(() => {
-    if (isOpen && initialSurface) {
-      setSelectedSurfaceTags([initialSurface.metadata.tag])
-      setBcName(initialSurface.metadata.bcName || initialSurface.metadata.tagName)
-    } else if (isOpen) {
-      // Reset form when dialog opens
-      setBcName('')
-      setBcType('no slip')
-      setSelectedSurfaceTags([])
-      setStateName('')
-      setWallTemperature('adiabatic')
-      setConstantTempValue(300)
+    if (isOpen) {
+      // Use all currently selected surfaces from the store
+      if (selectedSurfaces.length > 0) {
+        const tags = selectedSurfaces.map(s => s.metadata.tag)
+        setSelectedSurfaceTags(tags)
+        // Use the first surface's name as default BC name
+        const firstName = selectedSurfaces[0].metadata.bcName || selectedSurfaces[0].metadata.tagName
+        setBcName(firstName)
+      } else if (initialSurface) {
+        // Fallback to initialSurface if no selection in store
+        setSelectedSurfaceTags([initialSurface.metadata.tag])
+        setBcName(initialSurface.metadata.bcName || initialSurface.metadata.tagName)
+      } else {
+        // Reset form when dialog opens with no selection
+        setBcName('')
+        setBcType('no slip')
+        setSelectedSurfaceTags([])
+        setStateName('')
+        setWallTemperature('adiabatic')
+        setConstantTempValue(300)
+      }
     }
-  }, [isOpen, initialSurface])
+  }, [isOpen, initialSurface, selectedSurfaces])
 
   const handleStateChange = (value: string) => {
     if (value === '__CREATE_NEW__') {

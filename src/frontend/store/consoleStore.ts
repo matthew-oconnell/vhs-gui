@@ -59,6 +59,11 @@ interface ConsoleState {
   consoleHeight: number         // In pixels
   settings: ConsoleSettings
   unseenCount: number           // Count of messages added while collapsed
+  
+  // Split view state
+  isSplitView: boolean
+  leftPaneCategories: Set<LogCategory>
+  rightPaneCategories: Set<LogCategory>
 }
 
 interface ConsoleActions {
@@ -69,6 +74,13 @@ interface ConsoleActions {
   setHeight: (height: number) => void
   getVisibleEntries: () => ConsoleLogEntry[]
   updateSettings: (settings: Partial<ConsoleSettings>) => void
+  
+  // Split view actions
+  toggleSplitView: () => void
+  toggleLeftCategory: (category: LogCategory) => void
+  toggleRightCategory: (category: LogCategory) => void
+  getLeftPaneEntries: () => ConsoleLogEntry[]
+  getRightPaneEntries: () => ConsoleLogEntry[]
 }
 
 // ============================================================================
@@ -109,6 +121,33 @@ const loadSettingsFromStorage = (): ConsoleSettings => {
   }
 }
 
+const loadSplitViewFromStorage = (): boolean => {
+  try {
+    const saved = localStorage.getItem('console-split-view')
+    return saved === 'true'
+  } catch {
+    return false
+  }
+}
+
+const loadPaneCategoriesFromStorage = (pane: 'left' | 'right'): Set<LogCategory> => {
+  try {
+    const saved = localStorage.getItem(`console-${pane}-pane-categories`)
+    if (saved) {
+      return new Set(JSON.parse(saved) as LogCategory[])
+    }
+  } catch {
+    // Fall through to defaults
+  }
+  
+  // Default: ESP & Geometry on left, everything else on right
+  if (pane === 'left') {
+    return new Set(['ESP', 'Geometry'])
+  } else {
+    return new Set(['DEBUG', 'Validation', 'Config', 'Network', 'UI', 'Performance'])
+  }
+}
+
 // ============================================================================
 // Store Implementation
 // ============================================================================
@@ -121,6 +160,11 @@ export const useConsoleStore = create<ConsoleState & ConsoleActions>((set, get) 
   consoleHeight: loadHeightFromStorage(),
   unseenCount: 0,
   settings: loadSettingsFromStorage(),
+  
+  // Split view state
+  isSplitView: loadSplitViewFromStorage(),
+  leftPaneCategories: loadPaneCategoriesFromStorage('left'),
+  rightPaneCategories: loadPaneCategoriesFromStorage('right'),
 
   // Actions
   log: (category, level, message, metadata?) => {
@@ -212,5 +256,62 @@ export const useConsoleStore = create<ConsoleState & ConsoleActions>((set, get) 
       // Silently fail if localStorage unavailable
     }
     set({ settings: updated })
+  },
+
+  // Split view actions
+  toggleSplitView: () => {
+    set((state) => {
+      const newSplitView = !state.isSplitView
+      try {
+        localStorage.setItem('console-split-view', newSplitView.toString())
+      } catch {
+        // Silently fail if localStorage unavailable
+      }
+      return { isSplitView: newSplitView }
+    })
+  },
+
+  toggleLeftCategory: (category) => {
+    set((state) => {
+      const newCategories = new Set(state.leftPaneCategories)
+      if (newCategories.has(category)) {
+        newCategories.delete(category)
+      } else {
+        newCategories.add(category)
+      }
+      try {
+        localStorage.setItem('console-left-pane-categories', JSON.stringify(Array.from(newCategories)))
+      } catch {
+        // Silently fail if localStorage unavailable
+      }
+      return { leftPaneCategories: newCategories }
+    })
+  },
+
+  toggleRightCategory: (category) => {
+    set((state) => {
+      const newCategories = new Set(state.rightPaneCategories)
+      if (newCategories.has(category)) {
+        newCategories.delete(category)
+      } else {
+        newCategories.add(category)
+      }
+      try {
+        localStorage.setItem('console-right-pane-categories', JSON.stringify(Array.from(newCategories)))
+      } catch {
+        // Silently fail if localStorage unavailable
+      }
+      return { rightPaneCategories: newCategories }
+    })
+  },
+
+  getLeftPaneEntries: () => {
+    const state = get()
+    return state.entries.filter(e => state.leftPaneCategories.has(e.category))
+  },
+
+  getRightPaneEntries: () => {
+    const state = get()
+    return state.entries.filter(e => state.rightPaneCategories.has(e.category))
   }
 }))

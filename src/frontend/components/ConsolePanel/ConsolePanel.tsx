@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
 import { useConsoleStore } from '../../store/consoleStore'
+import ConsolePaneView from './ConsolePaneView'
 import './ConsolePanel.css'
 
 const ConsolePanel: React.FC = () => {
@@ -9,11 +11,19 @@ const ConsolePanel: React.FC = () => {
     consoleHeight,
     unseenCount,
     visibleCategories,
+    isSplitView,
+    leftPaneCategories,
+    rightPaneCategories,
     setCollapsed,
     toggleCategory,
+    toggleSplitView,
+    toggleLeftCategory,
+    toggleRightCategory,
     clear,
     setHeight,
-    getVisibleEntries
+    getVisibleEntries,
+    getLeftPaneEntries,
+    getRightPaneEntries
   } = useConsoleStore()
 
   const [isResizing, setIsResizing] = useState(false)
@@ -131,7 +141,7 @@ const ConsolePanel: React.FC = () => {
         {!isCollapsed && (
           <>
             <div className="console-header-center">
-              {allCategories.map(category => {
+              {!isSplitView && allCategories.map(category => {
                 const isActive = visibleCategories.has(category)
                 return (
                   <button
@@ -152,6 +162,13 @@ const ConsolePanel: React.FC = () => {
 
             <div className="console-header-right">
               <button 
+                className="console-split-toggle-btn"
+                onClick={() => toggleSplitView()}
+                title={isSplitView ? 'Switch to single pane' : 'Split console view'}
+              >
+                {isSplitView ? '⊟ Single' : '⊞ Split'}
+              </button>
+              <button 
                 className="console-clear-btn"
                 onClick={() => clear()}
                 title="Clear all console logs"
@@ -165,39 +182,71 @@ const ConsolePanel: React.FC = () => {
 
       {/* Content */}
       {!isCollapsed && (
-        <div ref={contentRef} className="console-content">
-          {visibleEntries.length === 0 ? (
-            <div className="console-empty">
-              No logs to display. Logs will appear here when events occur.
-            </div>
+        <div className="console-content-wrapper">
+          {isSplitView ? (
+            <PanelGroup direction="horizontal" className="console-split-container">
+              <Panel defaultSize={50} minSize={20}>
+                <ConsolePaneView
+                  entries={entries}
+                  visibleCategories={leftPaneCategories}
+                  onToggleCategory={toggleLeftCategory}
+                  onClear={() => clear()}
+                  title="Left Pane"
+                  showCategoryFilters={true}
+                />
+              </Panel>
+              
+              <PanelResizeHandle className="console-split-handle">
+                <div className="console-split-handle-bar" />
+              </PanelResizeHandle>
+              
+              <Panel defaultSize={50} minSize={20}>
+                <ConsolePaneView
+                  entries={entries}
+                  visibleCategories={rightPaneCategories}
+                  onToggleCategory={toggleRightCategory}
+                  onClear={() => clear()}
+                  title="Right Pane"
+                  showCategoryFilters={true}
+                />
+              </Panel>
+            </PanelGroup>
           ) : (
-            visibleEntries.map(entry => (
-              <div 
-                key={entry.id} 
-                className={`console-log-entry console-log-${entry.level}`}
-              >
-                <span className="console-log-timestamp">
-                  {formatTimestamp(entry.timestamp)}
-                </span>
-                <span 
-                  className="console-log-category"
-                  style={{ color: getCategoryColor(entry.category) }}
-                >
-                  [{entry.category}]
-                </span>
-                <span className="console-log-icon">
-                  {getLevelIcon(entry.level)}
-                </span>
-                <span className="console-log-message">
-                  {entry.message}
-                </span>
-                {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                  <span className="console-log-metadata">
-                    {JSON.stringify(entry.metadata)}
-                  </span>
-                )}
-              </div>
-            ))
+            <div ref={contentRef} className="console-content">
+              {visibleEntries.length === 0 ? (
+                <div className="console-empty">
+                  No logs to display. Logs will appear here when events occur.
+                </div>
+              ) : (
+                visibleEntries.map(entry => (
+                  <div 
+                    key={entry.id} 
+                    className={`console-log-entry console-log-${entry.level}`}
+                  >
+                    <span className="console-log-timestamp">
+                      {formatTimestamp(entry.timestamp)}
+                    </span>
+                    <span 
+                      className="console-log-category"
+                      style={{ color: getCategoryColor(entry.category) }}
+                    >
+                      [{entry.category}]
+                    </span>
+                    <span className="console-log-icon">
+                      {getLevelIcon(entry.level)}
+                    </span>
+                    <span className="console-log-message">
+                      {entry.message}
+                    </span>
+                    {entry.metadata && Object.keys(entry.metadata).length > 0 && (
+                      <span className="console-log-metadata">
+                        {JSON.stringify(entry.metadata)}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           )}
         </div>
       )}

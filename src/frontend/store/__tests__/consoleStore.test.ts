@@ -297,4 +297,162 @@ describe('consoleStore', () => {
       expect(setItemSpy).toHaveBeenCalledWith('console-height', '250')
     })
   })
+
+  describe('Split View', () => {
+    beforeEach(() => {
+      // Reset split view state
+      useConsoleStore.setState({
+        isSplitView: false,
+        leftPaneCategories: new Set(['ESP', 'Geometry']),
+        rightPaneCategories: new Set(['DEBUG', 'Validation'])
+      })
+    })
+
+    describe('toggleSplitView()', () => {
+      it('should toggle split view on', () => {
+        const { toggleSplitView } = useConsoleStore.getState()
+        
+        toggleSplitView()
+        
+        expect(useConsoleStore.getState().isSplitView).toBe(true)
+      })
+
+      it('should toggle split view off', () => {
+        useConsoleStore.setState({ isSplitView: true })
+        const { toggleSplitView } = useConsoleStore.getState()
+        
+        toggleSplitView()
+        
+        expect(useConsoleStore.getState().isSplitView).toBe(false)
+      })
+
+      it('should persist split view state to localStorage', () => {
+        const { toggleSplitView } = useConsoleStore.getState()
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+        
+        toggleSplitView()
+        
+        expect(setItemSpy).toHaveBeenCalledWith('console-split-view', 'true')
+      })
+    })
+
+    describe('toggleLeftCategory()', () => {
+      it('should add category to left pane', () => {
+        const { toggleLeftCategory } = useConsoleStore.getState()
+        
+        toggleLeftCategory('Config')
+        
+        const { leftPaneCategories } = useConsoleStore.getState()
+        expect(leftPaneCategories.has('Config')).toBe(true)
+      })
+
+      it('should remove category from left pane', () => {
+        const { toggleLeftCategory } = useConsoleStore.getState()
+        
+        toggleLeftCategory('ESP')  // ESP is in default left pane
+        
+        const { leftPaneCategories } = useConsoleStore.getState()
+        expect(leftPaneCategories.has('ESP')).toBe(false)
+      })
+
+      it('should persist left pane categories to localStorage', () => {
+        const { toggleLeftCategory } = useConsoleStore.getState()
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+        
+        toggleLeftCategory('Config')
+        
+        expect(setItemSpy).toHaveBeenCalledWith(
+          'console-left-pane-categories',
+          expect.stringContaining('Config')
+        )
+      })
+    })
+
+    describe('toggleRightCategory()', () => {
+      it('should add category to right pane', () => {
+        const { toggleRightCategory } = useConsoleStore.getState()
+        
+        toggleRightCategory('ESP')
+        
+        const { rightPaneCategories } = useConsoleStore.getState()
+        expect(rightPaneCategories.has('ESP')).toBe(true)
+      })
+
+      it('should remove category from right pane', () => {
+        const { toggleRightCategory } = useConsoleStore.getState()
+        
+        toggleRightCategory('DEBUG')  // DEBUG is in default right pane
+        
+        const { rightPaneCategories } = useConsoleStore.getState()
+        expect(rightPaneCategories.has('DEBUG')).toBe(false)
+      })
+
+      it('should persist right pane categories to localStorage', () => {
+        const { toggleRightCategory } = useConsoleStore.getState()
+        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem')
+        
+        toggleRightCategory('ESP')
+        
+        expect(setItemSpy).toHaveBeenCalledWith(
+          'console-right-pane-categories',
+          expect.stringContaining('ESP')
+        )
+      })
+    })
+
+    describe('getLeftPaneEntries()', () => {
+      it('should return entries matching left pane categories', () => {
+        const { log, getLeftPaneEntries } = useConsoleStore.getState()
+        
+        log('ESP', 'info', 'ESP message')
+        log('DEBUG', 'info', 'Debug message')
+        log('Geometry', 'info', 'Geometry message')
+        
+        const leftEntries = getLeftPaneEntries()
+        
+        expect(leftEntries).toHaveLength(2)  // ESP and Geometry
+        expect(leftEntries[0].category).toBe('ESP')
+        expect(leftEntries[1].category).toBe('Geometry')
+      })
+
+      it('should return empty array when no categories match', () => {
+        useConsoleStore.setState({ leftPaneCategories: new Set() })
+        const { log, getLeftPaneEntries } = useConsoleStore.getState()
+        
+        log('ESP', 'info', 'Message')
+        
+        const leftEntries = getLeftPaneEntries()
+        expect(leftEntries).toHaveLength(0)
+      })
+    })
+
+    describe('getRightPaneEntries()', () => {
+      it('should return entries matching right pane categories', () => {
+        const { log, getRightPaneEntries } = useConsoleStore.getState()
+        
+        log('DEBUG', 'info', 'Debug message')
+        log('ESP', 'info', 'ESP message')
+        log('Validation', 'info', 'Validation message')
+        
+        const rightEntries = getRightPaneEntries()
+        
+        expect(rightEntries).toHaveLength(2)  // DEBUG and Validation
+        expect(rightEntries[0].category).toBe('DEBUG')
+        expect(rightEntries[1].category).toBe('Validation')
+      })
+
+      it('should allow same category in both panes', () => {
+        useConsoleStore.setState({ 
+          leftPaneCategories: new Set(['ESP']),
+          rightPaneCategories: new Set(['ESP'])
+        })
+        const { log, getLeftPaneEntries, getRightPaneEntries } = useConsoleStore.getState()
+        
+        log('ESP', 'info', 'ESP message')
+        
+        expect(getLeftPaneEntries()).toHaveLength(1)
+        expect(getRightPaneEntries()).toHaveLength(1)
+      })
+    })
+  })
 })

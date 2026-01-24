@@ -615,8 +615,16 @@ mark
       log('ESP', 'info', 'Sending STEP file to ESP server...')
       
       const response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
-        // Stream ESP output to console
-        log('ESP', 'debug', logLine)
+        // Parse ESP output to detect errors, warnings, and info messages
+        if (logLine.includes('ERROR:') || logLine.includes('EGADS Error:')) {
+          log('ESP', 'error', logLine)
+        } else if (logLine.includes('WARNING:') || logLine.includes('EGADS Warning:')) {
+          log('ESP', 'warning', logLine)
+        } else if (logLine.includes('INFO:')) {
+          log('ESP', 'info', logLine)
+        } else {
+          log('ESP', 'info', logLine)  // Default to info for normal execution output
+        }
       })
       
       if (!response.success) {
@@ -687,12 +695,7 @@ mark
     console.log('[App] Creating farfield with multiplier:', multiplier)
     
     try {
-      setIsLoading(true)
-      setLoadingMessage('Creating farfield domain')
-      setLoadingLog([])
-      
-      // Local array to accumulate ESP log (state updates are async)
-      const espLogMessages: string[] = []
+      log('Farfield', 'info', 'Starting farfield domain creation...')
       
       const { availableSurfaces, csmBuilder } = useAppStore.getState()
       
@@ -704,13 +707,10 @@ mark
       const boundingBox = calculateBoundingBox(availableSurfaces)
       const radius = boundingBox.characteristicLength * multiplier
       
-      setLoadingLog([
-        `Geometry center: (${boundingBox.center.x.toFixed(2)}, ${boundingBox.center.y.toFixed(2)}, ${boundingBox.center.z.toFixed(2)})`,
-        `Characteristic length: ${boundingBox.characteristicLength.toFixed(2)}`,
-        `Multiplier: ${multiplier}`,
-        `Farfield radius: ${radius.toFixed(2)}`,
-        ''
-      ])
+      log('Farfield', 'info', `Geometry center: (${boundingBox.center.x.toFixed(2)}, ${boundingBox.center.y.toFixed(2)}, ${boundingBox.center.z.toFixed(2)})`)
+      log('Farfield', 'info', `Characteristic length: ${boundingBox.characteristicLength.toFixed(2)}`)
+      log('Farfield', 'info', `Multiplier: ${multiplier}`)
+      log('Farfield', 'info', `Farfield radius: ${radius.toFixed(2)}`)
       
       // Record operations in CSMBuilder
       csmBuilder.recordSphere(
@@ -728,54 +728,64 @@ mark
       const generatedCSM = csmBuilder.export()
       console.log('[App] Generated CSM:\n', generatedCSM)
       
-      setLoadingMessage('Building farfield geometry')
-      setLoadingLog(prev => [...prev, 'Generated CSM:', generatedCSM, '', 'Sending to ESP server...'])
+      log('Farfield', 'info', 'Generated CSM script')
+      log('ESP', 'info', 'Sending farfield CSM to ESP server...')
       
       // Build CSM with STEP file dependency
       const dependencies = new Map<string, File>()
       dependencies.set(importedGeometryFile.name, importedGeometryFile)
       
       const response = await buildCSMWithDepsStreaming(generatedCSM, dependencies, (logLine) => {
-        console.log('[ESP]', logLine)  // Log to console for debugging
-        setLoadingLog(prev => [...prev, logLine])
-        espLogMessages.push(logLine)  // Accumulate in local array
+        // Parse ESP output to detect errors, warnings, and info messages
+        if (logLine.includes('ERROR:') || logLine.includes('EGADS Error:')) {
+          log('ESP', 'error', logLine)
+        } else if (logLine.includes('WARNING:') || logLine.includes('EGADS Warning:')) {
+          log('ESP', 'warning', logLine)
+        } else if (logLine.includes('INFO:')) {
+          log('ESP', 'info', logLine)
+        } else {
+          log('ESP', 'info', logLine)  // Default to info for normal execution output
+        }
       })
       
       if (!response.success) {
-        setIsLoading(false)
+        log('ESP', 'error', `Farfield build failed: ${response.message}`)
         throw new Error(response.message)
       }
       
+      log('ESP', 'success', `Farfield build complete: ${response.message}`)
       console.log('[App] Farfield build successful:', response.message)
       console.log('[App] Got', response.regions?.length || 0, 'regions')
       
       // Check if we actually got any geometry
       if (!response.regions || response.regions.length === 0) {
-        setIsLoading(false)
+        log('Farfield', 'error', 'No geometry created from farfield operation')
         throw new Error('ESP farfield build completed but no geometry was created. Check the ESP error log for details.')
       }
       
-      setLoadingMessage('Processing geometry')
-      setLoadingLog(prev => [...prev, '', `✓ Received ${response.regions?.length || 0} faces`])
+      log('Farfield', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
+      log('Farfield', 'info', 'Converting ESP regions to surfaces...')
       
       // Convert ESP regions to surfaces
       const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
       console.log('[App] Converted to', surfaces.length, 'surfaces')
+      log('Farfield', 'success', `Converted to ${surfaces.length} surfaces`)
       
       // Load into store
       const { loadESPSurfaces } = useAppStore.getState()
       loadESPSurfaces(surfaces, `${importedGeometryFile.name} (with farfield)`, generatedCSM)
       
-      setIsLoading(false)
-      setLoadingMessage('')
-      setLoadingLog([])
-      
       console.log('[App] Farfield created successfully:', surfaces.length, 'surfaces')
+      log('Farfield', 'success', `Farfield domain created successfully: ${surfaces.length} surfaces loaded`)
       // Success - farfield domain is now visible in 3D viewer
       
     } catch (error) {
+      if ((error as any).name === 'AbortError') {
+        log('Farfield', 'warning', 'Farfield creation cancelled by user')
+        return
+      }
       console.error('[App] Error creating farfield:', error)
-      log('ESP', 'error', `Failed to create farfield: ${(error as Error).message}`)
+      log('Farfield', 'error', `Failed to create farfield: ${(error as Error).message}`)
     }
   }
 

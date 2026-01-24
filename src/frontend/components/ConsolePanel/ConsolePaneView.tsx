@@ -43,7 +43,7 @@ const ConsolePaneView: React.FC<ConsolePaneViewProps> = ({
       case 'warning': return '⚠️'
       case 'success': return '✅'
       case 'info': return 'ℹ️'
-      case 'debug': return '🐛'
+      case 'debug': return '' // No icon for debug messages
       default: return '•'
     }
   }

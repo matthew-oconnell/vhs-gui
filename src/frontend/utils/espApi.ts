@@ -233,17 +233,27 @@ export const buildCSMWithDepsStreaming = async (
           } else if (event.type === 'complete') {
             finalResult = event.data
           } else if (event.type === 'error') {
+            // Log the error to console before throwing
+            onLog(`ERROR: ${event.message}`)
             throw new Error(event.message)
           }
         } catch (e) {
+          // If it's an error we just threw, re-throw it
+          if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
+            throw e
+          }
+          // Otherwise log parsing errors
           console.error('[ESP API] Failed to parse SSE:', e, 'Line:', jsonStr)
+          onLog(`Failed to parse server response: ${jsonStr}`)
         }
       }
     }
   }
   
   if (!finalResult) {
-    throw new Error('Build completed but no result received')
+    const errorMsg = 'Build completed but no result received (check ESP server logs)'
+    onLog(`ERROR: ${errorMsg}`)
+    throw new Error(errorMsg)
   }
   
   console.log('[ESP API] Streaming build complete:', finalResult.message)

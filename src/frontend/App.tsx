@@ -580,7 +580,7 @@ function App() {
   }
 
   const handleExportCSM = async () => {
-    const { csmFilename, exportGeneratedCSM, csmBuilder } = useAppStore.getState()
+    const { csmFilename, exportGeneratedCSM, csmBuilder, setMeshNeedsExport } = useAppStore.getState()
     
     const hasOperations = csmBuilder.hasOperations()
     const hasBase = csmBuilder.getBase().length > 0
@@ -612,6 +612,9 @@ function App() {
       const writable = await handle.createWritable()
       await writable.write(generatedCSM)
       await writable.close()
+      
+      // Mark mesh as no longer needing export
+      setMeshNeedsExport(false)
       
       console.log('[App] CSM exported successfully as:', handle.name)
       console.log('[App] Generated CSM preview:\n', generatedCSM.slice(0, 500) + '...')

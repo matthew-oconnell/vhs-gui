@@ -131,6 +131,8 @@ interface AppState {
   updateState: (id: string, updates: Partial<State>) => void
   deleteState: (id: string) => void
   thermoWizardExecuted: boolean
+  meshNeedsExport: boolean
+  setMeshNeedsExport: (needsExport: boolean) => void
   updateThermodynamics: (thermoConfig: any) => void
   updateProperty: (path: string, key: string, value: any) => void
   initializeConfig: (projectConfig: any) => void
@@ -264,6 +266,8 @@ export const useAppStore = create<AppState>((set) => ({
   originalCSMContent: null as string | null,
   csmFilename: null as string | null,
   thermoWizardExecuted: false,
+  meshNeedsExport: false,
+  setMeshNeedsExport: (needsExport) => set({ meshNeedsExport: needsExport }),
   
   // Project workflow stage tracking
   projectStage: 'no-mesh' as ProjectStage,
@@ -469,6 +473,7 @@ export const useAppStore = create<AppState>((set) => ({
     }
     
     return {
+      meshNeedsExport: true, // Mark that mesh needs to be re-exported
       availableSurfaces: state.availableSurfaces.map(surface => 
         surfaceIds.includes(surface.id)
           ? { ...surface, metadata: { ...surface.metadata, tagName: bcName, bcName }, name: bcName }
@@ -1087,7 +1092,8 @@ export const useAppStore = create<AppState>((set) => ({
       surfaceBounds: bounds,
       totalVertices: parsedMesh.totalVertices,
       totalFaces: parsedMesh.totalFaces,
-      selectedSurface: null
+      selectedSurface: null,
+      meshNeedsExport: false
     }
     
     // Update project stage after mesh loaded
@@ -1154,10 +1160,10 @@ export const useAppStore = create<AppState>((set) => ({
       console.log('[App Store] Set base CSM in CSMBuilder')
     }
     
-    // Update config with CSM filename  
+    // Update config with mesh filename (CSM filename at root level)
     const updatedConfigData = {
       ...s.configData,
-      'csm filename': filename
+      'mesh filename': filename
     }
     
     const newState = {
@@ -1169,7 +1175,8 @@ export const useAppStore = create<AppState>((set) => ({
       totalFaces,
       selectedSurface: null,
       originalCSMContent: csmContent || null,
-      csmFilename: filename
+      csmFilename: filename,
+      meshNeedsExport: false
     }
     
     // Update project stage after mesh loaded

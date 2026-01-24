@@ -26,6 +26,7 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
     availableSurfaces,
     configData,
     rootSolverKey,
+    meshNeedsExport,
   } = useAppStore()
 
   const hasMesh = availableSurfaces.length > 0
@@ -35,13 +36,20 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
   // Build checklist items based on current project state
   const checklistItems: ChecklistItem[] = []
 
-  // 1. Mesh
+  // 1. Mesh - complete when mesh filename is set AND no pending exports
   if (hasMesh) {
+    const meshFilename = (configData as any)['mesh filename']
+    const isMeshComplete = meshFilename && !meshNeedsExport
+    
     checklistItems.push({
       id: 'mesh',
       label: 'Mesh',
-      isComplete: true,
-      details: `${availableSurfaces.length.toLocaleString()} surfaces`
+      isComplete: isMeshComplete,
+      details: meshNeedsExport 
+        ? 'Needs re-export' 
+        : meshFilename 
+          ? `${availableSurfaces.length.toLocaleString()} surfaces`
+          : 'No filename set'
     })
   }
 
@@ -135,7 +143,7 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
                 ? 'checklist-item-complete'
                 : item.id === 'thermodynamics'
                 ? 'checklist-item-default'
-                : item.id === 'boundary-conditions' || item.id === 'code-control'
+                : item.id === 'boundary-conditions' || item.id === 'code-control' || item.id === 'mesh'
                 ? 'checklist-item-warning'
                 : 'checklist-item-incomplete'
             } ${item.onClick ? 'checklist-item-clickable' : ''}`}

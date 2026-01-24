@@ -1178,11 +1178,12 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
     scene.background = new THREE.Color(0x1a1a1a)
   }, [scene])
   
-  // Expose canvas, camera, and controls for box selection
+  // Expose canvas, camera, renderer, and controls for box selection
   useEffect(() => {
     ;(window as any).boxSelectionRefs = {
       canvas: gl.domElement,
       camera: camera,
+      renderer: gl,
       getControls: () => controlsRef.current
     }
     return () => {

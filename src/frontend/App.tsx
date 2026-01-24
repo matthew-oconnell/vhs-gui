@@ -652,11 +652,10 @@ function App() {
       
       log('ESP', 'info', 'Generating CSM import script...')
       
-      // Generate CSM with import and mark (mark saves stack for later restore)
+      // Generate CSM with just the import statement
       // Quote filename to handle spaces and special characters
       const csmContent = `# Imported geometry from ${file.name}
 import "${file.name}"
-mark
 `
       
       log('ESP', 'info', 'CSM generated', { preview: csmContent.trim() })
@@ -704,7 +703,7 @@ mark
       const { loadESPSurfaces, csmBuilder } = useAppStore.getState()
       loadESPSurfaces(surfaces, file.name, csmContent)
       
-      // Record the initial CSM as base (this includes import, attribute, mark)
+      // Record the initial CSM as base (just the import statement)
       csmBuilder.clear()
       csmBuilder.setBase(csmContent) // Set the import CSM as the base
       
@@ -750,7 +749,7 @@ mark
     try {
       log('Farfield', 'info', 'Starting farfield domain creation...')
       
-      const { availableSurfaces, csmBuilder } = useAppStore.getState()
+      const { availableSurfaces } = useAppStore.getState()
       
       if (!importedGeometryFile) {
         throw new Error('No imported geometry file')
@@ -760,25 +759,33 @@ mark
       const boundingBox = calculateBoundingBox(availableSurfaces)
       const radius = boundingBox.characteristicLength * multiplier
       
-      log('Farfield', 'info', `Geometry center: (${boundingBox.center.x.toFixed(2)}, ${boundingBox.center.y.toFixed(2)}, ${boundingBox.center.z.toFixed(2)})`)
-      log('Farfield', 'info', `Characteristic length: ${boundingBox.characteristicLength.toFixed(2)}`)
       log('Farfield', 'info', `Multiplier: ${multiplier}`)
-      log('Farfield', 'info', `Farfield radius: ${radius.toFixed(2)}`)
       
-      // Record operations in CSMBuilder
-      csmBuilder.recordSphere(
-        boundingBox.center.x,
-        boundingBox.center.y,
-        boundingBox.center.z,
-        radius,
-        { description: `Farfield sphere with radius ${radius.toFixed(2)}` }
-      )
-      csmBuilder.recordOperation('attribute', `attribute bc_name $farfield`, { description: 'Set bc_name to farfield' })
-      csmBuilder.recordRestore({ description: 'Restore marked vehicle (swaps stack: sphere becomes bottom)' })
-      csmBuilder.recordSubtract({ description: 'Subtract vehicle from farfield sphere' })
-      
-      // Generate the complete CSM
-      const generatedCSM = csmBuilder.export()
+      // Generate complete CSM using store/restore pattern
+      // This leverages ESP's built-in @xmax, @xmin, etc. variables
+      // to automatically center the farfield sphere
+      const generatedCSM = `# Farfield domain with imported geometry
+import "${importedGeometryFile.name}"
+attribute bc_name $vehicle
+
+# Capture vehicle dimensions using ESP built-in variables
+set vehicle:length @xmax-@xmin
+set vehicle:xmax @xmax
+
+# Store the vehicle for later restore
+store vehicle
+
+# Create farfield sphere centered on vehicle
+sphere 0 0 0 vehicle:length*${multiplier}
+attribute bc_name $farfield
+
+# Translate sphere to be centered on vehicle bounding box
+translate vehicle:xmax-(vehicle:length/2) 0 0
+
+# Restore vehicle and subtract from farfield
+restore vehicle
+subtract
+`
       console.log('[App] Generated CSM:\n', generatedCSM)
       
       log('Farfield', 'info', 'Generated CSM script')

@@ -104,12 +104,19 @@ function FarfieldWizard({ isOpen, onClose, boundingBox, onCreateFarfield }: Farf
           <div className="csm-preview">
             <h3>CSM Operations Preview</h3>
             <pre className="csm-code">
-{`# Create farfield sphere
-sphere ${boundingBox.center.x.toFixed(3)} ${boundingBox.center.y.toFixed(3)} ${boundingBox.center.z.toFixed(3)} ${farfieldRadius.toFixed(3)}
-attribute bc_name $farfield
+{`# Import and store vehicle
+import <geometry>
+attribute bc_name $vehicle
+set vehicle:length @xmax-@xmin
+store vehicle
 
-# Restore and subtract vehicle
-restore
+# Create farfield sphere (${multiplier}× vehicle length)
+sphere 0 0 0 vehicle:length*${multiplier}
+attribute bc_name $farfield
+translate vehicle:xmax-(vehicle:length/2) 0 0
+
+# Subtract vehicle from farfield
+restore vehicle
 subtract`}
             </pre>
           </div>

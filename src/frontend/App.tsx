@@ -6,10 +6,12 @@ import SurfacesPanel from './components/SurfacesPanel/SurfacesPanel'
 import Viewport3D from './components/Viewport3D/Viewport3D'
 import MenuBar from './components/MenuBar/MenuBar'
 import NewProjectWizard, { ProjectConfig } from './components/MenuBar/NewProjectWizard'
+import ProjectSetupWizard from './components/ProjectSetupWizard/ProjectSetupWizard'
 import SettingsDialog from './components/SettingsDialog/SettingsDialog'
 import ValidationErrorDialog from './components/ValidationErrorDialog/ValidationErrorDialog'
 import FarfieldWizard from './components/FarfieldWizard/FarfieldWizard'
 import ConsolePanel from './components/ConsolePanel/ConsolePanel'
+import StatusBar from './components/StatusBar/StatusBar'
 import { useAppStore } from './store/appStore'
 import { useConsoleStore } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
@@ -24,6 +26,7 @@ import { calculateBoundingBox, BoundingBox } from './utils/geometryUtils'
 import './App.css'
 
 function App() {
+  const [showProjectSetup, setShowProjectSetup] = useState(false)
   const [showNewProjectWizard, setShowNewProjectWizard] = useState(false)
   const [showSettingsDialog, setShowSettingsDialog] = useState(false)
   const [showLumpDialog, setShowLumpDialog] = useState(false)
@@ -33,6 +36,7 @@ function App() {
   const [pendingConfig, setPendingConfig] = useState<any>(null) // Store config until mesh loads
   const [showFarfieldWizard, setShowFarfieldWizard] = useState(false)
   const [importedGeometryFile, setImportedGeometryFile] = useState<File | null>(null)
+  const [showThermoWizardFromStatusBar, setShowThermoWizardFromStatusBar] = useState(false)
   
   const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
   const { setCollapsed, isCollapsed, log } = useConsoleStore()
@@ -447,11 +451,17 @@ function App() {
         log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
         
         // Alert user about required dependency files
-        alert(
-          `This CSM file requires ${imports.length} dependency file(s):\n\n` +
-          imports.map(f => `  • ${f}`).join('\n') +
-          `\n\nYou will now be prompted to select each file.`
-        )
+        // Use setTimeout to ensure alert shows after any pending React renders
+        await new Promise<void>(resolve => {
+          setTimeout(() => {
+            alert(
+              `This CSM file requires ${imports.length} dependency file(s):\n\n` +
+              imports.map(f => `  • ${f}`).join('\n') +
+              `\n\nYou will now be prompted to select each file.`
+            )
+            resolve()
+          }, 100)
+        })
         
         // Prompt user for each dependency file
         const dependencies = new Map<string, File>()
@@ -851,8 +861,16 @@ subtract
 
   return (
     <div className="app-container">
+      <ProjectSetupWizard
+        isOpen={showProjectSetup}
+        onClose={() => setShowProjectSetup(false)}
+        onLoadMesh={handleLoadMesh}
+        onLoadCSM={handleLoadCSM}
+        onImportCAD={handleImportGeometry}
+      />
+      
       <MenuBar 
-        onNew={handleNew}
+        onNewProject={() => setShowProjectSetup(true)}
         onOpen={handleOpen}
         onSave={handleSave}
         onValidate={handleValidate}
@@ -864,6 +882,7 @@ subtract
         onCreateFarfield={handleCreateFarfield}
         onExportCSM={handleExportCSM}
       />
+      <StatusBar onOpenThermodynamicsWizard={() => setShowThermoWizardFromStatusBar(true)} />
       <PanelGroup direction="horizontal">
         {/* Left Panel Group - contains tree, editor, and surfaces vertically stacked */}
         <Panel defaultSize={25} minSize={15} maxSize={40}>
@@ -878,7 +897,7 @@ subtract
             
             {/* Editor Panel - Middle */}
             <Panel defaultSize={34} minSize={15}>
-              <EditorPanel />
+              <EditorPanel openThermoWizard={showThermoWizardFromStatusBar} onCloseThermoWizard={() => setShowThermoWizardFromStatusBar(false)} />
             </Panel>
             
             {/* Vertical Resize Handle */}

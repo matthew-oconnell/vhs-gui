@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import './MenuBar.css'
 
 interface MenuBarProps {
-  onNew?: () => void
+  onNewProject?: () => void
   onOpen?: () => void
   onSave?: () => void
   onValidate?: () => void
@@ -15,7 +15,7 @@ interface MenuBarProps {
   onExportCSM?: () => void
 }
 
-function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM }: MenuBarProps) {
+function MenuBar({ onNewProject, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -48,22 +48,22 @@ function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoad
 
   return (
     <div className="menu-bar" ref={menuRef}>
-      <div className="menu-item">
-        <button 
-          className={`menu-button ${openMenu === 'file' ? 'active' : ''}`}
-          onClick={() => handleMenuClick('file')}
-        >
-          File
-        </button>
-        {openMenu === 'file' && (
-          <div className="menu-dropdown">
-            <button 
-              className="menu-option" 
-              onClick={() => handleMenuItemClick(onNew || (() => console.log('New')))}
-            >
-              <span className="menu-option-label">New</span>
-              <span className="menu-option-shortcut">Ctrl+N</span>
-            </button>
+        <div className="menu-item">
+          <button 
+            className={`menu-button ${openMenu === 'file' ? 'active' : ''}`}
+            onClick={() => handleMenuClick('file')}
+          >
+            File
+          </button>
+          {openMenu === 'file' && (
+            <div className="menu-dropdown">
+              <button 
+                className="menu-option" 
+                onClick={() => handleMenuItemClick(onNewProject || (() => console.log('New Project')))}
+              >
+                <span className="menu-option-label">New Project</span>
+                <span className="menu-option-shortcut">Ctrl+N</span>
+              </button>
             <button 
               className="menu-option" 
               onClick={() => handleMenuItemClick(onOpen || (() => console.log('Open')))}

@@ -1,0 +1,160 @@
+/* Project Setup Wizard - Modal Overlay Styles */
+
+.wizard-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.wizard-modal {
+  background-color: #1e1e1e;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.wizard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid #3e3e42;
+}
+
+.wizard-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.wizard-close {
+  background: none;
+  border: none;
+  color: #cccccc;
+  font-size: 24px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  line-height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wizard-close:hover {
+  color: #ffffff;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.wizard-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.wizard-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #3e3e42;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.setup-wizard {
+  width: 600px;
+  max-width: 90vw;
+}
+
+.setup-intro {
+  color: #cccccc;
+  margin-bottom: 24px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.setup-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.setup-option-button {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background-color: #3e3e42;
+  border: 2px solid #5a5a5a;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.setup-option-button:hover {
+  background-color: #4a4a4e;
+  border-color: #0e639c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.setup-option-button:active {
+  transform: translateY(0);
+}
+
+.setup-option-icon {
+  font-size: 36px;
+  flex-shrink: 0;
+  width: 48px;
+  text-align: center;
+}
+
+.setup-option-text {
+  flex: 1;
+}
+
+.setup-option-text h3 {
+  margin: 0 0 4px 0;
+  color: #ffffff;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.setup-option-text p {
+  margin: 0;
+  color: #999999;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Modal button styles (consistent with other wizards) */
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.modal-button-secondary {
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.modal-button-secondary:hover {
+  background-color: #505050;
+}

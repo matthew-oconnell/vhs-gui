@@ -68,7 +68,20 @@ export interface GlobalRenderSettings {
   solidColor: string
 }
 
+// Project setup workflow stages
+export type ProjectStage = 
+  | 'no-mesh'           // No mesh loaded yet
+  | 'mesh-loaded'       // Mesh loaded, ready for BC assignment
+  | 'bc-in-progress'    // Some BCs assigned, but not all surfaces
+  | 'bc-complete'       // All surfaces have BCs
+  | 'init-complete'     // Initial conditions defined
+  | 'ready'             // All validation passed, ready to run
+
 interface AppState {
+  // Project workflow tracking
+  projectStage: ProjectStage
+  setProjectStage: (stage: ProjectStage) => void
+  updateProjectStage: () => void  // Auto-compute stage based on current state
   selectedNode: TreeNode | null
   setSelectedNode: (node: TreeNode | null) => void
   selectedSurface: Surface | null
@@ -117,6 +130,7 @@ interface AppState {
   addState: (state: State) => void
   updateState: (id: string, updates: Partial<State>) => void
   deleteState: (id: string) => void
+  thermoWizardExecuted: boolean
   updateThermodynamics: (thermoConfig: any) => void
   updateProperty: (path: string, key: string, value: any) => void
   initializeConfig: (projectConfig: any) => void
@@ -249,6 +263,61 @@ export const useAppStore = create<AppState>((set) => ({
   totalFaces: 0,
   originalCSMContent: null as string | null,
   csmFilename: null as string | null,
+  thermoWizardExecuted: false,
+  
+  // Project workflow stage tracking
+  projectStage: 'no-mesh' as ProjectStage,
+  
+  setProjectStage: (stage) => set({ projectStage: stage }),
+  
+  updateProjectStage: () => {
+    const state = useAppStore.getState()
+    const { availableSurfaces, configData, rootSolverKey } = state
+    
+    // No mesh loaded
+    if (availableSurfaces.length === 0) {
+      set({ projectStage: 'no-mesh' })
+      return
+    }
+    
+    // Mesh loaded - check BC assignment
+    const rootKey = rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    const bcs = rootConfig?.['boundary conditions'] || []
+    
+    // Count assigned surfaces
+    const assignedSurfaceNames = new Set<string>()
+    bcs.forEach((bc: any) => {
+      const tags = bc['mesh boundary tags']
+      if (tags) {
+        if (Array.isArray(tags)) {
+          tags.forEach(tag => assignedSurfaceNames.add(String(tag)))
+        } else {
+          assignedSurfaceNames.add(String(tags))
+        }
+      }
+    })
+    
+    const totalSurfaces = availableSurfaces.length
+    const assignedSurfaces = assignedSurfaceNames.size
+    
+    // Check if initial conditions are defined
+    const states = rootConfig?.states
+    const hasInitialConditions = states && Object.keys(states).length > 0
+    
+    // Determine stage
+    if (assignedSurfaces === 0) {
+      set({ projectStage: 'mesh-loaded' })
+    } else if (assignedSurfaces < totalSurfaces) {
+      set({ projectStage: 'bc-in-progress' })
+    } else if (!hasInitialConditions) {
+      set({ projectStage: 'bc-complete' })
+    } else {
+      // All BCs assigned and initial conditions set
+      set({ projectStage: 'init-complete' })
+      // TODO: Add validation check for 'ready' stage
+    }
+  },
   
   // Camera settings with defaults matching Paraview behavior
   cameraSettings: {
@@ -507,6 +576,9 @@ export const useAppStore = create<AppState>((set) => ({
       })
     }
     
+    // Update project stage after BC added
+    setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
+    
     return {
       configData: {
         ...state.configData,
@@ -553,6 +625,9 @@ export const useAppStore = create<AppState>((set) => ({
       })
     }
     
+    // Update project stage after BC updated
+    setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
+    
     return {
       configData: {
         ...state.configData,
@@ -574,6 +649,10 @@ export const useAppStore = create<AppState>((set) => ({
   deleteBoundaryCondition: (id) => set((state) => {
     const rootKey = state.rootSolverKey || 'HyperSolve'
     const rootConfig = (state.configData as any)[rootKey] || {}
+    
+    // Update project stage after BC deleted
+    setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
+    
     return {
       configData: {
         ...state.configData,
@@ -593,6 +672,10 @@ export const useAppStore = create<AppState>((set) => ({
     const rootConfig = (s.configData as any)[rootKey] || {}
     console.log('[addState] Adding state:', state.name, 'to', rootKey)
     console.log('[addState] Current states:', Object.keys(rootConfig.states || {}))
+    
+    // Update project stage after state added
+    setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
+    
     const newConfig = {
       configData: {
         ...s.configData,
@@ -653,6 +736,9 @@ export const useAppStore = create<AppState>((set) => ({
     
     const newStates = { ...states }
     delete newStates[(stateToDelete as any).name]
+    
+    // Update project stage after state deleted
+    setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
     
     return {
       configData: {
@@ -715,6 +801,7 @@ export const useAppStore = create<AppState>((set) => ({
     }
     
     return {
+      thermoWizardExecuted: true,
       configData: updateConfig(s.configData, {
         [rootKey]: {
           ...s.configData[rootKey],
@@ -993,7 +1080,7 @@ export const useAppStore = create<AppState>((set) => ({
       'mesh filename': filename
     }
     
-    return {
+    const newState = {
       ...s,
       configData: updatedConfigData,
       availableSurfaces: surfaces,
@@ -1002,6 +1089,11 @@ export const useAppStore = create<AppState>((set) => ({
       totalFaces: parsedMesh.totalFaces,
       selectedSurface: null
     }
+    
+    // Update project stage after mesh loaded
+    setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
+    
+    return newState
   }),
   
   loadESPSurfaces: (surfaces, filename, csmContent) => set((s) => {
@@ -1068,7 +1160,7 @@ export const useAppStore = create<AppState>((set) => ({
       'csm filename': filename
     }
     
-    return {
+    const newState = {
       ...s,
       configData: updatedConfigData,
       availableSurfaces: surfaces,
@@ -1079,5 +1171,10 @@ export const useAppStore = create<AppState>((set) => ({
       originalCSMContent: csmContent || null,
       csmFilename: filename
     }
+    
+    // Update project stage after mesh loaded
+    setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
+    
+    return newState
   })
 }))

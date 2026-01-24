@@ -76,7 +76,12 @@ const BC_TYPES = [
   'outflow em'
 ]
 
-function EditorPanel() {
+interface EditorPanelProps {
+  openThermoWizard?: boolean
+  onCloseThermoWizard?: () => void
+}
+
+function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps = {}) {
   const [showStateWizard, setShowStateWizard] = useState(false)
   const [showBCDialog, setShowBCDialog] = useState(false)
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
@@ -88,6 +93,14 @@ function EditorPanel() {
   const [selectedSurfaceForNormal, setSelectedSurfaceForNormal] = useState<string>('')
   const [schema, setSchema] = useState<Schema | null>(null)
   const [availableBCTypes, setAvailableBCTypes] = useState<string[]>(BC_TYPES)
+  
+  // Handle external thermo wizard trigger from StatusBar
+  useEffect(() => {
+    if (openThermoWizard) {
+      setShowThermoWizard(true)
+      onCloseThermoWizard?.()
+    }
+  }, [openThermoWizard, onCloseThermoWizard])
   
   useEffect(() => {
     // Load the schema

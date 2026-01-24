@@ -1,0 +1,165 @@
+/**
+ * StatusBar CSS - Checklist-based progress tracker
+ * Matches VS Code dark theme colors
+ */
+
+.status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background-color: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  font-size: 12px;
+  color: #cccccc;
+  min-height: 36px;
+  gap: 20px;
+}
+
+.status-bar-empty {
+  justify-content: center;
+  background-color: #3e2723;
+  border-bottom: 1px solid #5d4037;
+}
+
+.status-bar-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ffa726;
+}
+
+/* Checklist container */
+.status-bar-checklist {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-grow: 1;
+}
+
+/* Individual checklist item */
+.checklist-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  border: 1px solid #3e3e42;
+  transition: all 0.2s ease;
+}
+
+.checklist-item-clickable {
+  cursor: pointer;
+}
+
+.checklist-item-clickable:hover {
+  background-color: #2d2d30;
+  border-color: #4fc3f7;
+  transform: translateY(-1px);
+}
+
+.checklist-item-complete {
+  background-color: #1e4620;
+  color: #73c991;
+  border-color: #2d5a2f;
+}
+
+.checklist-item-default {
+  background-color: #1e3a5a;
+  color: #4fc3f7;
+  border-color: #2d5a7f;
+}
+
+.checklist-item-warning {
+  background-color: #5a4a1e;
+  color: #ffa726;
+  border-color: #7f6a2d;
+}
+
+.checklist-item-incomplete {
+  background-color: transparent;
+  color: #cccccc;
+  border-color: #555555;
+}
+
+/* Checklist icons */
+.checklist-icon-complete {
+  color: #73c991;
+  flex-shrink: 0;
+}
+
+.checklist-icon-incomplete {
+  color: #858585;
+  fill: none;
+  stroke: #858585;
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+/* Checklist labels */
+.checklist-label {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.checklist-details {
+  font-size: 11px;
+  opacity: 0.8;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
+/* Ready indicator */
+.status-bar-ready {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: #1e4620;
+  color: #73c991;
+  border: 1px solid #2d5a2f;
+  border-radius: 3px;
+  font-weight: 600;
+  animation: ready-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ready-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Responsive behavior */
+@media (max-width: 1200px) {
+  .status-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .status-bar-checklist {
+    flex-wrap: wrap;
+  }
+}
+  }
+  
+  .status-bar-details {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+/* Hover effects */
+.status-bar-stage:hover {
+  opacity: 0.9;
+}
+
+.status-bar-stage-complete:hover,
+.status-bar-stage-current:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}

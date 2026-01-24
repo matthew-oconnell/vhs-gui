@@ -7,20 +7,30 @@
  * 
  * Detects:
  * - import filename (external file)
- * - restore filename (external file, NOT stored bodies)
+ * - restore filename (external file, NOT stored bodies or special tokens)
  * 
  * Note: "restore" can restore either:
  * 1. A previously stored body (e.g., "store vehicle" then "restore vehicle")
- * 2. An external file
+ * 2. An external file (e.g., "restore part.stp")
+ * 3. Special tokens (e.g., "restore ." means restore marked body from stack)
  * 
- * This function excludes stored body names from the import list.
+ * This function excludes:
+ * - Stored body names
+ * - Special CSM tokens: "." (mark stack), ".." (parent), etc.
  * 
  * @param csmContent The CSM file content
- * @returns Array of imported filenames (excluding stored body names)
+ * @returns Array of imported filenames (excluding stored bodies and special tokens)
  */
 export const parseCSMImports = (csmContent: string): string[] => {
   const imports = new Set<string>()
   const storedBodies = new Set<string>()
+  
+  // CSM special tokens that are NOT file imports
+  const specialTokens = new Set([
+    '.',   // Current mark stack / last marked body
+    '..',  // Parent in hierarchy (if supported)
+    '@',   // Parameter reference prefix (though usually followed by name)
+  ])
   
   // First, find all stored body names
   const storeRegex = /^\s*store\s+(\S+)/gim
@@ -35,6 +45,11 @@ export const parseCSMImports = (csmContent: string): string[] => {
   
   while ((match = importRegex.exec(csmContent)) !== null) {
     const filename = match[1]
+    
+    // Exclude special CSM tokens (e.g., "restore ." means restore marked body)
+    if (specialTokens.has(filename)) {
+      continue
+    }
     
     // Exclude stored body names (e.g., "restore vehicle" after "store vehicle")
     if (!storedBodies.has(filename)) {

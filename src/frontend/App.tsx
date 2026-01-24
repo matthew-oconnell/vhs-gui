@@ -37,6 +37,41 @@ function App() {
   const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
   const { setCollapsed, isCollapsed, log } = useConsoleStore()
 
+  /**
+   * Detect log level from ESP/EGADS message content
+   * 
+   * ESP output defaults to INFO. Only errors and warnings are special-cased.
+   */
+  const detectESPLogLevel = (message: string): 'error' | 'warning' | 'info' | 'debug' => {
+    const lowerMsg = message.toLowerCase()
+    
+    // Error patterns
+    if (
+      lowerMsg.startsWith('error') ||
+      lowerMsg.includes('error:') ||
+      lowerMsg.includes('bad status') ||
+      lowerMsg.includes('failed') ||
+      lowerMsg.includes('exception') ||
+      lowerMsg.includes('did not create') ||
+      lowerMsg.includes('max trys exceeded') ||
+      lowerMsg.includes('ocsmerror')
+    ) {
+      return 'error'
+    }
+    
+    // Warning patterns
+    if (
+      lowerMsg.includes('warning:') ||
+      lowerMsg.includes('egads warning') ||
+      lowerMsg.includes('nothing found')
+    ) {
+      return 'warning'
+    }
+    
+    // Default: Everything else is INFO
+    return 'info'
+  }
+
   // Keyboard shortcut for console toggle (Ctrl+`)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -385,8 +420,7 @@ function App() {
       }
       
       log('ESP', 'success', 'ESP server is ready')
-      log('Geometry', 'info', 'Opening file picker...')
-      log('Geometry', 'info', 'Opening file picker...')
+      log('Geometry', 'info', 'Opening file picker for CSM file...')
       
       // Open file picker for .csm files
       const [fileHandle] = await window.showOpenFilePicker({
@@ -402,7 +436,6 @@ function App() {
       // Read file contents
       const csmContent = await file.text()
       log('ESP', 'info', `CSM loaded: ${csmContent.split('\n').length} lines`)
-      log('ESP', 'info', `CSM loaded: ${csmContent.split('\n').length} lines`)
       
       // Check for import/restore statements
       const { parseCSMImports } = await import('./utils/csmParser')
@@ -413,18 +446,29 @@ function App() {
       if (imports.length > 0) {
         log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
         
+        // Alert user about required dependency files
+        alert(
+          `This CSM file requires ${imports.length} dependency file(s):\n\n` +
+          imports.map(f => `  • ${f}`).join('\n') +
+          `\n\nYou will now be prompted to select each file.`
+        )
+        
         // Prompt user for each dependency file
         const dependencies = new Map<string, File>()
         
         for (const importPath of imports) {
           try {
-            log('Geometry', 'info', `Select dependency: ${importPath}`)
-            log('Geometry', 'info', `Select dependency: ${importPath}`)
+            log('Geometry', 'info', `Waiting for: ${importPath}`)
             
             const [depHandle] = await window.showOpenFilePicker({
               types: [{
-                description: `Required file: ${importPath}`,
-                accept: { '*/*': [] }  // Accept any file type
+                description: `CSM Dependency: ${importPath}`,
+                accept: { 
+                  'application/stp': ['.stp', '.step'],
+                  'application/iges': ['.igs', '.iges'],
+                  'application/octet-stream': ['.egads'],
+                  '*/*': []
+                }
               }],
               suggestedName: importPath,
               multiple: false
@@ -438,8 +482,13 @@ function App() {
             
           } catch (depError) {
             if ((depError as any).name === 'AbortError') {
-              log('Geometry', 'warning', `CSM requires ${importPath} - cancelled`)
-              alert(`CSM file requires: ${importPath}\n\nCancelling CSM load.`)
+              log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
+              alert(
+                `Missing Required File\n\n` +
+                `The CSM file needs: ${importPath}\n\n` +
+                `Without this file, the geometry cannot be loaded.\n` +
+                `Cancelling CSM load.`
+              )
               return
             }
             throw depError
@@ -451,7 +500,8 @@ function App() {
         
         const { buildCSMWithDepsStreaming } = await import('./utils/espApi')
         response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
-          log('ESP', 'debug', logLine)
+          const level = detectESPLogLevel(logLine)
+          log('ESP', level, logLine)
         })
         
       } else {
@@ -467,7 +517,10 @@ function App() {
       
       // Add server build log (only for non-streaming builds)
       if (response.build_log?.length) {
-        response.build_log.forEach(line => log('ESP', 'debug', line))
+        response.build_log.forEach(line => {
+          const level = detectESPLogLevel(line)
+          log('ESP', level, line)
+        })
       }
       
       log('ESP', 'success', `Build complete: ${response.message}`)

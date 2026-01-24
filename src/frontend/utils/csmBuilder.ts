@@ -81,6 +81,75 @@ export class CSMBuilder {
   }
   
   /**
+   * Record an import statement (for STEP files)
+   */
+  recordImport(filePath: string, metadata?: { description?: string }): string {
+    return this.recordOperation('primitive', `import ${filePath}`, {
+      description: metadata?.description || `Import geometry from ${filePath}`
+    })
+  }
+  
+  /**
+   * Record a mark statement
+   */
+  recordMark(metadata?: { description?: string }): string {
+    return this.recordOperation('primitive', 'mark', {
+      description: metadata?.description || 'Mark current position on geometry stack'
+    })
+  }
+  
+  /**
+   * Record a sphere primitive
+   */
+  recordSphere(
+    x: number, 
+    y: number, 
+    z: number, 
+    radius: number,
+    metadata?: { description?: string }
+  ): string {
+    return this.recordOperation('primitive', `sphere ${x} ${y} ${z} ${radius}`, {
+      description: metadata?.description || `Create sphere at (${x}, ${y}, ${z}) with radius ${radius}`
+    })
+  }
+  
+  /**
+   * Record a restore statement
+   */
+  recordRestore(metadata?: { description?: string }): string {
+    return this.recordOperation('boolean', 'restore .', {
+      description: metadata?.description || 'Restore geometry from mark'
+    })
+  }
+  
+  /**
+   * Record a subtract boolean operation
+   */
+  recordSubtract(metadata?: { description?: string }): string {
+    return this.recordOperation('boolean', 'subtract', {
+      description: metadata?.description || 'Subtract top geometry from second'
+    })
+  }
+  
+  /**
+   * Record a union boolean operation
+   */
+  recordUnion(metadata?: { description?: string }): string {
+    return this.recordOperation('boolean', 'union', {
+      description: metadata?.description || 'Union top two geometries'
+    })
+  }
+  
+  /**
+   * Record an intersect boolean operation
+   */
+  recordIntersect(metadata?: { description?: string }): string {
+    return this.recordOperation('boolean', 'intersect', {
+      description: metadata?.description || 'Intersect top two geometries'
+    })
+  }
+  
+  /**
    * Export CSM with all recorded operations
    */
   export(): string {
@@ -92,73 +161,15 @@ export class CSMBuilder {
       csm += '# Operations added by VHS-GUI\n'
       csm += `# Generated: ${new Date().toISOString()}\n`
       csm += `# Total operations: ${this.operations.length}\n`
-      csm += '# ===================================================================\n'
+      csm += '# ===================================================================\n\n'
     }
     
-    // Group operations by type for better CSM organization
-    const groupedOps = this.groupOperations()
-    
-    // Add each group with comments
-    for (const [groupType, ops] of groupedOps) {
-      if (ops.length === 0) continue
-      
-      csm += `\n# ${this.getGroupComment(groupType)}\n`
-      
-      for (const op of ops) {
-        csm += this.formatOperation(op) + '\n'
-      }
+    // Add operations in sequence (no grouping - attributes must follow their geometry)
+    for (const op of this.operations) {
+      csm += this.formatOperation(op) + '\n'
     }
     
     return csm
-  }
-  
-  /**
-   * Group operations by type for better organization
-   */
-  private groupOperations(): Map<string, CSMOperation[]> {
-    const groups = new Map<string, CSMOperation[]>()
-    
-    // Group select/attribute pairs together
-    const attributeGroups: CSMOperation[] = []
-    const otherOps: CSMOperation[] = []
-    
-    for (let i = 0; i < this.operations.length; i++) {
-      const op = this.operations[i]
-      
-      if (op.type === 'select' || op.type === 'attribute') {
-        attributeGroups.push(op)
-      } else {
-        otherOps.push(op)
-      }
-    }
-    
-    if (attributeGroups.length > 0) {
-      groups.set('attributes', attributeGroups)
-    }
-    
-    if (otherOps.length > 0) {
-      groups.set('other', otherOps)
-    }
-    
-    return groups
-  }
-  
-  /**
-   * Get a descriptive comment for a group of operations
-   */
-  private getGroupComment(groupType: string): string {
-    switch (groupType) {
-      case 'attributes':
-        return 'Boundary condition name assignments'
-      case 'primitives':
-        return 'Primitive geometry creation'
-      case 'booleans':
-        return 'Boolean operations'
-      case 'transforms':
-        return 'Transformations'
-      default:
-        return 'Additional operations'
-    }
   }
   
   /**

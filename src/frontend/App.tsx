@@ -8,16 +8,19 @@ import MenuBar from './components/MenuBar/MenuBar'
 import NewProjectWizard, { ProjectConfig } from './components/MenuBar/NewProjectWizard'
 import SettingsDialog from './components/SettingsDialog/SettingsDialog'
 import ValidationErrorDialog from './components/ValidationErrorDialog/ValidationErrorDialog'
-import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
+import FarfieldWizard from './components/FarfieldWizard/FarfieldWizard'
+import ConsolePanel from './components/ConsolePanel/ConsolePanel'
 import { useAppStore } from './store/appStore'
+import { useConsoleStore } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
 import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fileUtils'
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
 import { loadSchemaWithSolverKey } from './utils/schemaUtils'
-import { buildCSM, checkESPHealth } from './utils/espApi'
+import { buildCSM, checkESPHealth, buildCSMWithDepsStreaming } from './utils/espApi'
 import { convertESPRegionsToSurfaces } from './utils/espAdapter'
+import { calculateBoundingBox, BoundingBox } from './utils/geometryUtils'
 import './App.css'
 
 function App() {
@@ -28,13 +31,30 @@ function App() {
   const [validationErrors, setValidationErrors] = useState<ValidationErrorItem[]>([])
   const [pendingMesh, setPendingMesh] = useState<{ parsedMesh: any; filename: string } | null>(null)
   const [pendingConfig, setPendingConfig] = useState<any>(null) // Store config until mesh loads
-  
-  // Loading overlay state
-  const [isLoading, setIsLoading] = useState(false)
-  const [loadingMessage, setLoadingMessage] = useState('')
-  const [loadingLog, setLoadingLog] = useState<string[]>([])
+  const [showFarfieldWizard, setShowFarfieldWizard] = useState(false)
+  const [importedGeometryFile, setImportedGeometryFile] = useState<File | null>(null)
   
   const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
+  const { setCollapsed, isCollapsed, log } = useConsoleStore()
+
+  // Keyboard shortcut for console toggle (Ctrl+`)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === '`') {
+        e.preventDefault()
+        setCollapsed(!isCollapsed)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isCollapsed, setCollapsed])
+
+  // Add test logs on startup
+  useEffect(() => {
+    log('UI', 'success', 'Application started successfully')
+    log('DEBUG', 'info', 'Console panel is ready')
+    log('ESP', 'info', 'Waiting for ESP operations...')
+  }, [log])
 
   // Load schema on startup to determine root solver key (Vulcan or HyperSolve)
   useEffect(() => {
@@ -354,19 +374,19 @@ function App() {
     console.log('[App] Open CSM clicked')
     
     try {
-      setIsLoading(true)
-      setLoadingMessage('Checking ESP server')
-      setLoadingLog([])
+      log('ESP', 'info', 'Checking ESP server health...')
       
       // First check if ESP server is available
       const health = await checkESPHealth()
       if (!health.esp_available) {
-        setIsLoading(false)
+        log('ESP', 'error', `ESP server not available: ${health.message}`)
         alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
         return
       }
       
-      setLoadingMessage('Selecting CSM file')
+      log('ESP', 'success', 'ESP server is ready')
+      log('Geometry', 'info', 'Opening file picker...')
+      log('Geometry', 'info', 'Opening file picker...')
       
       // Open file picker for .csm files
       const [fileHandle] = await window.showOpenFilePicker({
@@ -377,14 +397,12 @@ function App() {
       })
       
       const file = await fileHandle.getFile()
-      console.log('[App] Selected CSM file:', file.name)
+      log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
       
       // Read file contents
       const csmContent = await file.text()
-      setLoadingMessage('Parsing CSM file')
-      setLoadingLog([`CSM file: ${file.name}`, `Size: ${csmContent.length} chars`])
-      
-      console.log('[App] CSM content length:', csmContent.length, 'chars')
+      log('ESP', 'info', `CSM loaded: ${csmContent.split('\n').length} lines`)
+      log('ESP', 'info', `CSM loaded: ${csmContent.split('\n').length} lines`)
       
       // Check for import/restore statements
       const { parseCSMImports } = await import('./utils/csmParser')
@@ -393,16 +411,15 @@ function App() {
       let response
       
       if (imports.length > 0) {
-        console.log('[App] CSM has', imports.length, 'import statements:', imports)
-        setLoadingLog(prev => [...prev, `Found ${imports.length} dependencies: ${imports.join(', ')}`])
+        log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
         
         // Prompt user for each dependency file
         const dependencies = new Map<string, File>()
         
         for (const importPath of imports) {
           try {
-            console.log('[App] Prompting for dependency:', importPath)
-            setLoadingMessage(`Select file: ${importPath}`)
+            log('Geometry', 'info', `Select dependency: ${importPath}`)
+            log('Geometry', 'info', `Select dependency: ${importPath}`)
             
             const [depHandle] = await window.showOpenFilePicker({
               types: [{
@@ -414,15 +431,14 @@ function App() {
             })
             
             const depFile = await depHandle.getFile()
-            console.log('[App] Selected dependency:', depFile.name, '(', depFile.size, 'bytes )')
-            setLoadingLog(prev => [...prev, `Loaded: ${depFile.name} (${depFile.size} bytes)`])
+            log('Geometry', 'success', `Loaded: ${depFile.name} (${depFile.size} bytes)`)
             
             // Use the import path as the key (preserves relative path semantics)
             dependencies.set(importPath, depFile)
             
           } catch (depError) {
             if ((depError as any).name === 'AbortError') {
-              setIsLoading(false)
+              log('Geometry', 'warning', `CSM requires ${importPath} - cancelled`)
               alert(`CSM file requires: ${importPath}\n\nCancelling CSM load.`)
               return
             }
@@ -431,62 +447,49 @@ function App() {
         }
         
         // Build CSM with dependencies
-        console.log('[App] Building CSM with', dependencies.size, 'dependencies...')
-        setLoadingMessage('Building CSM geometry')
-        setLoadingLog(prev => [...prev, 'Sending to ESP server...'])
+        log('ESP', 'info', `Building CSM with ${dependencies.size} dependencies...`)
         
         const { buildCSMWithDepsStreaming } = await import('./utils/espApi')
         response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
-          setLoadingLog(prev => [...prev, logLine])
+          log('ESP', 'debug', logLine)
         })
         
       } else {
         // No imports - use standard build
-        console.log('[App] Building CSM geometry via ESP gateway...')
-        setLoadingMessage('Building CSM geometry')
-        setLoadingLog(prev => [...prev, 'No dependencies', 'Sending to ESP server...'])
+        log('ESP', 'info', 'Building CSM (no dependencies)...')
         response = await buildCSM(csmContent)
       }
       
       if (!response.success) {
-        setIsLoading(false)
+        log('ESP', 'error', `Build failed: ${response.message}`)
         throw new Error(response.message)
       }
       
       // Add server build log (only for non-streaming builds)
       if (response.build_log?.length) {
-        console.log('[App] Received', response.build_log.length, 'build log lines')
-        setLoadingLog(prev => [...prev, '', '--- ESP Server Build Log ---', ...response.build_log, '--- End Build Log ---', ''])
-      } else {
-        console.log('[App] Build log already streamed or not available')
+        response.build_log.forEach(line => log('ESP', 'debug', line))
       }
       
-      console.log('[App] ESP build successful:', response.message)
-      console.log('[App] Got', response.regions?.length || 0, 'regions,', response.total_vertices, 'vertices')
-      
-      setLoadingMessage('Processing geometry')
-      setLoadingLog(prev => [...prev, '', `✓ Received ${response.regions?.length || 0} faces`])
+      log('ESP', 'success', `Build complete: ${response.message}`)
+      log('Geometry', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
+      log('Geometry', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
       
       // Convert ESP regions to our Surface format (individual faces)
       const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
-      console.log('[App] Converted to', surfaces?.length || 0, 'surfaces')
+      log('Geometry', 'success', `Converted to ${surfaces?.length || 0} surfaces`)
       
       // Load into the store (pass CSM content for export)
       loadESPSurfaces(surfaces, file.name, csmContent)
       
-      console.log('[App] CSM loaded successfully!')
-      setLoadingLog(prev => [...prev, '✓ CSM loaded successfully!'])
-      
-      // Keep overlay visible briefly
-      setTimeout(() => setIsLoading(false), 1500)
+      log('Geometry', 'success', 'CSM loaded successfully!')
       
     } catch (error) {
       if ((error as any).name === 'AbortError') {
-        console.log('[App] File selection cancelled')
+        log('Geometry', 'warning', 'File selection cancelled')
         return
       }
+      log('Geometry', 'error', `Failed to load CSM: ${(error as Error).message}`)
       console.error('[App] Error loading CSM:', error)
-      alert(`Failed to load CSM file: ${(error as Error).message}`)
     }
   }
 
@@ -560,6 +563,222 @@ function App() {
     }
   }
 
+  const handleImportGeometry = async () => {
+    console.log('[App] Import Geometry clicked')
+    
+    try {
+      log('Geometry', 'info', 'Starting geometry import...')
+      
+      // Check ESP server is available
+      log('ESP', 'info', 'Checking ESP server health...')
+      const health = await checkESPHealth()
+      if (!health.esp_available) {
+        log('ESP', 'error', `ESP server not available: ${health.message}`)
+        alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
+        return
+      }
+      log('ESP', 'success', 'ESP server is ready')
+      
+      log('Geometry', 'info', 'Opening file picker...')
+      log('Geometry', 'info', 'Opening file picker...')
+      
+      // Open file picker for STEP files
+      const [fileHandle] = await window.showOpenFilePicker({
+        types: [{
+          description: 'STEP Files',
+          accept: { 
+            'application/step': ['.step', '.stp'],
+            'application/octet-stream': ['.step', '.stp']
+          }
+        }]
+      })
+      
+      const file = await fileHandle.getFile()
+      log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
+      setImportedGeometryFile(file)
+      
+      log('ESP', 'info', 'Generating CSM import script...')
+      
+      // Generate CSM with import and mark (mark saves stack for later restore)
+      // Quote filename to handle spaces and special characters
+      const csmContent = `# Imported geometry from ${file.name}
+import "${file.name}"
+mark
+`
+      
+      log('ESP', 'info', 'CSM generated', { preview: csmContent.trim() })
+      
+      // Build CSM with the STEP file as dependency
+      const dependencies = new Map<string, File>()
+      dependencies.set(file.name, file)
+      
+      log('ESP', 'info', 'Sending STEP file to ESP server...')
+      
+      const response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
+        // Stream ESP output to console
+        log('ESP', 'debug', logLine)
+      })
+      
+      if (!response.success) {
+        log('ESP', 'error', `Build failed: ${response.message}`)
+        throw new Error(response.message)
+      }
+      
+      log('ESP', 'success', `Build complete: ${response.message}`)
+      log('Geometry', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
+      
+      // Check if we actually got any geometry
+      if (!response.regions || response.regions.length === 0) {
+        log('Geometry', 'error', 'No geometry loaded from STEP file')
+        throw new Error('ESP build completed but no geometry was loaded. Check the ESP error log for details.')
+      }
+      
+      log('Geometry', 'info', 'Converting ESP regions to surfaces...')
+      
+      // Convert ESP regions to surfaces
+      const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
+      log('Geometry', 'success', `Converted to ${surfaces.length} surfaces`)
+      
+      // Load into store
+      const { loadESPSurfaces, csmBuilder } = useAppStore.getState()
+      loadESPSurfaces(surfaces, file.name, csmContent)
+      
+      // Record the initial CSM as base (this includes import, attribute, mark)
+      csmBuilder.clear()
+      csmBuilder.setBase(csmContent) // Set the import CSM as the base
+      
+      log('Geometry', 'success', `Geometry imported successfully: ${surfaces.length} surfaces loaded`)
+      // Success - geometry is now visible in 3D viewer
+      
+    } catch (error) {
+      if ((error as any).name === 'AbortError') {
+        log('Geometry', 'warning', 'Import cancelled by user')
+        return
+      }
+      log('Geometry', 'error', `Import failed: ${(error as Error).message}`)
+      console.error('[App] Error importing geometry:', error)
+    }
+  }
+
+  const handleCreateFarfield = async () => {
+    console.log('[App] Create Farfield clicked')
+    
+    const { availableSurfaces } = useAppStore.getState()
+    
+    if (availableSurfaces.length === 0) {
+      alert('No geometry loaded.\n\nPlease import geometry first using File → Import Geometry.')
+      return
+    }
+    
+    if (!importedGeometryFile) {
+      alert('No imported geometry file found.\n\nPlease use File → Import Geometry to import a STEP file first.')
+      return
+    }
+    
+    // Calculate bounding box
+    const boundingBox = calculateBoundingBox(availableSurfaces)
+    console.log('[App] Bounding box:', boundingBox)
+    
+    // Show wizard
+    setShowFarfieldWizard(true)
+  }
+
+  const handleFarfieldCreation = async (multiplier: number) => {
+    console.log('[App] Creating farfield with multiplier:', multiplier)
+    
+    try {
+      setIsLoading(true)
+      setLoadingMessage('Creating farfield domain')
+      setLoadingLog([])
+      
+      // Local array to accumulate ESP log (state updates are async)
+      const espLogMessages: string[] = []
+      
+      const { availableSurfaces, csmBuilder } = useAppStore.getState()
+      
+      if (!importedGeometryFile) {
+        throw new Error('No imported geometry file')
+      }
+      
+      // Calculate farfield parameters
+      const boundingBox = calculateBoundingBox(availableSurfaces)
+      const radius = boundingBox.characteristicLength * multiplier
+      
+      setLoadingLog([
+        `Geometry center: (${boundingBox.center.x.toFixed(2)}, ${boundingBox.center.y.toFixed(2)}, ${boundingBox.center.z.toFixed(2)})`,
+        `Characteristic length: ${boundingBox.characteristicLength.toFixed(2)}`,
+        `Multiplier: ${multiplier}`,
+        `Farfield radius: ${radius.toFixed(2)}`,
+        ''
+      ])
+      
+      // Record operations in CSMBuilder
+      csmBuilder.recordSphere(
+        boundingBox.center.x,
+        boundingBox.center.y,
+        boundingBox.center.z,
+        radius,
+        { description: `Farfield sphere with radius ${radius.toFixed(2)}` }
+      )
+      csmBuilder.recordOperation('attribute', `attribute bc_name $farfield`, { description: 'Set bc_name to farfield' })
+      csmBuilder.recordRestore({ description: 'Restore marked vehicle (swaps stack: sphere becomes bottom)' })
+      csmBuilder.recordSubtract({ description: 'Subtract vehicle from farfield sphere' })
+      
+      // Generate the complete CSM
+      const generatedCSM = csmBuilder.export()
+      console.log('[App] Generated CSM:\n', generatedCSM)
+      
+      setLoadingMessage('Building farfield geometry')
+      setLoadingLog(prev => [...prev, 'Generated CSM:', generatedCSM, '', 'Sending to ESP server...'])
+      
+      // Build CSM with STEP file dependency
+      const dependencies = new Map<string, File>()
+      dependencies.set(importedGeometryFile.name, importedGeometryFile)
+      
+      const response = await buildCSMWithDepsStreaming(generatedCSM, dependencies, (logLine) => {
+        console.log('[ESP]', logLine)  // Log to console for debugging
+        setLoadingLog(prev => [...prev, logLine])
+        espLogMessages.push(logLine)  // Accumulate in local array
+      })
+      
+      if (!response.success) {
+        setIsLoading(false)
+        throw new Error(response.message)
+      }
+      
+      console.log('[App] Farfield build successful:', response.message)
+      console.log('[App] Got', response.regions?.length || 0, 'regions')
+      
+      // Check if we actually got any geometry
+      if (!response.regions || response.regions.length === 0) {
+        setIsLoading(false)
+        throw new Error('ESP farfield build completed but no geometry was created. Check the ESP error log for details.')
+      }
+      
+      setLoadingMessage('Processing geometry')
+      setLoadingLog(prev => [...prev, '', `✓ Received ${response.regions?.length || 0} faces`])
+      
+      // Convert ESP regions to surfaces
+      const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
+      console.log('[App] Converted to', surfaces.length, 'surfaces')
+      
+      // Load into store
+      const { loadESPSurfaces } = useAppStore.getState()
+      loadESPSurfaces(surfaces, `${importedGeometryFile.name} (with farfield)`, generatedCSM)
+      
+      setIsLoading(false)
+      setLoadingMessage('')
+      setLoadingLog([])
+      
+      console.log('[App] Farfield created successfully:', surfaces.length, 'surfaces')
+      // Success - farfield domain is now visible in 3D viewer
+      
+    } catch (error) {
+      console.error('[App] Error creating farfield:', error)
+      log('ESP', 'error', `Failed to create farfield: ${(error as Error).message}`)
+    }
+  }
+
   return (
     <div className="app-container">
       <MenuBar 
@@ -571,6 +790,8 @@ function App() {
         onSettings={handleSettings}
         onLoadMesh={handleLoadMesh}
         onLoadCSM={handleLoadCSM}
+        onImportGeometry={handleImportGeometry}
+        onCreateFarfield={handleCreateFarfield}
         onExportCSM={handleExportCSM}
       />
       <PanelGroup direction="horizontal">
@@ -603,9 +824,19 @@ function App() {
         {/* Horizontal Resize Handle */}
         <PanelResizeHandle className="resize-handle resize-handle-horizontal" />
 
-        {/* Right Panel - 3D Viewport */}
+        {/* Right Panel - 3D Viewport + Console */}
         <Panel defaultSize={75} minSize={40}>
-          <Viewport3D />
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
+            {/* 3D Viewport */}
+            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+              <Viewport3D />
+            </div>
+            
+            {/* Console Panel - explicitly visible for debugging */}
+            <div style={{ flexShrink: 0 }}>
+              <ConsolePanel />
+            </div>
+          </div>
         </Panel>
       </PanelGroup>
 
@@ -640,6 +871,20 @@ function App() {
           }}
         />
       )}
+
+      {showFarfieldWizard && (() => {
+        const { availableSurfaces } = useAppStore.getState()
+        const boundingBox = calculateBoundingBox(availableSurfaces)
+        
+        return (
+          <FarfieldWizard
+            isOpen={showFarfieldWizard}
+            onClose={() => setShowFarfieldWizard(false)}
+            boundingBox={boundingBox}
+            onCreateFarfield={handleFarfieldCreation}
+          />
+        )
+      })()}
       
       {showLumpDialog && pendingMesh && (() => {
         // Calculate tag name counts
@@ -697,14 +942,6 @@ function App() {
           </div>
         )
       })()}
-      
-      {/* Loading Overlay */}
-      {isLoading && (
-        <LoadingOverlay
-          message={loadingMessage}
-          logLines={loadingLog}
-        />
-      )}
     </div>
   )
 }

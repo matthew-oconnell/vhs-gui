@@ -10,10 +10,12 @@ interface MenuBarProps {
   onSettings?: () => void
   onLoadMesh?: () => void
   onLoadCSM?: () => void
+  onImportGeometry?: () => void
+  onCreateFarfield?: () => void
   onExportCSM?: () => void
 }
 
-function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onExportCSM }: MenuBarProps) {
+function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -91,9 +93,22 @@ function MenuBar({ onNew, onOpen, onSave, onValidate, onExit, onSettings, onLoad
             </button>
             <button 
               className="menu-option" 
+              onClick={() => handleMenuItemClick(onImportGeometry || (() => console.log('Import Geometry')))}
+            >
+              <span className="menu-option-label">Import Geometry (STEP)</span>
+            </button>
+            <button 
+              className="menu-option" 
               onClick={() => handleMenuItemClick(onExportCSM || (() => console.log('Export CSM')))}
             >
               <span className="menu-option-label">Export CSM</span>
+            </button>
+            <div className="menu-separator" />
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onCreateFarfield || (() => console.log('Create Farfield')))}
+            >
+              <span className="menu-option-label">Create Farfield Domain</span>
             </button>
             <div className="menu-separator" />
             <button 

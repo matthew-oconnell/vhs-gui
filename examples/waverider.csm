@@ -1,0 +1,20 @@
+
+sphere 0 0 0 1000
+attribute bc_name $farfield
+
+import waverider.stp
+attribute bc_name $vehicle
+subtract
+
+set dx @xmax-@xmin
+set dy @ymax-@ymin
+set dz @zmax-@zmin
+box @xmin @ymin @zmin dx 0.5*dy dz
+attribute bc_name $symmetry
+subtract
+
+box 200 @ymin @zmin dx dy dz
+attribute bc_name $outflow
+subtract
+
+dump waverider.egads

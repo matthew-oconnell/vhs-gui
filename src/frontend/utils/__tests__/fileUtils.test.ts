@@ -225,4 +225,142 @@ describe('openJsonFile', () => {
       )
     })
   })
+
+  describe('JSON files with comments', () => {
+    it('loads JSON file with // comments', async () => {
+      // Arrange: JSON with C-style comments
+      const mockFile = createMockFile(
+        '{"key": "value"} // this is a comment',
+        'commented.json'
+      )
+
+      const mockFileHandle = {
+        getFile: vi.fn().mockResolvedValue(mockFile)
+      }
+
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: Comments should be stripped, JSON should parse
+      expect(result).toEqual({ key: 'value' })
+    })
+
+    it('loads JSON file with # comments', async () => {
+      // Arrange: JSON with shell-style comments
+      const mockFile = createMockFile(
+        '{"key": "value"} # this is a comment',
+        'commented.json'
+      )
+
+      const mockFileHandle = {
+        getFile: vi.fn().mockResolvedValue(mockFile)
+      }
+
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: Comments should be stripped, JSON should parse
+      expect(result).toEqual({ key: 'value' })
+    })
+
+    it('preserves URLs in string values', async () => {
+      // Arrange: JSON with URL containing //
+      const mockFile = createMockFile(
+        '{"url": "https://example.com/path"}',
+        'urls.json'
+      )
+
+      const mockFileHandle = {
+        getFile: vi.fn().mockResolvedValue(mockFile)
+      }
+
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: URL should be preserved exactly
+      expect(result.url).toBe('https://example.com/path')
+    })
+
+    it('preserves color codes with # in strings', async () => {
+      // Arrange: JSON with color code containing #
+      const mockFile = createMockFile(
+        '{"color": "#FF0000", "name": "red"}',
+        'colors.json'
+      )
+
+      const mockFileHandle = {
+        getFile: vi.fn().mockResolvedValue(mockFile)
+      }
+
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: Color code should be preserved
+      expect(result.color).toBe('#FF0000')
+      expect(result.name).toBe('red')
+    })
+
+    it('loads complete CFD configuration with mixed comments', async () => {
+      // Arrange: Realistic CFD config with both comment styles
+      const cfdConfig = `{
+  "mesh filename": "waverider.csm",  // geometry file
+  "HyperSolve": {
+    "boundary conditions": [
+      { "type": "no slip", "mesh boundary tags": 1 },  # wall
+      { "type": "riemann", "mesh boundary tags": 2 }   // freestream
+    ],
+    "states": {
+      "freestream": {
+        "mach number": 8.0  # hypersonic
+      }
+    }
+  }
+}`
+
+      const mockFile = createMockFile(cfdConfig, 'config.json')
+
+      const mockFileHandle = {
+        getFile: vi.fn().mockResolvedValue(mockFile)
+      }
+
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: All data should be parsed correctly
+      expect(result['mesh filename']).toBe('waverider.csm')
+      expect(result.HyperSolve['boundary conditions']).toHaveLength(2)
+      expect(result.HyperSolve['boundary conditions'][0].type).toBe('no slip')
+      expect(result.HyperSolve.states.freestream['mach number']).toBe(8.0)
+    })
+
+    it('handles URLs with comments on same line', async () => {
+      // Arrange: URL in string with comment after
+      const mockFile = createMockFile(
+        '{"website": "https://example.com"} // main site',
+        'config.json'
+      )
+
+      const mockFileHandle = {
+        getFile: vi.fn().mockResolvedValue(mockFile)
+      }
+
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: URL preserved, comment stripped
+      expect(result.website).toBe('https://example.com')
+    })
+  })
 })

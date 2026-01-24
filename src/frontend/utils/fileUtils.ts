@@ -2,6 +2,8 @@
  * Utility functions for file operations
  */
 
+import { stripJsonComments } from './jsonComments'
+
 /**
  * Saves data as a JSON file and prompts the user to select a save location
  * 
@@ -134,8 +136,11 @@ export const openJsonFile = async (): Promise<any> => {
     // Read the file content as text
     const text = await file.text();
     
+    // Strip comments from JSON text
+    const cleanedText = stripJsonComments(text);
+    
     // Parse and return JSON (will throw if invalid)
-    return JSON.parse(text);
+    return JSON.parse(cleanedText);
   } catch (error) {
     // If user cancels the file picker, return null instead of throwing
     if ((error as Error).name === 'AbortError') {
@@ -210,8 +215,11 @@ export const openJsonFileWithDirectory = async (): Promise<{ config: any; direct
     // Read the file content as text
     const text = await file.text();
     
+    // Strip comments from JSON text
+    const cleanedText = stripJsonComments(text);
+    
     // Parse JSON (will throw if invalid)
-    const config = JSON.parse(text);
+    const config = JSON.parse(cleanedText);
     
     // Get the directory handle (parent directory of the file)
     // @ts-ignore - FileSystemFileHandle may have parent access in some browsers

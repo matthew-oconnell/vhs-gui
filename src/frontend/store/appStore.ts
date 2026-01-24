@@ -3,6 +3,7 @@ import { TreeNode } from '../utils/schemaParser'
 import { Surface } from '../types/surface'
 import { ConfigData, BoundaryCondition, State } from '../types/config'
 import { ParsedMesh, RegionData } from '../utils/meshParser'
+import { CSMBuilder } from '../utils/csmBuilder'
 
 // Helper to ensure deep immutable updates
 const updateConfig = (oldConfig: ConfigData, updates: Partial<ConfigData>): ConfigData => {
@@ -122,6 +123,13 @@ interface AppState {
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
   loadESPSurfaces: (surfaces: Surface[], filename: string, csmContent?: string) => void
   
+  // CSM Builder
+  csmBuilder: CSMBuilder
+  recordCSMOperation: (type: string, command: string, metadata?: any) => void
+  exportGeneratedCSM: () => string
+  getCSMOperationSummary: () => string
+  clearCSMOperations: () => void
+  
   // Box selection
   boxSelectionSettings: BoxSelectionSettings
   updateBoxSelectionSettings: (settings: Partial<BoxSelectionSettings>) => void
@@ -170,6 +178,29 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedInitRegion: (region) => set({ selectedInitRegion: region, selectedNode: null, selectedSurface: null, selectedBC: null, selectedState: null, selectedViz: null }),
   soloBC: null,
   setSoloBC: (bc) => set({ soloBC: bc }),
+  
+  // CSM Builder
+  csmBuilder: new CSMBuilder(),
+  
+  recordCSMOperation: (type, command, metadata) => {
+    const state = useAppStore.getState()
+    state.csmBuilder.recordOperation(type as any, command, metadata)
+  },
+  
+  exportGeneratedCSM: () => {
+    const state = useAppStore.getState()
+    return state.csmBuilder.export()
+  },
+  
+  getCSMOperationSummary: () => {
+    const state = useAppStore.getState()
+    return state.csmBuilder.getSummary()
+  },
+  
+  clearCSMOperations: () => {
+    const state = useAppStore.getState()
+    state.csmBuilder.clearOperations()
+  },
   
   // Initialize with empty configuration
   configData: {
@@ -354,21 +385,36 @@ export const useAppStore = create<AppState>((set) => ({
     }
   })),
 
-  updateSurfaceBCName: (surfaceIds, bcName) => set((state) => ({
-    availableSurfaces: state.availableSurfaces.map(surface => 
-      surfaceIds.includes(surface.id)
-        ? { ...surface, metadata: { ...surface.metadata, tagName: bcName, bcName }, name: bcName }
-        : surface
-    ),
-    selectedSurfaces: state.selectedSurfaces.map(surface =>
-      surfaceIds.includes(surface.id)
-        ? { ...surface, metadata: { ...surface.metadata, tagName: bcName, bcName }, name: bcName }
-        : surface
-    ),
-    selectedSurface: state.selectedSurface && surfaceIds.includes(state.selectedSurface.id)
-      ? { ...state.selectedSurface, metadata: { ...state.selectedSurface.metadata, tagName: bcName, bcName }, name: bcName }
-      : state.selectedSurface
-  })),
+  updateSurfaceBCName: (surfaceIds, bcName) => set((state) => {
+    // Record CSM operations for each surface
+    const surfacesToUpdate = state.availableSurfaces.filter(s => surfaceIds.includes(s.id))
+    
+    for (const surface of surfacesToUpdate) {
+      const bodyId = surface.metadata.bodyId
+      const faceId = surface.metadata.faceId
+      
+      if (bodyId !== undefined && faceId !== undefined) {
+        // Use the convenience method to record both select and attribute
+        state.csmBuilder.recordBCNameAttribute(bodyId, faceId, bcName, surface.id)
+      }
+    }
+    
+    return {
+      availableSurfaces: state.availableSurfaces.map(surface => 
+        surfaceIds.includes(surface.id)
+          ? { ...surface, metadata: { ...surface.metadata, tagName: bcName, bcName }, name: bcName }
+          : surface
+      ),
+      selectedSurfaces: state.selectedSurfaces.map(surface =>
+        surfaceIds.includes(surface.id)
+          ? { ...surface, metadata: { ...surface.metadata, tagName: bcName, bcName }, name: bcName }
+          : surface
+      ),
+      selectedSurface: state.selectedSurface && surfaceIds.includes(state.selectedSurface.id)
+        ? { ...state.selectedSurface, metadata: { ...state.selectedSurface.metadata, tagName: bcName, bcName }, name: bcName }
+        : state.selectedSurface
+    }
+  }),
   
   // Global render settings with defaults
   globalRenderSettings: {
@@ -1009,6 +1055,12 @@ export const useAppStore = create<AppState>((set) => ({
       }
     })
     console.log('[App Store] Computed bounding spheres for', Object.keys(bounds).length, 'ESP surfaces')
+    
+    // Set the base CSM content in CSMBuilder
+    if (csmContent) {
+      s.csmBuilder.setBase(csmContent)
+      console.log('[App Store] Set base CSM in CSMBuilder')
+    }
     
     // Update config with CSM filename  
     const updatedConfigData = {

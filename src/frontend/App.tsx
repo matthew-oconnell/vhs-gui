@@ -514,28 +514,24 @@ function App() {
   }
 
   const handleExportCSM = async () => {
-    const { originalCSMContent, csmFilename, availableSurfaces } = useAppStore.getState()
+    const { csmFilename, exportGeneratedCSM, csmBuilder } = useAppStore.getState()
     
-    if (!originalCSMContent) {
-      alert('No CSM file loaded to export')
+    const hasOperations = csmBuilder.hasOperations()
+    const hasBase = csmBuilder.getBase().length > 0
+    
+    if (!hasBase && !hasOperations) {
+      alert('No CSM file loaded and no operations recorded to export')
       return
     }
     
     try {
-      // Build list of bc_name updates from current surfaces
-      const bcNameUpdates = availableSurfaces
-        .filter(s => s.metadata.bcName && s.metadata.bodyId !== undefined && s.metadata.faceId !== undefined)
-        .map(s => ({
-          body: s.metadata.bodyId!,
-          face: s.metadata.faceId!,
-          bc_name: s.metadata.bcName!
-        }))
+      // Get the generated CSM from the operation recorder
+      const generatedCSM = exportGeneratedCSM()
       
-      console.log('[App] Exporting CSM with', bcNameUpdates.length, 'bc_name updates')
-      
-      // Call ESP server to generate updated CSM
-      const { exportCSMWithBCNames } = await import('./utils/espApi')
-      const updatedContent = await exportCSMWithBCNames(originalCSMContent, bcNameUpdates)
+      console.log('[App] Exporting CSM with operation recording')
+      console.log('[App] Base CSM length:', csmBuilder.getBase().length)
+      console.log('[App] Operations:', csmBuilder.getOperationCount())
+      console.log('[App] Operation summary:\n', csmBuilder.getSummary())
       
       // Use File System Access API to show save dialog
       const handle = await window.showSaveFilePicker({
@@ -546,13 +542,14 @@ function App() {
         }]
       })
       
-      // Write the updated content
+      // Write the generated content
       const writable = await handle.createWritable()
-      await writable.write(updatedContent)
+      await writable.write(generatedCSM)
       await writable.close()
       
       console.log('[App] CSM exported successfully as:', handle.name)
-      alert(`CSM file saved successfully as ${handle.name}`)
+      console.log('[App] Generated CSM preview:\n', generatedCSM.slice(0, 500) + '...')
+      alert(`CSM file saved successfully as ${handle.name}\n\nOperations recorded: ${csmBuilder.getOperationCount()}`)
     } catch (error) {
       if ((error as any).name === 'AbortError') {
         console.log('[App] Export cancelled by user')

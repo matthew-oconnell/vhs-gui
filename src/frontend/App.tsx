@@ -160,9 +160,10 @@ function App() {
       // If lump dialog was shown, this will be handled in handleLumpChoice
       if (!showedLumpDialog) {
         const currentSurfaces = useAppStore.getState().availableSurfaces
+        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
         console.log('[App] Transforming config with surfaces:', currentSurfaces.length)
         console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces)
+        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
         setConfigData(transformedConfig)
         console.log('[App] Transformed BCs:', transformedConfig['boundary conditions'])
         console.log('Configuration loaded successfully')
@@ -186,35 +187,46 @@ function App() {
       tagToName.set(surface.metadata.tag, surface.metadata.tagName)
     })
     
-    // Remove 'id' and 'name' from boundary conditions
-    // Convert mesh boundary tags from numbers to surface names
+    // Determine if config is flat or nested under root solver key
     const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-    const rootConfig = (cleaned as any)[rootKey]
-    if (rootConfig?.['boundary conditions']) {
-      rootConfig['boundary conditions'] = rootConfig['boundary conditions'].map((bc: any) => {
-        const { id, name, ...bcClean } = bc
+    let bcArray = cleaned['boundary conditions']
+    let statesObj = cleaned.states
+    let targetConfig = cleaned
+    
+    // If not found at root level, check under root solver key
+    if (!bcArray && cleaned[rootKey]) {
+      bcArray = cleaned[rootKey]['boundary conditions']
+      statesObj = cleaned[rootKey].states
+      targetConfig = cleaned[rootKey]
+    }
+    
+    // Remove 'id' from boundary conditions
+    // Use BC's name as the mesh boundary tags value
+    if (bcArray) {
+      const cleanedBCs = bcArray.map((bc: any) => {
+        const { id, ...bcClean } = bc
         
-        // Convert mesh boundary tags to surface names
+        // Replace mesh boundary tags with the BC's name
+        // BCs always have a name (either user-provided or auto-generated like "no slip wall BC")
         if (bcClean['mesh boundary tags'] !== undefined) {
-          const tags = bcClean['mesh boundary tags']
-          if (Array.isArray(tags)) {
-            bcClean['mesh boundary tags'] = tags.map(tag => 
-              tagToName.get(tag) || tag
-            )
-          } else if (typeof tags === 'number') {
-            const surfaceName = tagToName.get(tags)
-            bcClean['mesh boundary tags'] = surfaceName ? [surfaceName] : [tags]
-          }
+          bcClean['mesh boundary tags'] = bc.name
         }
         
         return bcClean
       })
+      
+      // Update the BCs in the correct location
+      if (cleaned['boundary conditions']) {
+        cleaned['boundary conditions'] = cleanedBCs
+      } else if (cleaned[rootKey]) {
+        cleaned[rootKey]['boundary conditions'] = cleanedBCs
+      }
     }
     
     // Remove 'id' and 'name' from states if they have them
-    if (rootConfig?.states && typeof rootConfig.states === 'object') {
+    if (statesObj && typeof statesObj === 'object') {
       const cleanedStates: any = {}
-      Object.entries(rootConfig.states).forEach(([key, value]: [string, any]) => {
+      Object.entries(statesObj).forEach(([key, value]: [string, any]) => {
         if (value && typeof value === 'object') {
           const { id, name, ...stateClean } = value as any
           cleanedStates[key] = stateClean
@@ -222,7 +234,13 @@ function App() {
           cleanedStates[key] = value
         }
       })
-      rootConfig.states = cleanedStates
+      
+      // Update states in the correct location
+      if (cleaned.states) {
+        cleaned.states = cleanedStates
+      } else if (cleaned[rootKey]) {
+        cleaned[rootKey].states = cleanedStates
+      }
     }
     
     return cleaned
@@ -561,9 +579,10 @@ function App() {
       if (pendingConfig) {
         console.log('[App] Transforming pending config after mesh load')
         const currentSurfaces = useAppStore.getState().availableSurfaces
+        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
         console.log('[App] Available surfaces after mesh load:', currentSurfaces.length)
         console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces)
+        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces, rootKey)
         setConfigData(transformedConfig)
         console.log('[App] Configuration set with BCs:', transformedConfig['boundary conditions'])
         setPendingConfig(null)

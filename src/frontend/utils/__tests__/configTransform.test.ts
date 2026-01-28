@@ -105,4 +105,51 @@ describe('Config transformation with mesh surfaces', () => {
     // Should preserve the original value if no match found
     expect(transformedConfig['boundary conditions'][0]['mesh boundary tags']).toBe('nonexistent-surface')
   })
+  
+  it('handles nested config with root solver key (HyperSolve)', () => {
+    const loadedConfig = {
+      HyperSolve: {
+        'mesh filename': 'test.obj',
+        'boundary conditions': [
+          {
+            type: 'no slip',
+            'mesh boundary tags': 'wall'
+          }
+        ]
+      }
+    }
+    
+    const surfaces = [
+      { id: '1', name: 'Wall', metadata: { tag: 5, tagName: 'wall' } }
+    ]
+    
+    const transformedConfig = transformLoadedConfig(loadedConfig, surfaces, 'HyperSolve')
+    
+    // Should transform BCs under the root solver key
+    expect(transformedConfig.HyperSolve['boundary conditions'][0]['mesh boundary tags']).toBe(5)
+    expect(transformedConfig.HyperSolve['boundary conditions'][0]).toHaveProperty('id')
+    expect(transformedConfig.HyperSolve['boundary conditions'][0]).toHaveProperty('name')
+  })
+  
+  it('handles nested config with custom root solver key', () => {
+    const loadedConfig = {
+      CustomSolver: {
+        'boundary conditions': [
+          {
+            type: 'dirichlet',
+            'mesh boundary tags': ['inlet', 'outlet']
+          }
+        ]
+      }
+    }
+    
+    const surfaces = [
+      { id: '1', name: 'Inlet', metadata: { tag: 10, tagName: 'inlet' } },
+      { id: '2', name: 'Outlet', metadata: { tag: 20, tagName: 'outlet' } }
+    ]
+    
+    const transformedConfig = transformLoadedConfig(loadedConfig, surfaces, 'CustomSolver')
+    
+    expect(transformedConfig.CustomSolver['boundary conditions'][0]['mesh boundary tags']).toEqual([10, 20])
+  })
 })

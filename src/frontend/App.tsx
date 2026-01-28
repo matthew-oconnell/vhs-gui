@@ -12,6 +12,7 @@ import ValidationErrorDialog from './components/ValidationErrorDialog/Validation
 import FarfieldWizard from './components/FarfieldWizard/FarfieldWizard'
 import ConsolePanel from './components/ConsolePanel/ConsolePanel'
 import StatusBar from './components/StatusBar/StatusBar'
+import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
 import { useAppStore } from './store/appStore'
 import { useConsoleStore } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
@@ -36,6 +37,9 @@ function App() {
   const [showFarfieldWizard, setShowFarfieldWizard] = useState(false)
   const [importedGeometryFile, setImportedGeometryFile] = useState<File | null>(null)
   const [showThermoWizardFromStatusBar, setShowThermoWizardFromStatusBar] = useState(false)
+  const [espLoading, setEspLoading] = useState(false)
+  const [espLoadingMessage, setEspLoadingMessage] = useState('')
+  const [espLogLines, setEspLogLines] = useState<string[]>([])
   
   const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData } = useAppStore()
   const { setCollapsed, isCollapsed, log } = useConsoleStore()
@@ -484,17 +488,29 @@ function App() {
         
         // Build CSM with dependencies
         log('ESP', 'info', `Building CSM with ${dependencies.size} dependencies...`)
+        setEspLoading(true)
+        setEspLoadingMessage('Building CSM geometry')
+        setEspLogLines([])
         
         const { buildCSMWithDepsStreaming } = await import('./utils/espApi')
         response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
           const level = detectESPLogLevel(logLine)
           log('ESP', level, logLine)
+          setEspLogLines(prev => [...prev, logLine])
         })
+        
+        setEspLoading(false)
         
       } else {
         // No imports - use standard build
         log('ESP', 'info', 'Building CSM (no dependencies)...')
+        setEspLoading(true)
+        setEspLoadingMessage('Building CSM geometry')
+        setEspLogLines([])
+        
         response = await buildCSM(csmContent)
+        
+        setEspLoading(false)
       }
       
       if (!response.success) {
@@ -524,6 +540,7 @@ function App() {
       log('Geometry', 'success', 'CSM loaded successfully!')
       
     } catch (error) {
+      setEspLoading(false)
       if ((error as any).name === 'AbortError') {
         log('Geometry', 'warning', 'File selection cancelled')
         return
@@ -784,6 +801,10 @@ subtract
       const dependencies = new Map<string, File>()
       dependencies.set(importedGeometryFile.name, importedGeometryFile)
       
+      setEspLoading(true)
+      setEspLoadingMessage('Creating farfield domain')
+      setEspLogLines([])
+      
       const response = await buildCSMWithDepsStreaming(generatedCSM, dependencies, (logLine) => {
         // Parse ESP output to detect errors, warnings, and info messages
         if (logLine.includes('ERROR:') || logLine.includes('EGADS Error:')) {
@@ -795,7 +816,10 @@ subtract
         } else {
           log('ESP', 'info', logLine)  // Default to info for normal execution output
         }
+        setEspLogLines(prev => [...prev, logLine])
       })
+      
+      setEspLoading(false)
       
       if (!response.success) {
         log('ESP', 'error', `Farfield build failed: ${response.message}`)
@@ -829,6 +853,7 @@ subtract
       // Success - farfield domain is now visible in 3D viewer
       
     } catch (error) {
+      setEspLoading(false)
       if ((error as any).name === 'AbortError') {
         log('Farfield', 'warning', 'Farfield creation cancelled by user')
         return
@@ -1010,6 +1035,14 @@ subtract
           </div>
         )
       })()}
+      
+      {/* ESP Loading Overlay */}
+      {espLoading && (
+        <LoadingOverlay
+          message={espLoadingMessage}
+          logLines={espLogLines}
+        />
+      )}
     </div>
   )
 }

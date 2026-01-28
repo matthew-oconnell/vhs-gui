@@ -162,13 +162,21 @@ export default function BoundaryConditionDialog({
   // Initialize with the surfaces that are currently selected in the store
   useEffect(() => {
     if (isOpen) {
-      // Use all currently selected surfaces from the store
+      // Check if we have a multi-selection or single surface
       if (selectedSurfaces.length > 0) {
+        // Use all selected surfaces from the store
         const tags = selectedSurfaces.map(s => s.metadata.tag)
         setSelectedSurfaceTags(tags)
-        // Use the first surface's name as default BC name
-        const firstName = selectedSurfaces[0].metadata.bcName || selectedSurfaces[0].metadata.tagName
-        setBcName(firstName)
+        
+        // For the name: if initialSurface exists (right-clicked), use it; otherwise use first selected
+        if (initialSurface) {
+          // Right-clicked on a surface (possibly within a multi-selection)
+          setBcName(initialSurface.metadata.bcName || initialSurface.metadata.tagName)
+        } else {
+          // No right-click, just using selected surfaces
+          const firstName = selectedSurfaces[0].metadata.bcName || selectedSurfaces[0].metadata.tagName
+          setBcName(firstName)
+        }
       } else if (initialSurface) {
         // Fallback to initialSurface if no selection in store
         setSelectedSurfaceTags([initialSurface.metadata.tag])

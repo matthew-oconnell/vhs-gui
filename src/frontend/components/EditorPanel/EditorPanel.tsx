@@ -8,6 +8,7 @@ import PropertyEditorDialog from '../PropertyEditorDialog/PropertyEditorDialog'
 import VisualizationDialog from '../VisualizationDialog/VisualizationDialog'
 import InitializationRegionDialog from '../InitializationRegionDialog/InitializationRegionDialog'
 import ThermodynamicsWizard from './ThermodynamicsWizard'
+import TurbulenceWizard from './TurbulenceWizard'
 import ArrayEditor from '../ArrayEditor/ArrayEditor'
 import MapEditor from '../MapEditor/MapEditor'
 import { loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
@@ -79,9 +80,11 @@ const BC_TYPES = [
 interface EditorPanelProps {
   openThermoWizard?: boolean
   onCloseThermoWizard?: () => void
+  openTurbulenceWizard?: boolean
+  onCloseTurbulenceWizard?: () => void
 }
 
-function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps = {}) {
+function EditorPanel({ openThermoWizard, onCloseThermoWizard, openTurbulenceWizard, onCloseTurbulenceWizard }: EditorPanelProps = {}) {
   const [showStateWizard, setShowStateWizard] = useState(false)
   const [showBCDialog, setShowBCDialog] = useState(false)
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
@@ -89,6 +92,7 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
   const [showVizDialog, setShowVizDialog] = useState(false)
   const [showInitRegionDialog, setShowInitRegionDialog] = useState(false)
   const [showThermoWizard, setShowThermoWizard] = useState(false)
+  const [showTurbulenceWizard, setShowTurbulenceWizard] = useState(false)
   const [normalPreset, setNormalPreset] = useState<string>('custom')
   const [selectedSurfaceForNormal, setSelectedSurfaceForNormal] = useState<string>('')
   const [schema, setSchema] = useState<Schema | null>(null)
@@ -101,6 +105,14 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
       onCloseThermoWizard?.()
     }
   }, [openThermoWizard, onCloseThermoWizard])
+  
+  // Handle external turbulence wizard trigger from StatusBar
+  useEffect(() => {
+    if (openTurbulenceWizard) {
+      setShowTurbulenceWizard(true)
+      onCloseTurbulenceWizard?.()
+    }
+  }, [openTurbulenceWizard, onCloseTurbulenceWizard])
   
   useEffect(() => {
     // Load the schema
@@ -1827,6 +1839,12 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
           onUpdate={() => {
             // Wizard updates configData directly via updateThermodynamics store action
           }}
+        />
+      )}
+
+      {showTurbulenceWizard && (
+        <TurbulenceWizard
+          onClose={() => setShowTurbulenceWizard(false)}
         />
       )}
     </div>

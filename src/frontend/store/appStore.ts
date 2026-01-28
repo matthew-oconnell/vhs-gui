@@ -129,9 +129,11 @@ interface AppState {
   updateState: (id: string, updates: Partial<State>) => void
   deleteState: (id: string) => void
   thermoWizardExecuted: boolean
+  turbulenceWizardExecuted: boolean
   meshNeedsExport: boolean
   setMeshNeedsExport: (needsExport: boolean) => void
   updateThermodynamics: (thermoConfig: any) => void
+  updateTurbulenceModel: (turbulenceConfig: any) => void
   updateProperty: (path: string, key: string, value: any) => void
   initializeConfig: (projectConfig: any) => void
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
@@ -230,6 +232,7 @@ export const useAppStore = create<AppState>((set) => ({
   originalCSMContent: null as string | null,
   csmFilename: null as string | null,
   thermoWizardExecuted: false,
+  turbulenceWizardExecuted: false,
   meshNeedsExport: false,
   setMeshNeedsExport: (needsExport) => set({ meshNeedsExport: needsExport }),
   
@@ -737,6 +740,36 @@ export const useAppStore = create<AppState>((set) => ({
         ...s.configData,
         thermodynamics
       }
+    }
+  }),
+
+  updateTurbulenceModel: (turbulenceConfig) => set((s) => {
+    // Update equation type in the config
+    const updatedConfig = JSON.parse(JSON.stringify(s.configData))
+    
+    // Set equation type based on selection
+    updatedConfig['equation type'] = turbulenceConfig.equationType
+    
+    // If turbulent, configure the turbulence model
+    if (turbulenceConfig.equationType === 'turbulent' && turbulenceConfig.turbulenceModelType) {
+      // Initialize turbulence model if it doesn't exist
+      if (!updatedConfig['turbulence model']) {
+        updatedConfig['turbulence model'] = {}
+      }
+      
+      // Set the turbulence model type
+      updatedConfig['turbulence model'].type = turbulenceConfig.turbulenceModelType
+    } else if (turbulenceConfig.equationType === 'laminar') {
+      // For laminar, set turbulence model type to 'laminar' if it exists
+      if (!updatedConfig['turbulence model']) {
+        updatedConfig['turbulence model'] = {}
+      }
+      updatedConfig['turbulence model'].type = 'laminar'
+    }
+    
+    return {
+      turbulenceWizardExecuted: true,
+      configData: updatedConfig
     }
   }),
 

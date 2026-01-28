@@ -19,9 +19,10 @@ interface ChecklistItem {
 
 interface StatusBarProps {
   onOpenThermodynamicsWizard?: () => void
+  onOpenTurbulenceWizard?: () => void
 }
 
-function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
+function StatusBar({ onOpenThermodynamicsWizard, onOpenTurbulenceWizard }: StatusBarProps = {}) {
   const { 
     availableSurfaces,
     configData,
@@ -98,7 +99,22 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
     })
   }
 
-  // 4. Code Control
+  // 4. Turbulence Model - Check if equation type is selected
+  const turbulenceWizardExecuted = useAppStore((s) => s.turbulenceWizardExecuted)
+  const equationType = configData['equation type']
+  const hasTurbulenceModel = equationType !== undefined && equationType !== null
+
+  if (hasMesh) {
+    checklistItems.push({
+      id: 'turbulence-model',
+      label: 'Turbulence Model',
+      isComplete: hasTurbulenceModel,
+      details: hasTurbulenceModel ? `${equationType}` : 'Not configured',
+      onClick: onOpenTurbulenceWizard
+    })
+  }
+
+  // 5. Code Control
   const hasCodeControl = (() => {
     // Check if code control section exists and has required fields
     const codeControl = configData['code control']
@@ -140,7 +156,7 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
                 ? 'checklist-item-complete'
                 : item.id === 'thermodynamics'
                 ? 'checklist-item-default'
-                : item.id === 'boundary-conditions' || item.id === 'code-control' || item.id === 'mesh'
+                : item.id === 'boundary-conditions' || item.id === 'turbulence-model' || item.id === 'code-control' || item.id === 'mesh'
                 ? 'checklist-item-warning'
                 : 'checklist-item-incomplete'
             } ${item.onClick ? 'checklist-item-clickable' : ''}`}

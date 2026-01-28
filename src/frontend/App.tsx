@@ -37,6 +37,7 @@ function App() {
   const [showFarfieldWizard, setShowFarfieldWizard] = useState(false)
   const [importedGeometryFile, setImportedGeometryFile] = useState<File | null>(null)
   const [showThermoWizardFromStatusBar, setShowThermoWizardFromStatusBar] = useState(false)
+  const [showTurbulenceWizardFromStatusBar, setShowTurbulenceWizardFromStatusBar] = useState(false)
   const [espLoading, setEspLoading] = useState(false)
   const [espLoadingMessage, setEspLoadingMessage] = useState('')
   const [espLogLines, setEspLogLines] = useState<string[]>([])
@@ -886,7 +887,10 @@ subtract
         onCreateFarfield={handleCreateFarfield}
         onExportCSM={handleExportCSM}
       />
-      <StatusBar onOpenThermodynamicsWizard={() => setShowThermoWizardFromStatusBar(true)} />
+      <StatusBar 
+        onOpenThermodynamicsWizard={() => setShowThermoWizardFromStatusBar(true)}
+        onOpenTurbulenceWizard={() => setShowTurbulenceWizardFromStatusBar(true)}
+      />
       <PanelGroup direction="horizontal">
         {/* Left Panel Group - contains tree, editor, and surfaces vertically stacked */}
         <Panel defaultSize={25} minSize={15} maxSize={40}>
@@ -901,7 +905,12 @@ subtract
             
             {/* Editor Panel - Middle */}
             <Panel defaultSize={34} minSize={15}>
-              <EditorPanel openThermoWizard={showThermoWizardFromStatusBar} onCloseThermoWizard={() => setShowThermoWizardFromStatusBar(false)} />
+              <EditorPanel 
+                openThermoWizard={showThermoWizardFromStatusBar} 
+                onCloseThermoWizard={() => setShowThermoWizardFromStatusBar(false)}
+                openTurbulenceWizard={showTurbulenceWizardFromStatusBar}
+                onCloseTurbulenceWizard={() => setShowTurbulenceWizardFromStatusBar(false)}
+              />
             </Panel>
             
             {/* Vertical Resize Handle */}

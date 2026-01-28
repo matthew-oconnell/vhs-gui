@@ -1596,6 +1596,11 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
             const key = pathParts.pop() || ''
             const parentPath = 'root.' + pathParts.join('.')
             
+            // Check if this is a state reference field
+            const isStateReference = key === 'nondimensional reference state' || 
+                                     key === 'initial state' || 
+                                     key === 'reference length state'
+            
             return (
               <div className="primitive-editor">
                 {nodeType === 'boolean' ? (
@@ -1608,6 +1613,24 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
                     <span className="toggle-slider"></span>
                     <span className="toggle-label">{currentValue ? 'Enabled' : 'Disabled'}</span>
                   </label>
+                ) : isStateReference ? (
+                  <select 
+                    className="form-input"
+                    value={currentValue || ''}
+                    onChange={(e) => {
+                      if (e.target.value === '__CREATE_NEW__') {
+                        setShowStateWizard(true)
+                      } else {
+                        updateValueAtPath(parentPath, key, e.target.value)
+                      }
+                    }}
+                  >
+                    <option value="">Select state...</option>
+                    <option value="__CREATE_NEW__">Create New State...</option>
+                    {Object.keys(configData.states || {}).map((stateName) => (
+                      <option key={stateName} value={stateName}>{stateName}</option>
+                    ))}
+                  </select>
                 ) : selectedNode.enum ? (
                   <select 
                     className="form-input"
@@ -1638,8 +1661,11 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
                     placeholder={selectedNode.default !== undefined ? String(selectedNode.default) : ''}
                   />
                 )}
-                {selectedNode.default !== undefined && (
+                {selectedNode.default !== undefined && !isStateReference && (
                   <span className="default-hint">Default: {String(selectedNode.default)}</span>
+                )}
+                {isStateReference && (
+                  <span className="default-hint">Reference to a defined state</span>
                 )}
               </div>
             )

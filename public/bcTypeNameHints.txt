@@ -1,0 +1,51 @@
+# Boundary Condition Type Name Hints
+# Format: hint_keyword -> bc_type
+# Lines starting with # are comments
+# Keywords are case-insensitive and matched against surface tag names
+# More specific hints should come first (they're tried in order)
+
+# Inflow boundaries
+inlet -> subsonic inflow
+inflow -> subsonic inflow
+subsonic_inlet -> subsonic inflow
+subsonic_inflow -> subsonic inflow
+supersonic_inlet -> fixed inflow
+fixed_inlet -> fixed inflow
+total_conditions -> subsonic inflow
+mass_flux -> mass flux inflow
+mass_inflow -> mass flux inflow
+
+# Outflow boundaries (default to supersonic for "outflow" generic keyword)
+outlet -> supersonic outflow
+outflow -> supersonic outflow
+exit -> supersonic outflow
+exhaust -> supersonic outflow
+subsonic_outlet -> subsonic outflow
+subsonic_outflow -> subsonic outflow
+back_pressure -> subsonic outflow
+supersonic_outlet -> supersonic outflow
+supersonic_outflow -> supersonic outflow
+
+# Wall boundaries
+wall -> no slip wall
+no_slip -> no slip wall
+noslip -> no slip wall
+viscous_wall -> no slip wall
+adiabatic -> no slip wall
+slip -> slip wall
+inviscid -> slip wall
+insulated -> insulated wall
+isothermal -> constant temperature
+vehicle -> no slip wall
+
+# Symmetry and numerical boundaries
+symmetry -> symmetry
+sym -> symmetry
+symm -> symmetry
+centerline -> symmetry
+tangent -> tangent flow
+far_field -> riemann
+farfield -> riemann
+freestream -> riemann
+axis -> axisymmetric pole
+axisymmetric -> axisymmetric pole

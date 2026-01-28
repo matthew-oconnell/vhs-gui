@@ -5,6 +5,7 @@ import { BoundaryCondition, State } from '../../types/config'
 import { Surface } from '../../types/surface'
 import { loadBCTypeDescriptions, loadBCTypeInfo, isBCTypeAvailable, isBCTypeDeprecated } from '../../utils/bcTypeDescriptions'
 import { subscribeToFeatureFlags } from '../../utils/featureFlags'
+import { loadBCTypeHints, findBCTypeFromHints } from '../../utils/bcTypeHintLoader'
 import StateWizard, { SavedWizardState } from '../EditorPanel/StateWizard'
 import ThermodynamicsWizard from '../EditorPanel/ThermodynamicsWizard'
 import './BoundaryConditionDialog.css'
@@ -69,6 +70,46 @@ const BC_TYPES = [
   'subsonic inflow total',                  // → use 'subsonic inflow'
 ]
 
+// Categorized BC types for organized dropdown
+const BC_TYPE_CATEGORIES = {
+  'Inflow': [
+    'subsonic inflow',
+    'fixed inflow',
+    'fixed subsonic inflow',
+    'mass flux inflow',
+    'riemann',
+  ],
+  'Outflow': [
+    'subsonic outflow',
+    'supersonic outflow',
+  ],
+  'Wall': [
+    'no slip wall',
+    'slip wall',
+    'insulated wall',
+    'constant temperature',
+  ],
+  'Numerical': [
+    'symmetry',
+    'tangent flow',
+    'axisymmetric pole',
+  ],
+  'Advanced': [
+    'strong dirichlet',
+    'strong particle wall',
+    'weak constant intensity',
+    'weak radiative equilibrium temperature',
+    'freestream em',
+    'outflow em',
+    'perfect conductor',
+    'marshak',
+    'mms',
+  ]
+}
+
+// Note: findMatchingBCType is now replaced by bcTypeHintLoader.ts
+// which uses bcTypeNameHints.txt for easier human maintenance
+
 interface BoundaryConditionDialogProps {
   isOpen: boolean
   onClose: () => void
@@ -101,6 +142,7 @@ export default function BoundaryConditionDialog({
   const [showThermoWizard, setShowThermoWizard] = useState(false)
   const [savedStateWizardState, setSavedStateWizardState] = useState<SavedWizardState | undefined>(undefined)
   const [surfaceSelectionExpanded, setSurfaceSelectionExpanded] = useState(false)
+  const [bcTypeHints, setBcTypeHints] = useState<Map<string, string>>(new Map())
 
   // Get list of unassigned surfaces
   const getUnassignedSurfaces = (): Surface[] => {
@@ -143,6 +185,10 @@ export default function BoundaryConditionDialog({
       )
       setAvailableBCTypes(filtered)
     })
+    // Load BC type hints for smart matching
+    loadBCTypeHints().then(hints => {
+      setBcTypeHints(hints)
+    })
   }, [])
   
   // Re-filter BC types when feature flags change
@@ -169,29 +215,44 @@ export default function BoundaryConditionDialog({
         setSelectedSurfaceTags(tags)
         
         // For the name: if initialSurface exists (right-clicked), use it; otherwise use first selected
+        let tagName: string
         if (initialSurface) {
           // Right-clicked on a surface (possibly within a multi-selection)
-          setBcName(initialSurface.metadata.bcName || initialSurface.metadata.tagName)
+          tagName = initialSurface.metadata.bcName || initialSurface.metadata.tagName
+          setBcName(tagName)
         } else {
           // No right-click, just using selected surfaces
-          const firstName = selectedSurfaces[0].metadata.bcName || selectedSurfaces[0].metadata.tagName
-          setBcName(firstName)
+          tagName = selectedSurfaces[0].metadata.bcName || selectedSurfaces[0].metadata.tagName
+          setBcName(tagName)
+        }
+        
+        // Auto-select BC type based on tag name match
+        const matchedType = findBCTypeFromHints(tagName, availableBCTypes, bcTypeHints)
+        if (matchedType) {
+          setBcType(matchedType)
         }
       } else if (initialSurface) {
         // Fallback to initialSurface if no selection in store
         setSelectedSurfaceTags([initialSurface.metadata.tag])
-        setBcName(initialSurface.metadata.bcName || initialSurface.metadata.tagName)
+        const tagName = initialSurface.metadata.bcName || initialSurface.metadata.tagName
+        setBcName(tagName)
+        
+        // Auto-select BC type based on tag name match
+        const matchedType = findBCTypeFromHints(tagName, availableBCTypes, bcTypeHints)
+        if (matchedType) {
+          setBcType(matchedType)
+        }
       } else {
         // Reset form when dialog opens with no selection
         setBcName('')
-        setBcType('no slip')
+        setBcType('no slip wall')
         setSelectedSurfaceTags([])
         setStateName('')
         setWallTemperature('adiabatic')
         setConstantTempValue(300)
       }
     }
-  }, [isOpen, initialSurface, selectedSurfaces])
+  }, [isOpen, initialSurface, selectedSurfaces, availableBCTypes, bcTypeHints])
 
   const handleStateChange = (value: string) => {
     if (value === '__CREATE_NEW__') {
@@ -303,11 +364,36 @@ export default function BoundaryConditionDialog({
               value={bcType}
               onChange={(e) => setBcType(e.target.value)}
             >
-              {availableBCTypes.map((type) => (
-                <option key={type} value={type}>
-                  {type}
-                </option>
-              ))}
+              {Object.entries(BC_TYPE_CATEGORIES).map(([category, types]) => {
+                // Filter to only show types that are available
+                const availableInCategory = types.filter(type => availableBCTypes.includes(type))
+                if (availableInCategory.length === 0) return null
+                
+                return (
+                  <optgroup key={category} label={category}>
+                    {availableInCategory.map(type => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+              })}
+              {/* Show any BC types not in categories as "Other" */}
+              {(() => {
+                const categorizedTypes = new Set(Object.values(BC_TYPE_CATEGORIES).flat())
+                const uncategorized = availableBCTypes.filter(type => !categorizedTypes.has(type))
+                if (uncategorized.length === 0) return null
+                return (
+                  <optgroup key="Other" label="Other">
+                    {uncategorized.map(type => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </optgroup>
+                )
+              })()}
             </select>
             {bcDescriptions[bcType] && (
               <div className="help-text">

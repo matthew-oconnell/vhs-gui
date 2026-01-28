@@ -200,11 +200,11 @@ function App() {
       targetConfig = cleaned[rootKey]
     }
     
-    // Remove 'id' from boundary conditions
+    // Remove 'id' and 'name' from boundary conditions
     // Use BC's name as the mesh boundary tags value
     if (bcArray) {
       const cleanedBCs = bcArray.map((bc: any) => {
-        const { id, ...bcClean } = bc
+        const { id, name, ...bcClean } = bc
         
         // Replace mesh boundary tags with the BC's name
         // BCs always have a name (either user-provided or auto-generated like "no slip wall BC")

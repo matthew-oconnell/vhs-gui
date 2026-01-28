@@ -7,14 +7,13 @@ ESP Gateway Server
 ESP_ROOT: /home/matthew/Projects/vulcan-gui/third-party/ESP128/EngSketchPad
 Server will start on http://127.0.0.1:8081
 
-INFO:     Started server process [85447]
+INFO:     Started server process [101510]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8081 (Press CTRL+C to quit)
-INFO:     127.0.0.1:48710 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48714 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:48714 - "OPTIONS /csm/build-with-deps-stream HTTP/1.1" 200 OK
-INFO:     127.0.0.1:43318 - "POST /csm/build-with-deps-stream HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59498 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59512 - "POST /csm/build-with-deps-stream HTTP/1.1" 200 OK
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
@@ -877,7 +876,7 @@ INFO:     127.0.0.1:43318 - "POST /csm/build-with-deps-stream HTTP/1.1" 200 OK
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
- EGADS Warning: DeException ignored in: <function Context.__del__ at 0x7fe6e6d17100>
+ EGADS Warning: DeException ignored in: <function Context.__del__ at 0x7fb821717100>
 Traceback (most recent call last):
   File "/home/matthew/Projects/vulcan-gui/third-party/ESP128/EngSketchPad/pyESP/pyEGADS/egads_common.py", line 500, in __del__
     self._finalize()
@@ -893,7 +892,7 @@ pyEGADS.egads_common.EGADSError: EGADS error code: EGADS_CNTXTHRD
 INFO:     Shutting down
 INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
-INFO:     Finished server process [85447]
+INFO:     Finished server process [101510]
 l Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!
  EGADS Warning: Del Attributes = -33 (EG_destroyObject)!

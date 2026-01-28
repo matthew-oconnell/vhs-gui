@@ -24,11 +24,11 @@ const cleanConfigForSave = (config: any, availableSurfaces: Array<{ metadata: { 
     statesObj = cleaned[rootSolverKey].states
   }
   
-  // Remove 'id' from boundary conditions
-  // Keep 'name' but use it as the value for 'mesh boundary tags'
+  // Remove 'id' and 'name' from boundary conditions
+  // Use BC's name as the value for 'mesh boundary tags'
   if (bcArray) {
     const cleanedBCs = bcArray.map((bc: any) => {
-      const { id, ...bcClean } = bc
+      const { id, name, ...bcClean } = bc
       
       // If BC has a name and mesh boundary tags, replace tags with the BC name
       if (bc.name && bcClean['mesh boundary tags'] !== undefined) {
@@ -70,7 +70,7 @@ const cleanConfigForSave = (config: any, availableSurfaces: Array<{ metadata: { 
 }
 
 describe('Config save transformations', () => {
-  it('removes id but keeps name from boundary conditions', () => {
+  it('removes id and name from boundary conditions', () => {
     const config = {
       HyperSolve: {
         'boundary conditions': [
@@ -91,7 +91,7 @@ describe('Config save transformations', () => {
     const cleaned = cleanConfigForSave(config, surfaces)
     
     expect(cleaned.HyperSolve['boundary conditions'][0]).not.toHaveProperty('id')
-    expect(cleaned.HyperSolve['boundary conditions'][0].name).toBe('My BC')
+    expect(cleaned.HyperSolve['boundary conditions'][0]).not.toHaveProperty('name')
     expect(cleaned.HyperSolve['boundary conditions'][0].type).toBe('no slip')
   })
   
@@ -216,9 +216,9 @@ describe('Config save transformations', () => {
     
     const cleaned = cleanConfigForSave(config, surfaces)
     
-    // Should remove id but keep name
+    // Should remove id and name from BC
     expect(cleaned['boundary conditions'][0]).not.toHaveProperty('id')
-    expect(cleaned['boundary conditions'][0].name).toBe('My BC')
+    expect(cleaned['boundary conditions'][0]).not.toHaveProperty('name')
     expect(cleaned['boundary conditions'][0]['mesh boundary tags']).toBe('My BC')
     
     expect(cleaned.states.freestream).not.toHaveProperty('id')

@@ -55,6 +55,7 @@
                         "default": "host-pinned"
                     },
                     "domain name": {
+                        "only for": ["advanced"],
                         "type": "string",
                         "description": "The domain name sets the filename base for the convergence history files.",
                         "default": "domain"
@@ -205,6 +206,7 @@
                         "default": false
                     },
                     "smart initialize": {
+                        "only for": ["advanced"],
                         "type": "boolean",
                         "default": false,
                         "description": "Initialize the solution via distance to boundary conditions.  Requires a least one solid-surface type boundary condition and one dirichlet type boundary condition."
@@ -285,6 +287,7 @@
             "default": "host-pinned"
         },
         "domain name": {
+            "only for": ["advanced"],
             "type": "string",
             "description": "The domain name sets the filename base for the convergence history files.",
             "default": "domain"
@@ -435,6 +438,7 @@
             "default": false
         },
         "smart initialize": {
+            "only for": ["advanced"],
             "type": "boolean",
             "default": false,
             "description": "Initialize the solution via distance to boundary conditions.  Requires a least one solid-surface type boundary condition and one dirichlet type boundary condition."
@@ -1344,6 +1348,7 @@
         },
         "Solver Update Limiting Settings": {
             "type": "object",
+            "only for": ["advanced"],
             "description": "Settings controlling limits to the solution update at each timestep and/or subiteration",
             "properties": {
                 "temperature bounds": {

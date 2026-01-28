@@ -1845,6 +1845,10 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard, openTurbulenceWiza
       {showTurbulenceWizard && (
         <TurbulenceWizard
           onClose={() => setShowTurbulenceWizard(false)}
+          onOpenPropertyDialog={(node) => {
+            setDialogNode(node)
+            setShowPropertyDialog(true)
+          }}
         />
       )}
     </div>

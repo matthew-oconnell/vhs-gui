@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, Maximize2 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import './TurbulenceWizard.css'
 
 interface TurbulenceWizardProps {
   onClose: () => void
+  onOpenPropertyDialog: (node: any) => void
 }
 
 export type EquationType = 'euler' | 'laminar' | 'turbulent'
@@ -15,7 +16,7 @@ export interface TurbulenceConfig {
   turbulenceModelType?: TurbulenceModelType
 }
 
-function TurbulenceWizard({ onClose }: TurbulenceWizardProps) {
+function TurbulenceWizard({ onClose, onOpenPropertyDialog }: TurbulenceWizardProps) {
   const [currentStep, setCurrentStep] = useState(1)
   const [config, setConfig] = useState<TurbulenceConfig>({
     equationType: 'laminar'
@@ -56,7 +57,7 @@ function TurbulenceWizard({ onClose }: TurbulenceWizardProps) {
     // Close the wizard first
     onClose()
     
-    // Then navigate to the turbulence model node in the tree (after a short delay)
+    // Then open the property dialog for the turbulence model node (after a short delay)
     setTimeout(() => {
       const turbulenceModelNode = {
         id: 'root.turbulence model',
@@ -64,7 +65,10 @@ function TurbulenceWizard({ onClose }: TurbulenceWizardProps) {
         type: 'object' as const,
         description: 'Turbulence Model settings'
       }
+      // Navigate to the node first
       setSelectedNode(turbulenceModelNode)
+      // Then open the property dialog
+      onOpenPropertyDialog(turbulenceModelNode)
     }, 100)
   }
 
@@ -222,11 +226,16 @@ function TurbulenceWizard({ onClose }: TurbulenceWizardProps) {
               {config.turbulenceModelType && (
                 <div style={{ marginTop: '16px' }}>
                   <button 
-                    className="modal-button modal-button-secondary"
-                    onClick={handleExplodeAndEdit}
-                    style={{ width: '100%' }}
+                    className="edit-properties-button"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleExplodeAndEdit()
+                    }}
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    type="button"
                   >
-                    ⚙️ Explode and Edit Turbulence Model
+                    <Maximize2 size={14} /> Edit
                   </button>
                   <div className="info-box" style={{ marginTop: '8px' }}>
                     Click to open the full turbulence model configuration editor with all advanced options.

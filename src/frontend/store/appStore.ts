@@ -271,7 +271,7 @@ export const useAppStore = create<AppState>((set) => ({
     const assignedSurfaces = assignedSurfaceNames.size
     
     // Check if initial conditions are defined
-    const states = rootConfig?.states
+    const states = configData?.states
     const hasInitialConditions = states && Object.keys(states).length > 0
     
     // Determine stage

@@ -6,5 +6,23 @@
 /* Note: Most styles are defined in ThermodynamicsWizard.css and shared */
 /* This file exists for any turbulence-specific overrides if needed */
 
-/* Currently no turbulence-specific styles needed */
-/* All wizard styles are reused from ThermodynamicsWizard.css */
+/* Edit button styling (matches EditorPanel edit button) */
+.edit-properties-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background-color: transparent;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  color: #cccccc;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.edit-properties-button:hover {
+  background-color: #3e3e42;
+  border-color: #007acc;
+  color: #ffffff;
+}

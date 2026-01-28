@@ -129,7 +129,6 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
     setSoloBC,
     configData,
     setConfigData,
-    rootSolverKey,
     availableSurfaces,
     addBoundaryCondition, 
     updateBoundaryCondition,
@@ -484,13 +483,9 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
               >
                 <option value="">Select state...</option>
                 <option value="__CREATE_NEW__">Create New State...</option>
-                {(() => {
-                  const rootKey = rootSolverKey || 'HyperSolve'
-                  const rootConfig = (configData as any)[rootKey] || {}
-                  return Object.keys(rootConfig.states || {}).map((stateName) => (
-                    <option key={stateName} value={stateName}>{stateName}</option>
-                  ))
-                })()}
+                {Object.keys(configData.states || {}).map((stateName) => (
+                  <option key={stateName} value={stateName}>{stateName}</option>
+                ))}
               </select>
               <span className="default-hint">Reference to a defined state</span>
             </div>
@@ -508,9 +503,7 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
   }
 
   const renderBCArrayEditor = () => {
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    const bcs = rootConfig?.['boundary conditions'] || []
+    const bcs = configData['boundary conditions'] || []
     
     const handleAddBC = () => {
       setShowBCDialog(true)
@@ -641,9 +634,7 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
   }
 
   const renderStatesObjectEditor = () => {
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey] || {}
-    const states = Object.values(rootConfig.states || {})
+    const states = Object.values(configData.states || {})
     
     return (
       <div className="editor-content">
@@ -1013,9 +1004,7 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
   }
 
   const renderInitializationRegionArrayEditor = () => {
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    const initRegions = rootConfig?.['initialization regions'] || []
+    const initRegions = configData['initialization regions'] || []
     
     const handleAddInitRegion = () => {
       setShowInitRegionDialog(true)
@@ -1057,27 +1046,23 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
     
     const handleUpdate = (updates: any) => {
       const updatedConfig = { ...configData }
-      const rootKey = rootSolverKey || 'HyperSolve'
-      const rootConfig = (updatedConfig as any)[rootKey]
-      if (!rootConfig?.['initialization regions']) return
+      if (!updatedConfig['initialization regions']) return
       
-      rootConfig['initialization regions'][regionIndex] = {
-        ...rootConfig['initialization regions'][regionIndex],
+      updatedConfig['initialization regions'][regionIndex] = {
+        ...updatedConfig['initialization regions'][regionIndex],
         ...updates
       }
       setConfigData(updatedConfig)
       
       // Update the selected region reference
-      setSelectedInitRegion({ data: rootConfig['initialization regions'][regionIndex], index: regionIndex })
+      setSelectedInitRegion({ data: updatedConfig['initialization regions'][regionIndex], index: regionIndex })
     }
     
     const handleDelete = () => {
       const updatedConfig = { ...configData }
-      const rootKey = rootSolverKey || 'HyperSolve'
-      const rootConfig = (updatedConfig as any)[rootKey]
-      if (!rootConfig?.['initialization regions']) return
+      if (!updatedConfig['initialization regions']) return
       
-      rootConfig['initialization regions'].splice(regionIndex, 1)
+      updatedConfig['initialization regions'].splice(regionIndex, 1)
       setConfigData(updatedConfig)
       setSelectedInitRegion(null)
     }
@@ -1513,13 +1498,12 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
       return renderBCEditor()
     }
     if (selectedNode) {
-      const rootKey = rootSolverKey || 'HyperSolve'
       // Check if this is the boundary conditions array node
-      if (selectedNode.id === `root.${rootKey}.boundary conditions`) {
+      if (selectedNode.id === 'root.boundary conditions') {
         return renderBCArrayEditor()
       }
       // Check if this is the states object node
-      if (selectedNode.id === `root.${rootKey}.states` || (selectedNode.id && selectedNode.id.endsWith('.states')) || selectedNode.path === `${rootKey}.states`) {
+      if (selectedNode.id === 'root.states' || (selectedNode.id && selectedNode.id.endsWith('.states')) || selectedNode.path === 'states') {
         return renderStatesObjectEditor()
       }
       // Check if this is the visualization array node
@@ -1527,7 +1511,7 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
         return renderVisualizationArrayEditor()
       }
       // Check if this is the initialization regions array node
-      if (selectedNode.id === `root.${rootKey}.initialization regions`) {
+      if (selectedNode.id === 'root.initialization regions') {
         return renderInitializationRegionArrayEditor()
       }
       return renderNodeEditor()
@@ -1543,10 +1527,9 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard }: EditorPanelProps
     if (!selectedNode) return null
 
     // Check if this is the thermodynamics node
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const isThermoNode = selectedNode.id === `root.${rootKey}.thermodynamics` || 
+    const isThermoNode = selectedNode.id === 'root.thermodynamics' || 
                         (selectedNode.id && selectedNode.id.endsWith('.thermodynamics')) ||
-                        selectedNode.path === `${rootKey}.thermodynamics`
+                        selectedNode.path === 'thermodynamics'
 
     return (
       <div className="editor-content">

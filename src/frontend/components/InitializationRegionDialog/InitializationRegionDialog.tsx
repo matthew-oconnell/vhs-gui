@@ -33,7 +33,7 @@ interface InitializationRegionDialogProps {
 }
 
 export default function InitializationRegionDialog({ isOpen, onClose }: InitializationRegionDialogProps) {
-  const { configData, setConfigData, availableSurfaces, setSelectedInitRegion, addState, rootSolverKey } = useAppStore()
+  const { configData, setConfigData, availableSurfaces, setSelectedInitRegion, addState } = useAppStore()
 
   const [regionType, setRegionType] = useState('box')
   const [stateName, setStateName] = useState('')
@@ -93,10 +93,8 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
 
   // Get available states from configData
   const getAvailableStates = (): string[] => {
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    if (!rootConfig?.states) return []
-    return Object.keys(rootConfig.states)
+    if (!configData.states) return []
+    return Object.keys(configData.states)
   }
 
   // Reset form when dialog opens
@@ -240,19 +238,14 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
 
     // Add initialization region to the config
     const updatedConfig = { ...configData }
-    const rootKey = rootSolverKey || 'HyperSolve'
-    if (!(updatedConfig as any)[rootKey]) {
-      (updatedConfig as any)[rootKey] = { 'boundary conditions': [], states: {} }
+    if (!updatedConfig['initialization regions']) {
+      updatedConfig['initialization regions'] = []
     }
-    const rootConfig = (updatedConfig as any)[rootKey]
-    if (!rootConfig['initialization regions']) {
-      rootConfig['initialization regions'] = []
-    }
-    rootConfig['initialization regions'].push(newRegion)
+    updatedConfig['initialization regions'].push(newRegion)
     setConfigData(updatedConfig)
 
     // Select the newly created region
-    const newIndex = rootConfig['initialization regions'].length - 1
+    const newIndex = updatedConfig['initialization regions'].length - 1
     setSelectedInitRegion({ data: newRegion, index: newIndex })
 
     onClose()

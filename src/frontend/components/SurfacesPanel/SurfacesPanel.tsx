@@ -18,8 +18,7 @@ function SurfacesPanel() {
     toggleSurfaceVisibility,
     surfaceRenderSettings,
     updateSurfaceRenderSettings,
-    configData,
-    rootSolverKey
+    configData
   } = useAppStore()
   
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -103,9 +102,7 @@ function SurfacesPanel() {
               const isVisible = surfaceVisibility[primarySurface.id] ?? true
               
               // Find associated BC for the group
-              const rootKey = rootSolverKey || 'HyperSolve'
-              const rootConfig = (configData as any)[rootKey]
-              const associatedBC = rootConfig?.['boundary conditions']?.find(bc => {
+              const associatedBC = configData['boundary conditions']?.find(bc => {
                 const tags = bc['mesh boundary tags']
                 const surfaceTag = primarySurface.metadata.tag
                 

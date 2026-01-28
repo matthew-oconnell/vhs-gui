@@ -5,9 +5,8 @@ describe('appStore - state management', () => {
   beforeEach(() => {
     // Reset store to clean state before each test
     useAppStore.setState({
-      configData: { HyperSolve: { states: {} } },
-      selectedState: null,
-      rootSolverKey: 'HyperSolve'
+      configData: { states: {} },
+      selectedState: null
     })
   })
 
@@ -23,8 +22,8 @@ describe('appStore - state management', () => {
     useAppStore.getState().addState(state)
     
     const result = useAppStore.getState()
-    expect(result.configData.HyperSolve?.states).toHaveProperty('freestream')
-    expect(result.configData.HyperSolve?.states?.freestream).toEqual(state)
+    expect(result.configData.states).toHaveProperty('freestream')
+    expect(result.configData.states?.freestream).toEqual(state)
     expect(result.selectedState).toEqual(state)
   })
   
@@ -48,7 +47,7 @@ describe('appStore - state management', () => {
     useAppStore.getState().addState(state1)
     useAppStore.getState().addState(state2)
     
-    const states = useAppStore.getState().configData.HyperSolve?.states
+    const states = useAppStore.getState().configData.states
     expect(states).toHaveProperty('freestream')
     expect(states).toHaveProperty('wall')
     expect(Object.keys(states || {}).length).toBe(2)
@@ -84,8 +83,8 @@ describe('appStore - state management', () => {
     useAppStore.getState().addState(state)
     
     const result = useAppStore.getState()
-    expect(result.configData.HyperSolve?.states?.freestream).toEqual(state)
-    expect(result.configData.HyperSolve?.states?.freestream['mass fractions']).toEqual({
+    expect(result.configData.states?.freestream).toEqual(state)
+    expect(result.configData.states?.freestream['mass fractions']).toEqual({
       'N2': 0.78,
       'O2': 0.22
     })
@@ -103,6 +102,6 @@ describe('appStore - state management', () => {
     useAppStore.getState().addState(state)
     
     const result = useAppStore.getState()
-    expect(result.configData.HyperSolve?.states?.freestream['mass fractions']).toBeUndefined()
+    expect(result.configData.states?.freestream['mass fractions']).toBeUndefined()
   })
 })

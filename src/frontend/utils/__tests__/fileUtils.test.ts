@@ -51,8 +51,19 @@ describe('openJsonFile', () => {
       // Act: Open the file
       const result = await openJsonFile()
 
-      // Assert: Should return parsed JSON
-      expect(result).toEqual(mockConfigData)
+      // Assert: Should return auto-migrated flat structure with migrated BC types
+      expect(result['mesh filename']).toBe('test.obj')
+      expect(result['boundary conditions']).toEqual([
+        { type: 'no slip wall', 'mesh boundary tags': ['wall'] }
+      ])
+      expect(result.states).toEqual({
+        'freestream': {
+          'mach number': 0.8,
+          temperature: 300,
+          pressure: 101325
+        }
+      })
+      expect(result.HyperSolve).toBeUndefined()
       expect(globalThis.showOpenFilePicker).toHaveBeenCalledWith({
         types: [
           {
@@ -113,9 +124,11 @@ describe('openJsonFile', () => {
       // Act
       const result = await openJsonFile()
 
-      // Assert
-      expect(result).toEqual(complexConfig)
-      expect(result.HyperSolve.thermodynamics.species).toHaveLength(3)
+      // Assert: Should be migrated to flat structure
+      expect(result.HyperSolve).toBeUndefined()
+      expect(result.thermodynamics.species).toHaveLength(3)
+      expect(result.thermodynamics['chemical nonequilibrium']).toBe(true)
+      expect(result['time accuracy'].type).toBe('fixed timestep')
     })
   })
 
@@ -336,11 +349,12 @@ describe('openJsonFile', () => {
       // Act
       const result = await openJsonFile()
 
-      // Assert: All data should be parsed correctly
+      // Assert: All data should be parsed correctly (migrated to flat with BC type migration)
       expect(result['mesh filename']).toBe('waverider.csm')
-      expect(result.HyperSolve['boundary conditions']).toHaveLength(2)
-      expect(result.HyperSolve['boundary conditions'][0].type).toBe('no slip')
-      expect(result.HyperSolve.states.freestream['mach number']).toBe(8.0)
+      expect(result.HyperSolve).toBeUndefined()
+      expect(result['boundary conditions']).toHaveLength(2)
+      expect(result['boundary conditions'][0].type).toBe('no slip wall')
+      expect(result.states.freestream['mach number']).toBe(8.0)
     })
 
     it('handles URLs with comments on same line', async () => {
@@ -361,6 +375,143 @@ describe('openJsonFile', () => {
 
       // Assert: URL preserved, comment stripped
       expect(result.website).toBe('https://example.com')
+    })
+  })
+
+  describe('auto-migration on load', () => {
+    it('auto-migrates old HyperSolve format to flat structure', async () => {
+      // Arrange: Old nested HyperSolve format
+      const oldConfig = {
+        'mesh filename': 'test.obj',
+        HyperSolve: {
+          'boundary conditions': [
+            { type: 'no slip', 'mesh boundary tags': 1 }
+          ],
+          states: {
+            freestream: { 'mach number': 2.0 }
+          },
+          steps: 1000
+        }
+      }
+
+      const mockFile = createMockFile(JSON.stringify(oldConfig), 'old-config.json')
+      const mockFileHandle = { getFile: vi.fn().mockResolvedValue(mockFile) }
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: Should be migrated to flat structure with BC type migration
+      expect(result.HyperSolve).toBeUndefined()
+      expect(result['boundary conditions']).toEqual([
+        { type: 'no slip wall', 'mesh boundary tags': 1 }
+      ])
+      expect(result.states).toEqual({
+        freestream: { 'mach number': 2.0 }
+      })
+      expect(result.steps).toBe(1000)
+      expect(result['mesh filename']).toBe('test.obj')
+    })
+
+    it('auto-migrates old Vulcan format to flat structure', async () => {
+      // Arrange: Old nested Vulcan format
+      const oldConfig = {
+        'mesh filename': 'mesh.ugrid',
+        Vulcan: {
+          'boundary conditions': [
+            { type: 'dirichlet', 'mesh boundary tags': 2 }
+          ],
+          thermodynamics: {
+            species: ['N2', 'O2']
+          }
+        }
+      }
+
+      const mockFile = createMockFile(JSON.stringify(oldConfig), 'vulcan-config.json')
+      const mockFileHandle = { getFile: vi.fn().mockResolvedValue(mockFile) }
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: Should be migrated to flat structure with BC type migration
+      expect(result.Vulcan).toBeUndefined()
+      expect(result['boundary conditions']).toEqual([
+        { type: 'fixed inflow', 'mesh boundary tags': 2 }
+      ])
+      expect(result.thermodynamics).toEqual({
+        species: ['N2', 'O2']
+      })
+    })
+
+    it('preserves new flat format but still migrates deprecated BC types', async () => {
+      // Arrange: Already flat format but with deprecated BC type
+      const flatConfig = {
+        'mesh filename': 'test.obj',
+        'boundary conditions': [
+          { type: 'no slip', 'mesh boundary tags': 1 }
+        ],
+        states: {
+          freestream: { 'mach number': 2.0 }
+        },
+        steps: 1000
+      }
+
+      const mockFile = createMockFile(JSON.stringify(flatConfig), 'flat-config.json')
+      const mockFileHandle = { getFile: vi.fn().mockResolvedValue(mockFile) }
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: Structure is flat (unchanged) but BC type is migrated
+      expect(result['mesh filename']).toBe('test.obj')
+      expect(result['boundary conditions'][0].type).toBe('no slip wall')
+      expect(result.states).toEqual(flatConfig.states)
+    })
+
+    it('migrates complex old config with all properties', async () => {
+      // Arrange: Complex old format with multiple properties
+      const oldConfig = {
+        'mesh filename': 'hypersonic.csm',
+        HyperSolve: {
+          'boundary conditions': [
+            { type: 'no slip', 'mesh boundary tags': 1 },
+            { type: 'riemann', 'mesh boundary tags': 2 }
+          ],
+          states: {
+            freestream: { 'mach number': 8.0, temperature: 220 },
+            wall: { temperature: 300 }
+          },
+          thermodynamics: {
+            species: ['N2', 'O2', 'NO', 'N', 'O'],
+            'chemical nonequilibrium': true
+          },
+          'time accuracy': {
+            type: 'fixed timestep',
+            timestep: 1e-6
+          },
+          steps: 5000,
+          'spatial accuracy': 2
+        }
+      }
+
+      const mockFile = createMockFile(JSON.stringify(oldConfig), 'complex-old.json')
+      const mockFileHandle = { getFile: vi.fn().mockResolvedValue(mockFile) }
+      globalThis.showOpenFilePicker = vi.fn().mockResolvedValue([mockFileHandle])
+
+      // Act
+      const result = await openJsonFile()
+
+      // Assert: All properties flattened correctly
+      expect(result.HyperSolve).toBeUndefined()
+      expect(result['boundary conditions']).toHaveLength(2)
+      expect(result.states).toBeDefined()
+      expect(result.thermodynamics).toBeDefined()
+      expect(result['time accuracy']).toBeDefined()
+      expect(result.steps).toBe(5000)
+      expect(result['spatial accuracy']).toBe(2)
+      expect(result['mesh filename']).toBe('hypersonic.csm')
     })
   })
 })

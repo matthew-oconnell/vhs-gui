@@ -37,7 +37,7 @@ interface StateWizardProps {
 }
 
 export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, savedState, onSaveState }: StateWizardProps) {
-  const { configData, rootSolverKey } = useAppStore()
+  const { configData } = useAppStore()
   
   // Initialize state from savedState if available, otherwise use defaults
   const [mode, setMode] = useState<StateMode>(savedState?.mode ?? null)
@@ -76,15 +76,15 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
       return
     }
     
-    const species = getSpeciesList(configData, rootSolverKey || undefined)
-    const isMultispecies = !isSingleSpecies(configData, rootSolverKey || undefined)
+    const species = getSpeciesList(configData)
+    const isMultispecies = !isSingleSpecies(configData)
     
     // Only auto-initialize for multispecies with no existing mass fractions
     if (isMultispecies && species.length > 0) {
-      const initialized = initializeMassFractions(species, configData, rootSolverKey || undefined)
+      const initialized = initializeMassFractions(species, configData)
       setMassFractions(initialized)
     }
-  }, [configData, rootSolverKey]) // Re-run when thermodynamics changes
+  }, [configData]) // Re-run when thermodynamics changes
 
   // Handler to open thermodynamics wizard
   const handleOpenThermodynamics = () => {
@@ -171,7 +171,7 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
     
     // Validate mass fractions if any have been defined
     if (Object.keys(massFractions).length > 0 && (mode === 'static' || mode === 'total' || mode === 'advanced')) {
-      const species = getSpeciesList(configData, rootSolverKey || undefined)
+      const species = getSpeciesList(configData)
       const validation = validateMassFractions(massFractions, species)
       if (!validation.valid) {
         return false
@@ -192,8 +192,8 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
   
   // Component to render mass fractions section
   const renderMassFractionsSection = () => {
-    const isMultispecies = !isSingleSpecies(configData, rootSolverKey || undefined)
-    const species = getSpeciesList(configData, rootSolverKey || undefined)
+    const isMultispecies = !isSingleSpecies(configData)
+    const species = getSpeciesList(configData)
     const hasMassFractions = Object.keys(massFractions).length > 0
     
     // Validate mass fractions if they exist

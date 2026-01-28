@@ -6,15 +6,12 @@ describe('appStore - updateThermodynamics', () => {
     // Reset store to clean state before each test
     useAppStore.setState({
       configData: {
-        HyperSolve: {
-          thermodynamics: {
-            'chemical nonequilibrium': true,
-            species: ['N2', 'O2', 'NO'],
-            'reaction model filename': 'kinetic_data'
-          }
+        thermodynamics: {
+          'chemical nonequilibrium': true,
+          species: ['N2', 'O2', 'NO'],
+          'reaction model filename': 'kinetic_data'
         }
       },
-      rootSolverKey: 'HyperSolve',
       selectedNode: null,
       selectedBC: null,
       meshData: null,
@@ -32,7 +29,7 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-    expect(state.configData.HyperSolve?.thermodynamics?.['chemical nonequilibrium']).toBe(false)
+    expect(state.configData.thermodynamics?.['chemical nonequilibrium']).toBe(false)
   })
 
   it('sets species to perfect gas for ideal gas', () => {
@@ -45,7 +42,7 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-    expect(state.configData.HyperSolve?.thermodynamics?.species).toEqual(['perfect gas'])
+    expect(state.configData.thermodynamics?.species).toEqual(['perfect gas'])
   })
 
   it('sets molecular weight and gamma for ideal gas', () => {
@@ -58,8 +55,8 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-    expect(state.configData.HyperSolve?.thermodynamics?.['molecular weight']).toBe(28.97)
-    expect(state.configData.HyperSolve?.thermodynamics?.['ratio of specific heats']).toBe(1.4)
+    expect(state.configData.thermodynamics?.['molecular weight']).toBe(28.97)
+    expect(state.configData.thermodynamics?.['ratio of specific heats']).toBe(1.4)
   })
 
   it('removes reaction model filename when ideal gas is selected', () => {
@@ -73,20 +70,18 @@ describe('appStore - updateThermodynamics', () => {
     
     const state = useAppStore.getState()
     // When we set ideal gas, we should not have reaction model filename
-    expect(state.configData.HyperSolve?.thermodynamics?.['reaction model filename']).toBeUndefined()
+    expect(state.configData.thermodynamics?.['reaction model filename']).toBeUndefined()
   })
 
   it('replaces multispecies configuration with ideal gas', () => {
     // Start with a complex multispecies setup
     useAppStore.setState({
       configData: {
-        HyperSolve: {
-          thermodynamics: {
-            'chemical nonequilibrium': true,
-            species: ['N2', 'O2', 'NO', 'N', 'O'],
-            'reaction model filename': 'air-5species.dat',
-            'thermal nonequilibrium': true
-          }
+        thermodynamics: {
+          'chemical nonequilibrium': true,
+          species: ['N2', 'O2', 'NO', 'N', 'O'],
+          'reaction model filename': 'air-5species.dat',
+          'thermal nonequilibrium': true
         }
       }
     })
@@ -100,7 +95,7 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-    const thermo = state.configData.HyperSolve?.thermodynamics
+    const thermo = state.configData.thermodynamics
     
     // Should completely replace with ideal gas config
     expect(thermo?.['chemical nonequilibrium']).toBe(false)
@@ -119,22 +114,19 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-    expect(state.configData.HyperSolve?.thermodynamics?.species).toEqual([])
+    expect(state.configData.thermodynamics?.species).toEqual([])
   })
 
   it('works with Vulcan root key instead of HyperSolve', () => {
     // Use Vulcan as root key
     useAppStore.setState({
       configData: {
-        Vulcan: {
-          thermodynamics: {
-            'chemical nonequilibrium': true,
-            species: ['N2', 'O2', 'NO'],
-            'reaction model filename': 'kinetic_data'
-          }
+        thermodynamics: {
+          'chemical nonequilibrium': true,
+          species: ['N2', 'O2', 'NO'],
+          'reaction model filename': 'kinetic_data'
         }
-      },
-      rootSolverKey: 'Vulcan'
+      }
     })
     
     const { updateThermodynamics } = useAppStore.getState()
@@ -146,11 +138,9 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-    // Should update Vulcan, not HyperSolve
-    expect(state.configData.Vulcan?.thermodynamics?.['chemical nonequilibrium']).toBe(false)
-    expect(state.configData.Vulcan?.thermodynamics?.species).toEqual(['perfect gas'])
-    expect(state.configData.HyperSolve).toBeUndefined()
-  })
+        expect(state.configData.thermodynamics?.['chemical nonequilibrium']).toBe(false)
+    expect(state.configData.thermodynamics?.species).toEqual(['perfect gas'])
+      })
 
   // Phase 2: Multispecies - Planetary Atmosphere Tests
   describe('multispecies planetary atmosphere', () => {
@@ -164,7 +154,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
@@ -183,7 +173,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-'])
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
@@ -199,7 +189,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-'])
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
@@ -214,7 +204,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['CO2', 'CO', 'N2', 'O2', 'NO'])
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
@@ -225,16 +215,14 @@ describe('appStore - updateThermodynamics', () => {
       // Start with ideal gas
       useAppStore.setState({
         configData: {
-          HyperSolve: {
-            thermodynamics: {
+        thermodynamics: {
               species: ['perfect gas'],
               'molecular weight': 28.97,
               'ratio of specific heats': 1.4,
               'chemical nonequilibrium': false
             }
-          }
-        }
-      })
+      }
+    })
       
       const { updateThermodynamics } = useAppStore.getState()
       
@@ -245,7 +233,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       // Should completely replace with multispecies config
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
@@ -267,7 +255,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O'])
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
@@ -285,7 +273,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toContain('CH2CO,ketene')
       expect(thermo?.species).toContain('C4H9,s-butyl')
@@ -304,7 +292,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       // Should combine reaction species + inert species
       expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O', 'N'])
@@ -322,7 +310,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O', 'N2'])
     })
@@ -338,7 +326,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O', 'N', 'N2'])
     })
@@ -347,15 +335,13 @@ describe('appStore - updateThermodynamics', () => {
       // Start with planetary atmosphere
       useAppStore.setState({
         configData: {
-          HyperSolve: {
-            thermodynamics: {
+        thermodynamics: {
               species: ['N2', 'O2', 'NO', 'N', 'O'],
               'chemical nonequilibrium': true,
               'thermodynamic data source': 'NASA_9_coefficient'
             }
-          }
-        }
-      })
+      }
+    })
       
       const { updateThermodynamics } = useAppStore.getState()
       
@@ -366,7 +352,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       // Should completely replace with reaction file config
       expect(thermo?.species).toEqual(['CH4', 'O2', 'CO2', 'H2O', 'N2'])
@@ -377,8 +363,7 @@ describe('appStore - updateThermodynamics', () => {
   describe('Chemical Nonequilibrium Toggle (Phase 5)', () => {
     it('enables chemical nonequilibrium when explicitly set to true', () => {
       useAppStore.setState({
-        configData: { HyperSolve: {} },
-        rootSolverKey: 'HyperSolve'
+        configData: {},
       })
       
       const { updateThermodynamics } = useAppStore.getState()
@@ -391,7 +376,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
@@ -399,8 +384,7 @@ describe('appStore - updateThermodynamics', () => {
 
     it('disables chemical nonequilibrium when explicitly set to false (frozen flow)', () => {
       useAppStore.setState({
-        configData: { HyperSolve: {} },
-        rootSolverKey: 'HyperSolve'
+        configData: {},
       })
       
       const { updateThermodynamics } = useAppStore.getState()
@@ -413,7 +397,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.['chemical nonequilibrium']).toBe(false)
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-'])
@@ -421,8 +405,7 @@ describe('appStore - updateThermodynamics', () => {
 
     it('defaults to true when chemicalNonequilibrium not provided (backwards compatible)', () => {
       useAppStore.setState({
-        configData: { HyperSolve: {} },
-        rootSolverKey: 'HyperSolve'
+        configData: {},
       })
       
       const { updateThermodynamics } = useAppStore.getState()
@@ -434,7 +417,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
       expect(thermo?.species).toEqual(['CO2', 'CO', 'N2', 'O2', 'NO'])
@@ -442,8 +425,7 @@ describe('appStore - updateThermodynamics', () => {
 
     it('sets chemical nonequilibrium false for mixing-only combustion', () => {
       useAppStore.setState({
-        configData: { HyperSolve: {} },
-        rootSolverKey: 'HyperSolve'
+        configData: {},
       })
       
       const { updateThermodynamics } = useAppStore.getState()
@@ -456,7 +438,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.['chemical nonequilibrium']).toBe(false)
       expect(thermo?.['reaction model filename']).toBe('reac_mod.H2')
@@ -465,8 +447,7 @@ describe('appStore - updateThermodynamics', () => {
 
     it('sets chemical nonequilibrium true for combusting mode', () => {
       useAppStore.setState({
-        configData: { HyperSolve: {} },
-        rootSolverKey: 'HyperSolve'
+        configData: {},
       })
       
       const { updateThermodynamics } = useAppStore.getState()
@@ -480,7 +461,7 @@ describe('appStore - updateThermodynamics', () => {
       })
       
       const state = useAppStore.getState()
-      const thermo = state.configData.HyperSolve?.thermodynamics
+      const thermo = state.configData.thermodynamics
       
       expect(thermo?.['chemical nonequilibrium']).toBe(true)
       expect(thermo?.['reaction model filename']).toBe('reac_mod.H2')

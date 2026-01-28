@@ -1,9 +1,12 @@
 // Utility to extract BC type descriptions from the schema
 
+import { getFeatureFlags } from './featureFlags'
+
 export interface BCTypeInfo {
   type: string
   description: string
   onlyFor?: string[]
+  deprecated?: boolean  // True if this BC type is from a "Deprecated" definition
 }
 
 let bcTypeInfoCache: Record<string, BCTypeInfo> | null = null
@@ -41,19 +44,21 @@ export async function loadBCTypeInfo(): Promise<Record<string, BCTypeInfo>> {
       ref.$ref.replace('#/definitions/', '')
     ) || []
 
-    // For each BC definition, extract enum values, description, and "only for"
+    // For each BC definition, extract enum values, description, "only for", and deprecated status
     bcDefinitions.forEach((defName: string) => {
       const def = schema.definitions?.[defName]
       if (def?.properties?.type?.enum) {
         const description = def.description || 'No description available'
         const onlyFor = def['only for'] as string[] | undefined
+        const deprecated = defName.startsWith('Deprecated')  // Mark as deprecated if definition name starts with "Deprecated"
         const enumValues = def.properties.type.enum
 
         enumValues.forEach((enumVal: string) => {
           typeInfo[enumVal] = {
             type: enumVal,
             description,
-            onlyFor
+            onlyFor,
+            deprecated
           }
         })
       }
@@ -75,17 +80,29 @@ export function getBCTypeDescription(type: string): string {
 }
 
 /**
- * Check if a BC type should be available (not restricted by "only for")
- * Returns true if the BC has no restrictions, or is available for vulcan/hypersolve
+ * Check if a BC type should be available based on current feature flags
+ * Returns true if the BC has no restrictions, or if at least one of its
+ * "only for" categories is enabled in the feature flags
  */
 export function isBCTypeAvailable(type: string): boolean {
   const info = bcTypeInfoCache?.[type]
-  if (!info || !info.onlyFor) {
+  if (!info || !info.onlyFor || info.onlyFor.length === 0) {
     return true // No restrictions, available for all
   }
   
-  // Check if it's available for vulcan or hypersolve
-  return info.onlyFor.some(solver => 
-    solver === 'vulcan' || solver === 'hypersolve'
+  // Get currently enabled feature categories
+  const flags = getFeatureFlags()
+  
+  // Check if any of the BC's "only for" categories are enabled
+  return info.onlyFor.some(category => 
+    flags.enabledCategories.has(category)
   )
+}
+
+/**
+ * Check if a BC type is deprecated
+ * Deprecated types can still be loaded from files but should not appear in the UI
+ */
+export function isBCTypeDeprecated(type: string): boolean {
+  return bcTypeInfoCache?.[type]?.deprecated || false
 }

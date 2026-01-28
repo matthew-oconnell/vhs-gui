@@ -25,12 +25,81 @@ export interface State {
 }
 
 export interface ConfigData {
-  'mesh filename'?: string
+  // Core required properties (flat structure - new schema)
+  'mesh filename'?: string | string[]
+  'boundary conditions'?: BoundaryCondition[]
+  states?: Record<string, State> // Key-value pairs where key is the state name
+  
+  // Common solver settings (now at root level)
   steps?: number
+  'checkpoint frequency'?: number
+  'domain name'?: string
+  'equation type'?: string
+  
+  // Solver configuration sections (now at root level)
+  discretization?: any
+  thermodynamics?: any
+  'time accuracy'?: any
+  'turbulence model'?: any
+  'nonlinear solver'?: any
+  'linear solver'?: any
+  'update limits'?: any
+  'radiation solver'?: any
+  'mhd solver'?: any
+  'particle solver'?: any
+  
+  // Initial conditions (now at root level)
+  'initial state'?: string
+  'initialization regions'?: Array<any>
+  
+  // Mesh and adaptation (now at root level)
+  'mesh unit length'?: number
+  'mesh adaptation'?: any
+  'laura mesh adaptation'?: any
+  
+  // Output and visualization (now at root level)
+  visualization?: Array<any>
+  components?: any
+  
+  // Restart settings (now at root level)
+  restart?: boolean
+  'restart filename'?: string
+  'restart in filename'?: string
+  'restart out filename'?: string
+  
+  // Advanced settings (now at root level)
+  sequence?: Array<any>
+  combustion?: any
+  profiling?: any
+  debug?: any
+  
+  // Allow any additional properties for schema flexibility
+  [key: string]: any
+}
+
+/**
+ * @deprecated Legacy nested config structure - use ConfigData directly.
+ * The old schema used HyperSolve or Vulcan root keys. New schema is flat.
+ * This type is kept for backwards compatibility during migration.
+ */
+export interface LegacyConfigData {
+  'mesh filename'?: string | string[]
+  steps?: number
+  restart?: boolean
+  'restart filename'?: string
+  sequence?: Array<any>
+  
   HyperSolve?: {
     'boundary conditions'?: BoundaryCondition[]
-    states?: Record<string, State> // Key-value pairs where key is the state name
+    states?: Record<string, State>
     [key: string]: any
   }
+  
+  Vulcan?: {
+    'boundary conditions'?: BoundaryCondition[]
+    states?: Record<string, State>
+    [key: string]: any
+  }
+  
   [key: string]: any
 }

@@ -25,13 +25,10 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
   const { 
     availableSurfaces,
     configData,
-    rootSolverKey,
     meshNeedsExport,
   } = useAppStore()
 
   const hasMesh = availableSurfaces.length > 0
-  const rootKey = rootSolverKey || 'HyperSolve'
-  const rootConfig = (configData as any)[rootKey]
 
   // Build checklist items based on current project state
   const checklistItems: ChecklistItem[] = []
@@ -71,7 +68,7 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
     const total = availableSurfaces.length
     if (total === 0) return { assigned: 0, total: 0, isComplete: false }
 
-    const bcs = rootConfig?.['boundary conditions'] || []
+    const bcs = configData['boundary conditions'] || []
     
     // Count assigned surfaces
     const assignedSurfaceNames = new Set<string>()
@@ -104,7 +101,7 @@ function StatusBar({ onOpenThermodynamicsWizard }: StatusBarProps = {}) {
   // 4. Code Control
   const hasCodeControl = (() => {
     // Check if code control section exists and has required fields
-    const codeControl = rootConfig?.['code control']
+    const codeControl = configData['code control']
     return codeControl !== undefined && codeControl !== null
   })()
 

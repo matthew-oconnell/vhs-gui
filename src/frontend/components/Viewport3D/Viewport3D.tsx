@@ -51,15 +51,14 @@ function ClickableSurface({
   // Track right-click position and time to differentiate click from drag
   const rightClickStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   
-  const { selectedSurface, setSelectedSurface, selectedSurfaces, toggleSurfaceSelection, clearSurfaceSelection, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings, globalRenderSettings, configData, rootSolverKey, cameraSettings } = useAppStore()
+  const { selectedSurface, setSelectedSurface, selectedSurfaces, toggleSurfaceSelection, clearSurfaceSelection, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings, globalRenderSettings, configData, cameraSettings } = useAppStore()
   const [hovered, setHovered] = useState(false)
   
   // Check if this surface is in the multi-selection
   const isSelected = selectedSurfaces.some(s => s.id === surface.id)
   
   // Get boundary conditions for color logic
-  const rootKey = rootSolverKey || 'HyperSolve'
-  const boundaryConditions = (configData as any)[rootKey]?.['boundary conditions'] || []
+  const boundaryConditions = configData['boundary conditions'] || []
   
   // Get render settings with defaults
   const settings = surfaceRenderSettings[surface.id] ?? {
@@ -360,7 +359,7 @@ function ClickableSurface({
 }
 
 function InitializationRegionCylinder({ region, isSelected, regionIndex, controlsRef }: { region: any; isSelected: boolean; regionIndex: number; controlsRef: React.RefObject<any> }) {
-  const { configData, setConfigData, rootSolverKey } = useAppStore()
+  const { configData, setConfigData } = useAppStore()
   const { gl, raycaster, camera } = useThree()
   const [hoveredPoint, setHoveredPoint] = useState<string | null>(null)
   const [draggingPoint, setDraggingPoint] = useState<string | null>(null)
@@ -558,20 +557,15 @@ function InitializationRegionCylinder({ region, isSelected, regionIndex, control
       }
       
       // Apply updates
-      const rootKey = rootSolverKey || 'HyperSolve'
-      const rootConfig = (configData as any)[rootKey]
-      if (Object.keys(updates).length > 0 && rootConfig?.['initialization regions']) {
-        const updatedRegions = [...rootConfig['initialization regions']]
+      if (Object.keys(updates).length > 0 && configData['initialization regions']) {
+        const updatedRegions = [...configData['initialization regions']]
         updatedRegions[regionIndex] = {
           ...region,
           ...updates
         }
         const updatedConfig = {
           ...configData,
-          [rootKey]: {
-            ...rootConfig,
-            'initialization regions': updatedRegions
-          }
+          'initialization regions': updatedRegions
         }
         setConfigData(updatedConfig)
       }
@@ -1169,7 +1163,7 @@ function VisualizationLine({ viz, isSelected, vizIndex, controlsRef }: { viz: an
 
 function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surface: Surface) => void }) {
   const { scene, gl, camera } = useThree()
-  const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData, rootSolverKey, clearSurfaceSelection } = useAppStore()
+  const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData, clearSurfaceSelection } = useAppStore()
   const controlsRef = useRef<any>(null)
   const isDraggingCamera = useRef(false)
   
@@ -1282,11 +1276,7 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
       })}
 
       {/* Render initialization regions */}
-      {(() => {
-        // Use the rootSolverKey from the hook (already destructured above)
-        const effectiveRootKey = rootSolverKey || 'HyperSolve'
-        const rootConfig = (configData as any)[effectiveRootKey]
-        return rootConfig?.['initialization regions']?.map((region: any, index: number) => {
+      {configData['initialization regions']?.map((region: any, index: number) => {
         const isSelected = selectedInitRegion ? selectedInitRegion.index === index : false
         
         // Only render if selected
@@ -1296,8 +1286,7 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
           return <InitializationRegionCylinder key={`init-region-cylinder-${index}`} region={region} isSelected={isSelected} regionIndex={index} controlsRef={controlsRef} />
         }
         return null
-      })
-      })()}
+      })}
 
       {/* Ground grid */}
       <Grid
@@ -1368,7 +1357,6 @@ function Viewport3D() {
     surfaceVisibility,
     selectedInitRegion,
     selectedViz,
-    rootSolverKey,
     boxSelectionSettings,
     boxSelectionState
   } = useAppStore()
@@ -1485,9 +1473,7 @@ function Viewport3D() {
   }, [surfaceVisibility, contextMenu])
   
   const findBCForSurface = (surface: Surface): BoundaryCondition | null => {
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    const bcs = rootConfig?.['boundary conditions'] || []
+    const bcs = configData['boundary conditions'] || []
     return bcs.find(bc => {
       const tags = bc['mesh boundary tags']
       const surfaceTag = surface.metadata.tag
@@ -1736,9 +1722,7 @@ function Viewport3D() {
                   </div>
                 )}
                 {(() => {
-                  const rootKey = rootSolverKey || 'HyperSolve'
-                  const rootConfig = (configData as any)[rootKey]
-                  const bcs = rootConfig?.['boundary conditions'] || []
+                  const bcs = configData['boundary conditions'] || []
                   const associatedBC = bcs.find(bc => {
                     const tags = bc['mesh boundary tags']
                     const surfaceTag = selectedSurface.metadata.tag
@@ -1814,9 +1798,7 @@ function Viewport3D() {
         
         {/* Context menu */}
         {contextMenu && (() => {
-          const rootKey = rootSolverKey || 'HyperSolve'
-          const rootConfig = (configData as any)[rootKey]
-          const hasBCs = rootConfig?.['boundary conditions']?.length > 0
+          const hasBCs = configData['boundary conditions']?.length > 0
           const hasVisualizations = false // TODO: Check when visualizations are implemented
           
           return (

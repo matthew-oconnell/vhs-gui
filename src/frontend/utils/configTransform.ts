@@ -3,10 +3,9 @@
  * 
  * @param config - The raw configuration object loaded from JSON
  * @param surfaces - Array of mesh surfaces with metadata (tag, tagName)
- * @param rootSolverKey - The root solver key (e.g., 'Vulcan' or 'HyperSolve')
  * @returns Transformed configuration ready for the UI
  */
-export const transformLoadedConfig = (config: any, surfaces: Array<{ metadata: { tag: number; tagName: string } }>, rootSolverKey: string = 'HyperSolve'): any => {
+export const transformLoadedConfig = (config: any, surfaces: Array<{ metadata: { tag: number; tagName: string } }>): any => {
   const transformed = JSON.parse(JSON.stringify(config)) // Deep clone
   
   // Create a map of surface name to tag number
@@ -17,12 +16,10 @@ export const transformLoadedConfig = (config: any, surfaces: Array<{ metadata: {
   
   console.log('[transformLoadedConfig] Surface name to tag map:', Object.fromEntries(nameToTag))
   
-  const rootConfig = (transformed as any)[rootSolverKey]
-  
   // Add 'id' and 'name' to boundary conditions
   // Convert mesh boundary tags from surface names to numbers
-  if (rootConfig?.['boundary conditions']) {
-    rootConfig['boundary conditions'] = rootConfig['boundary conditions'].map((bc: any, index: number) => {
+  if (transformed['boundary conditions']) {
+    transformed['boundary conditions'] = transformed['boundary conditions'].map((bc: any, index: number) => {
       // Generate ID for UI
       const bcWithId = {
         ...bc,
@@ -56,9 +53,9 @@ export const transformLoadedConfig = (config: any, surfaces: Array<{ metadata: {
   }
   
   // Add 'id' to states
-  if (rootConfig?.states && typeof rootConfig.states === 'object') {
+  if (transformed.states && typeof transformed.states === 'object') {
     const transformedStates: any = {}
-    Object.entries(rootConfig.states).forEach(([key, value]: [string, any]) => {
+    Object.entries(transformed.states).forEach(([key, value]: [string, any]) => {
       if (value && typeof value === 'object') {
         transformedStates[key] = {
           ...value,
@@ -69,12 +66,12 @@ export const transformLoadedConfig = (config: any, surfaces: Array<{ metadata: {
         transformedStates[key] = value
       }
     })
-    rootConfig.states = transformedStates
+    transformed.states = transformedStates
   }
   
   // Add 'id' to initialization regions
-  if (rootConfig?.['initialization regions'] && Array.isArray(rootConfig['initialization regions'])) {
-    rootConfig['initialization regions'] = rootConfig['initialization regions'].map((region: any, index: number) => ({
+  if (transformed['initialization regions'] && Array.isArray(transformed['initialization regions'])) {
+    transformed['initialization regions'] = transformed['initialization regions'].map((region: any, index: number) => ({
       ...region,
       id: `init-${Date.now()}-${index}`
     }))

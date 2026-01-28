@@ -3,6 +3,7 @@
  */
 
 import { stripJsonComments } from './jsonComments'
+import { migrateConfigToFlatStructure, isOldFormat, migrateBCTypes } from './configMigration'
 
 /**
  * Saves data as a JSON file and prompts the user to select a save location
@@ -13,8 +14,11 @@ import { stripJsonComments } from './jsonComments'
  */
 export const saveAsJson = async (data: any, defaultFilename: string = 'config.json'): Promise<void> => {
   try {
+    // Ensure we're saving in the new flat format
+    const dataToSave = isOldFormat(data) ? migrateConfigToFlatStructure(data) : data
+    
     // Convert data to a formatted JSON string
-    const jsonString = JSON.stringify(data, null, 2);
+    const jsonString = JSON.stringify(dataToSave, null, 2);
     
     // Create a Blob with the JSON data
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -59,8 +63,11 @@ export const saveAsJson = async (data: any, defaultFilename: string = 'config.js
  * @param filename Default filename for the download
  */
 export const downloadJson = (data: any, filename: string = 'config.json'): void => {
+  // Ensure we're saving in the new flat format
+  const dataToSave = isOldFormat(data) ? migrateConfigToFlatStructure(data) : data
+  
   // Convert data to a JSON string
-  const jsonString = JSON.stringify(data, null, 2);
+  const jsonString = JSON.stringify(dataToSave, null, 2);
   
   // Create a Blob with the JSON data
   const blob = new Blob([jsonString], { type: 'application/json' });
@@ -139,8 +146,20 @@ export const openJsonFile = async (): Promise<any> => {
     // Strip comments from JSON text
     const cleanedText = stripJsonComments(text);
     
-    // Parse and return JSON (will throw if invalid)
-    return JSON.parse(cleanedText);
+    // Parse JSON
+    const rawConfig = JSON.parse(cleanedText);
+    
+    // Auto-migrate if old format detected
+    let config = rawConfig
+    if (isOldFormat(config)) {
+      console.log('[fileUtils] Detected old nested format, auto-migrating to flat structure')
+      config = migrateConfigToFlatStructure(config)
+    }
+    
+    // Auto-migrate deprecated BC types
+    config = migrateBCTypes(config)
+    
+    return config
   } catch (error) {
     // If user cancels the file picker, return null instead of throwing
     if ((error as Error).name === 'AbortError') {

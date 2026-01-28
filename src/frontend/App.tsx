@@ -19,7 +19,6 @@ import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fi
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
-import { loadSchemaWithSolverKey } from './utils/schemaUtils'
 import { buildCSM, checkESPHealth, buildCSMWithDepsStreaming } from './utils/espApi'
 import { convertESPRegionsToSurfaces } from './utils/espAdapter'
 import { calculateBoundingBox, BoundingBox } from './utils/geometryUtils'
@@ -38,7 +37,7 @@ function App() {
   const [importedGeometryFile, setImportedGeometryFile] = useState<File | null>(null)
   const [showThermoWizardFromStatusBar, setShowThermoWizardFromStatusBar] = useState(false)
   
-  const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData, setRootSolverKey } = useAppStore()
+  const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData } = useAppStore()
   const { setCollapsed, isCollapsed, log } = useConsoleStore()
 
   /**
@@ -94,27 +93,6 @@ function App() {
     log('DEBUG', 'info', 'Console panel is ready')
     log('ESP', 'info', 'Waiting for ESP operations...')
   }, [log])
-
-  // Load schema on startup to determine root solver key (Vulcan or HyperSolve)
-  useEffect(() => {
-    const loadSchemaOnStartup = async () => {
-      try {
-        const { schema, rootSolverKey } = await loadSchemaWithSolverKey()
-        if (rootSolverKey) {
-          console.log(`[App] Setting root solver key to: ${rootSolverKey}`)
-          setRootSolverKey(rootSolverKey)
-        } else {
-          console.warn('[App] Could not determine root solver key from schema, defaulting to HyperSolve')
-          setRootSolverKey('HyperSolve')
-        }
-      } catch (error) {
-        console.error('[App] Error loading schema on startup:', error)
-        setRootSolverKey('HyperSolve') // Default fallback
-      }
-    }
-    
-    loadSchemaOnStartup()
-  }, [setRootSolverKey])
 
   const handleNew = () => {
     setShowNewProjectWizard(true)
@@ -179,10 +157,9 @@ function App() {
         const currentSurfaces = useAppStore.getState().availableSurfaces
         console.log('[App] Transforming config with surfaces:', currentSurfaces.length)
         console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
+        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces)
         setConfigData(transformedConfig)
-        console.log('[App] Transformed BCs:', (transformedConfig as any)[rootKey]?.['boundary conditions'])
+        console.log('[App] Transformed BCs:', transformedConfig['boundary conditions'])
         console.log('Configuration loaded successfully')
       } else {
         console.log('[App] Config transformation deferred until after lump dialog')
@@ -568,10 +545,9 @@ function App() {
         const currentSurfaces = useAppStore.getState().availableSurfaces
         console.log('[App] Available surfaces after mesh load:', currentSurfaces.length)
         console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces, rootKey)
+        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces)
         setConfigData(transformedConfig)
-        console.log('[App] Configuration set with BCs:', (transformedConfig as any)[rootKey]?.['boundary conditions'])
+        console.log('[App] Configuration set with BCs:', transformedConfig['boundary conditions'])
         setPendingConfig(null)
       }
     }

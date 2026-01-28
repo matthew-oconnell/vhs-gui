@@ -24,6 +24,7 @@ interface SchemaProperty {
   allOf?: SchemaProperty[]
   enum?: any[]
   hidden?: boolean
+  deprecated?: boolean
   required?: string[]
   'only for'?: string[] | string  // Properties tagged with specific categories
 }
@@ -58,6 +59,7 @@ function hasObjectItems(node: TreeNode): boolean {
 
 import { isCategoryHidden } from './featureFlags';
 
+
 let currentShowAdvanced = false;
 
 export function buildTreeFromSchema(
@@ -76,10 +78,16 @@ export function buildTreeFromSchema(
   const properties = schema.properties
   const normalNodes: TreeNode[] = []
   const advancedNodes: TreeNode[] = []
-  const normalGlobalPODFields: TreeNode[] = []
-  const advancedGlobalPODFields: TreeNode[] = []
+
+  // Schema keywords to exclude from tree (these are metadata, not actual properties)
+  const schemaKeywords = new Set(['additionalProperties', 'additionalItems', 'patternProperties'])
 
   for (const [key, prop] of Object.entries(properties)) {
+    // Skip schema keywords
+    if (schemaKeywords.has(key)) {
+      continue
+    }
+    
     const property = prop as SchemaProperty
     
     // Skip hidden properties
@@ -98,44 +106,17 @@ export function buildTreeFromSchema(
           : property['only for'] === 'advanced'
       )
       
-      // Check if this is a POD field at root level
-      if (isPODNode(node)) {
-        if (isAdvanced) {
-          advancedGlobalPODFields.push(node)
-        } else {
-          normalGlobalPODFields.push(node)
-        }
+      // Add all nodes directly (no POD grouping)
+      if (isAdvanced) {
+        advancedNodes.push(node)
       } else {
-        if (isAdvanced) {
-          advancedNodes.push(node)
-        } else {
-          normalNodes.push(node)
-        }
+        normalNodes.push(node)
       }
     }
   }
 
   // Build final nodes array: normal first, then advanced
   const nodes: TreeNode[] = []
-  
-  // If there are normal global POD fields, create a "Global" node
-  if (normalGlobalPODFields.length > 0 || (showAdvanced && advancedGlobalPODFields.length > 0)) {
-    const globalChildren = [
-      ...normalGlobalPODFields,
-      ...(showAdvanced ? advancedGlobalPODFields : [])
-    ]
-    
-    const globalNode: TreeNode = {
-      id: 'root.global',
-      label: 'Global',
-      type: 'object',
-      description: 'Global configuration options',
-      children: globalChildren,
-      expanded: false,
-      required: false
-    }
-    nodes.push(globalNode)
-  }
   
   // Add normal nodes
   nodes.push(...normalNodes)
@@ -184,8 +165,8 @@ function createNodeFromProperty(
   required: boolean = false,
   isRootLevel: boolean = false
 ): TreeNode | null {
-  // Hide property if it's marked for developers only or experimental
-  if (property.hidden || shouldHideProperty(property)) {
+  // Hide deprecated, hidden, or category-filtered properties
+  if (property.deprecated || property.hidden || shouldHideProperty(property)) {
     return null;
   }
   
@@ -264,7 +245,16 @@ function createNodeFromProperty(
     
     if (property.properties) {
       const childRequired = property.required || []
+      
+      // Schema keywords to exclude from tree (these are metadata, not actual properties)
+      const schemaKeywords = new Set(['additionalProperties', 'additionalItems', 'patternProperties'])
+      
       for (const [childKey, childProp] of Object.entries(property.properties)) {
+        // Skip schema keywords
+        if (schemaKeywords.has(childKey)) {
+          continue
+        }
+        
         const childProperty = childProp as SchemaProperty
         if (!childProperty.hidden) {
           const childNode = createNodeFromProperty(

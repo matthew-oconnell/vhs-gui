@@ -18,14 +18,12 @@ describe('Config transformation with mesh surfaces', () => {
     // ARRANGE: Config with BC referencing surface name "wall"
     const loadedConfig = {
       'mesh filename': 'test.obj',
-      HyperSolve: {
-        'boundary conditions': [
-          {
-            type: 'no slip',
-            'mesh boundary tags': 'wall'  // Surface name from config file
-          }
-        ]
-      }
+      'boundary conditions': [
+        {
+          type: 'no slip',
+          'mesh boundary tags': 'wall'  // Surface name from config file
+        }
+      ]
     }
     
     // ARRANGE: Mesh surfaces with tag names and numbers
@@ -44,21 +42,19 @@ describe('Config transformation with mesh surfaces', () => {
     const transformedConfig = transformLoadedConfig(loadedConfig, surfaces)
     
     // ASSERT: BC should now have tag number instead of name
-    expect(transformedConfig.HyperSolve['boundary conditions'][0]['mesh boundary tags']).toBe(5)
-    expect(transformedConfig.HyperSolve['boundary conditions'][0]).toHaveProperty('id')
-    expect(transformedConfig.HyperSolve['boundary conditions'][0]).toHaveProperty('name')
+    expect(transformedConfig['boundary conditions'][0]['mesh boundary tags']).toBe(5)
+    expect(transformedConfig['boundary conditions'][0]).toHaveProperty('id')
+    expect(transformedConfig['boundary conditions'][0]).toHaveProperty('name')
   })
   
   it('converts BC surface name arrays to tag number arrays', () => {
     const loadedConfig = {
-      HyperSolve: {
-        'boundary conditions': [
-          {
-            type: 'dirichlet',
-            'mesh boundary tags': ['inlet', 'outlet']  // Array of surface names
-          }
-        ]
-      }
+      'boundary conditions': [
+        {
+          type: 'dirichlet',
+          'mesh boundary tags': ['inlet', 'outlet']  // Array of surface names
+        }
+      ]
     }
     
     const surfaces = [
@@ -68,12 +64,11 @@ describe('Config transformation with mesh surfaces', () => {
     
     const transformedConfig = transformLoadedConfig(loadedConfig, surfaces)
     
-    expect(transformedConfig.HyperSolve['boundary conditions'][0]['mesh boundary tags']).toEqual([10, 20])
+    expect(transformedConfig['boundary conditions'][0]['mesh boundary tags']).toEqual([10, 20])
   })
   
   it('preserves tag numbers that are already numeric', () => {
     const loadedConfig = {
-      HyperSolve: {
         'boundary conditions': [
           {
             type: 'no slip',
@@ -81,7 +76,6 @@ describe('Config transformation with mesh surfaces', () => {
           }
         ]
       }
-    }
     
     const surfaces = [
       { id: '1', name: 'Wall', metadata: { tag: 5, tagName: 'wall' } }
@@ -89,12 +83,11 @@ describe('Config transformation with mesh surfaces', () => {
     
     const transformedConfig = transformLoadedConfig(loadedConfig, surfaces)
     
-    expect(transformedConfig.HyperSolve['boundary conditions'][0]['mesh boundary tags']).toBe(5)
+    expect(transformedConfig['boundary conditions'][0]['mesh boundary tags']).toBe(5)
   })
   
   it('handles missing surface names gracefully', () => {
     const loadedConfig = {
-      HyperSolve: {
         'boundary conditions': [
           {
             type: 'no slip',
@@ -102,7 +95,6 @@ describe('Config transformation with mesh surfaces', () => {
           }
         ]
       }
-    }
     
     const surfaces = [
       { id: '1', name: 'Wall', metadata: { tag: 5, tagName: 'wall' } }
@@ -111,6 +103,6 @@ describe('Config transformation with mesh surfaces', () => {
     const transformedConfig = transformLoadedConfig(loadedConfig, surfaces)
     
     // Should preserve the original value if no match found
-    expect(transformedConfig.HyperSolve['boundary conditions'][0]['mesh boundary tags']).toBe('nonexistent-surface')
+    expect(transformedConfig['boundary conditions'][0]['mesh boundary tags']).toBe('nonexistent-surface')
   })
 })

@@ -23,10 +23,8 @@ describe('thermodynamicsUtils', () => {
     
     it('returns false for multispecies configuration', () => {
       const config: ConfigData = {
-        HyperSolve: {
-          thermodynamics: {
-            species: ['N2', 'O2', 'NO']
-          }
+        thermodynamics: {
+          species: ['N2', 'O2', 'NO']
         }
       }
       
@@ -34,18 +32,14 @@ describe('thermodynamicsUtils', () => {
     })
     
     it('returns true when no thermodynamics configured', () => {
-      const config: ConfigData = {
-        HyperSolve: {}
-      }
+      const config: ConfigData = {}
       
       expect(isSingleSpecies(config)).toBe(true)
     })
     
     it('returns true when thermodynamics has no species', () => {
       const config: ConfigData = {
-        HyperSolve: {
-          thermodynamics: {}
-        }
+        thermodynamics: {}
       }
       
       expect(isSingleSpecies(config)).toBe(true)
@@ -55,10 +49,8 @@ describe('thermodynamicsUtils', () => {
   describe('getSpeciesList', () => {
     it('returns species array from thermodynamics', () => {
       const config: ConfigData = {
-        HyperSolve: {
-          thermodynamics: {
-            species: ['N2', 'O2', 'NO', 'N', 'O']
-          }
+        thermodynamics: {
+          species: ['N2', 'O2', 'NO', 'N', 'O']
         }
       }
       
@@ -67,7 +59,6 @@ describe('thermodynamicsUtils', () => {
     
     it('returns perfect gas as default when no thermodynamics', () => {
       const config: ConfigData = {
-        HyperSolve: {}
       }
       
       expect(getSpeciesList(config)).toEqual(['perfect gas'])
@@ -159,10 +150,8 @@ describe('thermodynamicsUtils', () => {
   describe('initializeMassFractions', () => {
     it('uses Earth 5-species composition when matching species are detected', () => {
       const configData = {
-        HyperSolve: {
-          thermodynamics: {
-            species: ['N2', 'O2', 'NO', 'N', 'O']
-          }
+        thermodynamics: {
+          species: ['N2', 'O2', 'NO', 'N', 'O']
         }
       }
       const species = ['N2', 'O2', 'NO', 'N', 'O']
@@ -179,10 +168,8 @@ describe('thermodynamicsUtils', () => {
     
     it('uses Earth 7-species composition when matching species are detected', () => {
       const configData = {
-        HyperSolve: {
-          thermodynamics: {
-            species: ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
-          }
+        thermodynamics: {
+          species: ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
         }
       }
       const species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
@@ -197,10 +184,8 @@ describe('thermodynamicsUtils', () => {
     
     it('uses Mars composition when Mars species are detected', () => {
       const configData = {
-        HyperSolve: {
-          thermodynamics: {
-            species: ['CO2', 'CO', 'N2', 'O2', 'NO']
-          }
+        thermodynamics: {
+          species: ['CO2', 'CO', 'N2', 'O2', 'NO']
         }
       }
       const species = ['CO2', 'CO', 'N2', 'O2', 'NO']

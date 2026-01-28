@@ -59,8 +59,8 @@ const EARTH_SPECIES_COMPOSITIONS: Record<string, Record<string, number>> = {
 /**
  * Check if the current configuration is running in single-species (ideal gas) mode
  */
-export function isSingleSpecies(configData: ConfigData, rootKey: string = 'HyperSolve'): boolean {
-  const thermodynamics = configData[rootKey]?.thermodynamics
+export function isSingleSpecies(configData: ConfigData): boolean {
+  const thermodynamics = configData.thermodynamics
   
   if (!thermodynamics || !thermodynamics.species) {
     return true // Default to single-species if no thermodynamics configured
@@ -77,8 +77,8 @@ export function isSingleSpecies(configData: ConfigData, rootKey: string = 'Hyper
 /**
  * Get the list of species from the thermodynamics configuration
  */
-export function getSpeciesList(configData: ConfigData, rootKey: string = 'HyperSolve'): string[] {
-  const thermodynamics = configData[rootKey]?.thermodynamics
+export function getSpeciesList(configData: ConfigData): string[] {
+  const thermodynamics = configData.thermodynamics
   
   if (!thermodynamics || !thermodynamics.species) {
     return ['perfect gas'] // Default
@@ -124,8 +124,7 @@ export function validateMassFractions(
  */
 export function initializeMassFractions(
   species: string[], 
-  configData?: ConfigData,
-  rootKey: string = 'HyperSolve'
+  configData?: ConfigData
 ): Record<string, number> {
   if (species.length === 0) {
     return {}
@@ -139,7 +138,7 @@ export function initializeMassFractions(
   
   // Try to get atmospheric composition from thermodynamics config
   if (configData) {
-    const thermodynamics = configData[rootKey]?.thermodynamics
+    const thermodynamics = configData.thermodynamics
     
     // Check if we have Earth species model
     if (thermodynamics) {

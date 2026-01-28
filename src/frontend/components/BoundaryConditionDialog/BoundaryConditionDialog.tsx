@@ -3,69 +3,70 @@ import { X, ChevronDown, ChevronRight } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition, State } from '../../types/config'
 import { Surface } from '../../types/surface'
-import { loadBCTypeDescriptions, loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
+import { loadBCTypeDescriptions, loadBCTypeInfo, isBCTypeAvailable, isBCTypeDeprecated } from '../../utils/bcTypeDescriptions'
+import { subscribeToFeatureFlags } from '../../utils/featureFlags'
 import StateWizard, { SavedWizardState } from '../EditorPanel/StateWizard'
 import ThermodynamicsWizard from '../EditorPanel/ThermodynamicsWizard'
 import './BoundaryConditionDialog.css'
 
 // BC types that require a state reference
 const BC_TYPES_REQUIRING_STATE = [
+  // Deprecated (still supported for loading old files)
   'dirichlet',
   'dirichlet profile',
+  // Current
+  'fixed inflow',        // requires state OR profile (we'll check for state in wizard)
   'strong dirichlet',
   'riemann',
   'mass flux inflow',
-  'subsonic inflow total',
-  'fixed subsonic inflow',
-  'engine inlet'
+  'subsonic inflow total'  // deprecated
 ]
 
 // BC types that require wall temperature (viscous walls)
 const BC_TYPES_WITH_WALL_TEMP = [
+  // Deprecated (still supported for loading old files)
   'no slip',
   'wall matching',
+  // Current
+  'no slip wall',
   'weak no slip'
 ]
 
-// Complete list of BC types from the schema
+// Complete list of BC types from the schema (current + deprecated)
 const BC_TYPES = [
-  'dirichlet',
-  'dirichlet profile',
-  'strong dirichlet',
-  'riemann',
-  'extrapolation',
-  'slip wall',
-  'tangent flow',
-  'constant temperature',
-  'weak constant temperature',
-  'weak radiative equilibrium temperature',
-  'symmetry',
-  'weak symmetry',
-  'no slip',
-  'wall matching',
-  'weak no slip',
+  // === CURRENT (non-deprecated) - from schema ===
   'axisymmetric pole',
-  'back pressure',
-  'mms',
-  'strong mms',
-  'strong-weak hns mms',
-  'maxwell mms',
-  'gol mms',
-  'mass flux inflow',
-  'subsonic inflow total',
-  'supersonic outflow',
+  'constant temperature',
+  'fixed inflow',                           // Replaces deprecated: dirichlet, dirichlet profile
   'fixed subsonic inflow',
-  'engine inlet',
-  'strong particle wall',
-  'particle wall',
-  'marshak',
-  'strong marshak',
-  'weak constant intensity',
-  'constant intensity',
-  'perfect conductor',
-  'insulated wall',
   'freestream em',
-  'outflow em'
+  'insulated wall',
+  'marshak',
+  'mass flux inflow',
+  'mms',
+  'no slip wall',                           // Replaces deprecated: no slip, wall matching
+  'outflow em',
+  'perfect conductor',
+  'riemann',
+  'slip wall',
+  'strong dirichlet',
+  'strong particle wall',
+  'subsonic inflow',                        // Replaces deprecated: subsonic inflow total
+  'subsonic outflow',                       // Replaces deprecated: back pressure
+  'supersonic outflow',                     // Replaces deprecated: extrapolation
+  'symmetry',
+  'tangent flow',
+  'weak constant intensity',
+  'weak radiative equilibrium temperature',
+  
+  // === DEPRECATED (still in schema for backwards compatibility) ===
+  'dirichlet',                              // → use 'fixed inflow'
+  'dirichlet profile',                      // → use 'fixed inflow' with profile option
+  'extrapolation',                          // → use 'supersonic outflow'
+  'no slip',                                // → use 'no slip wall'
+  'wall matching',                          // → use 'no slip wall' with wall matching:true
+  'back pressure',                          // → use 'subsonic outflow'
+  'subsonic inflow total',                  // → use 'subsonic inflow'
 ]
 
 interface BoundaryConditionDialogProps {
@@ -85,7 +86,6 @@ export default function BoundaryConditionDialog({
     addBoundaryCondition, 
     setSelectedBC,
     addState,
-    rootSolverKey,
     selectedSurfaces
   } = useAppStore()
 
@@ -104,9 +104,7 @@ export default function BoundaryConditionDialog({
 
   // Get list of unassigned surfaces
   const getUnassignedSurfaces = (): Surface[] => {
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    const bcs = rootConfig?.['boundary conditions'] || []
+    const bcs = configData['boundary conditions'] || []
     const assignedTags = new Set<number>()
     
     bcs.forEach(bc => {
@@ -133,21 +131,33 @@ export default function BoundaryConditionDialog({
 
   // Get available states from config
 
-  // Load BC type descriptions on mount
+  // Load BC type descriptions on mount and re-filter when feature flags change
   useEffect(() => {
     loadBCTypeDescriptions().then(descriptions => {
       setBcDescriptions(descriptions)
-    loadBCTypeInfo().then(() => {
-      // Filter BC types to only show those available for vulcan/hypersolve
-      const filtered = BC_TYPES.filter(type => isBCTypeAvailable(type))
-      setAvailableBCTypes(filtered)
     })
+    loadBCTypeInfo().then(() => {
+      // Filter BC types based on current feature flags and exclude deprecated types
+      const filtered = BC_TYPES.filter(type => 
+        isBCTypeAvailable(type) && !isBCTypeDeprecated(type)
+      )
+      setAvailableBCTypes(filtered)
     })
   }, [])
   
-  const rootKey = rootSolverKey || 'HyperSolve'
-  const rootConfig = (configData as any)[rootKey] || {}
-  const availableStates = Object.keys(rootConfig.states || {})
+  // Re-filter BC types when feature flags change
+  useEffect(() => {
+    const unsubscribe = subscribeToFeatureFlags(() => {
+      // Re-filter BC types based on new feature flags and exclude deprecated types
+      const filtered = BC_TYPES.filter(type => 
+        isBCTypeAvailable(type) && !isBCTypeDeprecated(type)
+      )
+      setAvailableBCTypes(filtered)
+    })
+    return unsubscribe
+  }, [])
+  
+  const availableStates = Object.keys(configData.states || {})
 
   // Initialize with the surfaces that are currently selected in the store
   useEffect(() => {
@@ -187,10 +197,8 @@ export default function BoundaryConditionDialog({
     console.log('[BoundaryConditionDialog] Creating state:', state)
     addState(state)
     const storeState = useAppStore.getState()
-    const rootKey = storeState.rootSolverKey || 'HyperSolve'
-    const rootConfig = (storeState.configData as any)[rootKey] || {}
     console.log('[BoundaryConditionDialog] State added, current configData:', storeState.configData)
-    console.log('[BoundaryConditionDialog] States in config:', Object.keys(rootConfig.states || {}))
+    console.log('[BoundaryConditionDialog] States in config:', Object.keys(storeState.configData.states || {}))
     setStateName(state.name)
     setShowStateWizard(false)
     setSavedStateWizardState(undefined) // Clear saved state after successful creation

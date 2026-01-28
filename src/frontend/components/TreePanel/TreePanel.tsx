@@ -26,7 +26,6 @@ function TreePanel() {
   const selectedInitRegion = useAppStore(state => state.selectedInitRegion)
   const setSelectedInitRegion = useAppStore(state => state.setSelectedInitRegion)
   const configData = useAppStore(state => state.configData)
-  const rootSolverKey = useAppStore(state => state.rootSolverKey)
   const updateProperty = useAppStore(state => state.updateProperty)
   const selectedId = selectedNode?.id || null
 
@@ -81,14 +80,10 @@ function TreePanel() {
 
   // Enhance tree nodes with actual data instances
   const enhanceTreeWithData = (nodes: TreeNode[]): TreeNode[] => {
-    // Use the rootSolverKey from the hook (already destructured above)
-    const effectiveRootKey = rootSolverKey || 'HyperSolve'
-    
     return nodes.map(node => {
       // Check if this is the boundary conditions array
-      if (node.id === `root.${effectiveRootKey}.boundary conditions` && node.type === 'array') {
-        const rootConfig = (configData as any)[effectiveRootKey]
-        const bcs = rootConfig?.['boundary conditions'] || []
+      if (node.id === 'root.boundary conditions' && node.type === 'array') {
+        const bcs = configData['boundary conditions'] || []
         
         // Create child nodes for each BC instance
         const bcNodes: TreeNode[] = bcs.map((bc, index) => ({
@@ -108,9 +103,8 @@ function TreePanel() {
       }
       
       // Check if this is the states object
-      if (node.id === `root.${effectiveRootKey}.states` && node.type === 'object') {
-        const rootConfig = (configData as any)[effectiveRootKey] || {}
-        const states = rootConfig.states || {}
+      if (node.id === 'root.states' && node.type === 'object') {
+        const states = configData.states || {}
         const stateEntries = Object.values(states)
         
         // Create child nodes for each state instance
@@ -153,9 +147,8 @@ function TreePanel() {
       }
 
       // Check if this is the initialization regions array
-      if (node.id === `root.${effectiveRootKey}.initialization regions` && node.type === 'array') {
-        const rootConfig = (configData as any)[effectiveRootKey]
-        const initRegions = rootConfig?.['initialization regions'] || []
+      if (node.id === 'root.initialization regions' && node.type === 'array') {
+        const initRegions = configData['initialization regions'] || []
         
         // Create child nodes for each initialization region instance
         const initRegionNodes: TreeNode[] = initRegions.map((region: any, index: number) => ({
@@ -223,10 +216,9 @@ function TreePanel() {
             onDoubleClick={() => {
               // Open property dialog on double-click for object nodes (not BC/State/Viz/InitRegion instances)
               // Skip thermodynamics - use the wizard instead (property editor causes grey screen)
-              const effectiveKey = rootSolverKey || 'HyperSolve'
-              const isThermoNode = node.id === `root.${effectiveKey}.thermodynamics` || 
+              const isThermoNode = node.id === 'root.thermodynamics' || 
                                   (node.id && node.id.endsWith('.thermodynamics')) ||
-                                  node.path === `${effectiveKey}.thermodynamics`
+                                  node.path === 'thermodynamics'
               if (!isBCNode && !isStateNode && !isVizNode && !isInitRegionNode && !isThermoNode && node.type === 'object') {
                 setDialogNode(node)
                 setShowPropertyDialog(true)

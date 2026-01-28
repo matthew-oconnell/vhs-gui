@@ -101,8 +101,6 @@ interface AppState {
   setSoloBC: (bc: BoundaryCondition | null) => void
   configData: ConfigData
   setConfigData: (configData: ConfigData) => void
-  rootSolverKey: string | null
-  setRootSolverKey: (key: string | null) => void
   availableSurfaces: Surface[]
   totalVertices: number
   totalFaces: number
@@ -218,47 +216,13 @@ export const useAppStore = create<AppState>((set) => ({
     state.csmBuilder.clearOperations()
   },
   
-  // Initialize with empty configuration
+  // Initialize with empty configuration (flat structure)
   configData: {
-    HyperSolve: {
-      'boundary conditions': [],
-      states: {}
-    }
+    'boundary conditions': [],
+    states: {}
   },
   
   setConfigData: (configData) => set({ configData }),
-  
-  // Root solver key from schema (e.g., 'Vulcan' or 'HyperSolve')
-  rootSolverKey: null,
-  setRootSolverKey: (key) => set((state) => {
-    // When root solver key changes, update the default config structure
-    const currentConfig = state.configData
-    const oldKey = state.rootSolverKey || 'HyperSolve'
-    
-    // If the key changed and we have default config under the old key, migrate it
-    if (key && key !== oldKey && currentConfig[oldKey]) {
-      const oldData = currentConfig[oldKey]
-      const newConfig = { ...currentConfig }
-      delete newConfig[oldKey]
-      newConfig[key] = oldData
-      return { rootSolverKey: key, configData: newConfig }
-    }
-    
-    // If no config exists yet under any key, create the default structure
-    if (key && !currentConfig[key]) {
-      return {
-        rootSolverKey: key,
-        configData: {
-          [key]: {
-            'boundary conditions': [],
-            states: {}
-          }
-        }
-      }
-    }
-    
-    return { rootSolverKey: key }
-  }),
   
   availableSurfaces: [],
   totalVertices: 0,
@@ -276,7 +240,7 @@ export const useAppStore = create<AppState>((set) => ({
   
   updateProjectStage: () => {
     const state = useAppStore.getState()
-    const { availableSurfaces, configData, rootSolverKey } = state
+    const { availableSurfaces, configData } = state
     
     // No mesh loaded
     if (availableSurfaces.length === 0) {
@@ -285,9 +249,7 @@ export const useAppStore = create<AppState>((set) => ({
     }
     
     // Mesh loaded - check BC assignment
-    const rootKey = rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    const bcs = rootConfig?.['boundary conditions'] || []
+    const bcs = configData['boundary conditions'] || []
     
     // Count assigned surfaces
     const assignedSurfaceNames = new Set<string>()
@@ -505,8 +467,7 @@ export const useAppStore = create<AppState>((set) => ({
   
   toggleHideAssignedSurfaces: () => set((state) => {
     const newHideAssigned = !state.globalRenderSettings.hideAssignedSurfaces
-    const rootKey = state.rootSolverKey || 'HyperSolve'
-    const boundaryConditions = (state.configData as any)[rootKey]?.['boundary conditions'] || []
+    const boundaryConditions = state.configData['boundary conditions'] || []
     
     // Build new visibility map
     const newVisibility = { ...state.surfaceVisibility }
@@ -554,9 +515,6 @@ export const useAppStore = create<AppState>((set) => ({
   })),
   
   addBoundaryCondition: (bc) => set((state) => {
-    const rootKey = state.rootSolverKey || 'HyperSolve'
-    const rootConfig = (state.configData as any)[rootKey] || {}
-    
     // If hideAssignedSurfaces is on, hide the surfaces being assigned to this BC
     let newVisibility = state.surfaceVisibility
     if (state.globalRenderSettings.hideAssignedSurfaces && bc['mesh boundary tags']) {
@@ -584,16 +542,12 @@ export const useAppStore = create<AppState>((set) => ({
     // Update project stage after BC added
     setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
     
+    const bcs = state.configData['boundary conditions'] || []
+    
     return {
       configData: {
         ...state.configData,
-        [rootKey]: {
-          ...rootConfig,
-          'boundary conditions': [
-            ...(rootConfig['boundary conditions'] || []),
-            bc
-          ]
-        }
+        'boundary conditions': [...bcs, bc]
       },
       surfaceVisibility: newVisibility,
       selectedBC: bc,
@@ -603,9 +557,6 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   
   updateBoundaryCondition: (id, updates) => set((state) => {
-    const rootKey = state.rootSolverKey || 'HyperSolve'
-    const rootConfig = (state.configData as any)[rootKey] || {}
-    
     // If hideAssignedSurfaces is on and mesh boundary tags are being updated, hide newly assigned surfaces
     let newVisibility = state.surfaceVisibility
     if (state.globalRenderSettings.hideAssignedSurfaces && updates['mesh boundary tags']) {
@@ -633,15 +584,14 @@ export const useAppStore = create<AppState>((set) => ({
     // Update project stage after BC updated
     setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
     
+    const bcs = state.configData['boundary conditions'] || []
+    
     return {
       configData: {
         ...state.configData,
-        [rootKey]: {
-          ...rootConfig,
-          'boundary conditions': rootConfig['boundary conditions']?.map((bc: any) =>
-            bc.id === id ? { ...bc, ...updates } : bc
-          ) || []
-        }
+        'boundary conditions': bcs.map((bc: any) =>
+          bc.id === id ? { ...bc, ...updates } : bc
+        )
       },
       surfaceVisibility: newVisibility,
       // Update selectedBC if it's the one being modified
@@ -652,8 +602,7 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   
   deleteBoundaryCondition: (id) => set((state) => {
-    const rootKey = state.rootSolverKey || 'HyperSolve'
-    const rootConfig = (state.configData as any)[rootKey] || {}
+    const bcs = state.configData['boundary conditions'] || []
     
     // Update project stage after BC deleted
     setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
@@ -661,22 +610,15 @@ export const useAppStore = create<AppState>((set) => ({
     return {
       configData: {
         ...state.configData,
-        [rootKey]: {
-          ...rootConfig,
-          'boundary conditions': rootConfig['boundary conditions']?.filter((bc: any) =>
-            bc.id !== id
-          ) || []
-        }
+        'boundary conditions': bcs.filter((bc: any) => bc.id !== id)
       },
       selectedBC: state.selectedBC?.id === id ? null : state.selectedBC
     }
   }),
   
   addState: (state) => set((s) => {
-    const rootKey = s.rootSolverKey || 'HyperSolve'
-    const rootConfig = (s.configData as any)[rootKey] || {}
-    console.log('[addState] Adding state:', state.name, 'to', rootKey)
-    console.log('[addState] Current states:', Object.keys(rootConfig.states || {}))
+    console.log('[addState] Adding state:', state.name)
+    console.log('[addState] Current states:', Object.keys(s.configData.states || {}))
     
     // Update project stage after state added
     setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
@@ -684,12 +626,9 @@ export const useAppStore = create<AppState>((set) => ({
     const newConfig = {
       configData: {
         ...s.configData,
-        [rootKey]: {
-          ...rootConfig,
-          states: {
-            ...(rootConfig.states || {}),
-            [state.name]: state
-          }
+        states: {
+          ...(s.configData.states || {}),
+          [state.name]: state
         }
       },
       selectedState: state,
@@ -697,14 +636,12 @@ export const useAppStore = create<AppState>((set) => ({
       selectedSurface: null,
       selectedBC: null
     }
-    console.log('[addState] New states:', Object.keys((newConfig.configData as any)[rootKey]?.states || {}))
+    console.log('[addState] New states:', Object.keys(newConfig.configData.states || {}))
     return newConfig
   }),
   
   updateState: (id, updates) => set((s) => {
-    const rootKey = s.rootSolverKey || 'HyperSolve'
-    const rootConfig = (s.configData as any)[rootKey] || {}
-    const states = rootConfig.states || {}
+    const states = s.configData.states || {}
     const currentState = Object.values(states).find((st: any) => st.id === id)
     if (!currentState) return s
     
@@ -723,19 +660,14 @@ export const useAppStore = create<AppState>((set) => ({
     return {
       configData: {
         ...s.configData,
-        [rootKey]: {
-          ...rootConfig,
-          states: newStates
-        }
+        states: newStates
       },
       selectedState: s.selectedState?.id === id ? updatedState : s.selectedState
     }
   }),
   
   deleteState: (id) => set((s) => {
-    const rootKey = s.rootSolverKey || 'HyperSolve'
-    const rootConfig = (s.configData as any)[rootKey] || {}
-    const states = rootConfig.states || {}
+    const states = s.configData.states || {}
     const stateToDelete = Object.values(states).find((st: any) => st.id === id)
     if (!stateToDelete) return s
     
@@ -748,19 +680,13 @@ export const useAppStore = create<AppState>((set) => ({
     return {
       configData: {
         ...s.configData,
-        [rootKey]: {
-          ...rootConfig,
-          states: newStates
-        }
+        states: newStates
       },
       selectedState: s.selectedState?.id === id ? null : s.selectedState
     }
   }),
 
   updateThermodynamics: (thermoConfig) => set((s) => {
-    // Use the global root solver key
-    const rootKey = s.rootSolverKey || 'HyperSolve'
-    
     const thermodynamics: any = {}
     
     if (thermoConfig.gasModel === 'ideal-gas') {
@@ -807,12 +733,10 @@ export const useAppStore = create<AppState>((set) => ({
     
     return {
       thermoWizardExecuted: true,
-      configData: updateConfig(s.configData, {
-        [rootKey]: {
-          ...s.configData[rootKey],
-          thermodynamics
-        }
-      })
+      configData: {
+        ...s.configData,
+        thermodynamics
+      }
     }
   }),
 
@@ -854,53 +778,50 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   
   initializeConfig: (projectConfig) => set((s) => {
-    const rootKey = s.rootSolverKey || 'HyperSolve'
-    console.log('[appStore] initializeConfig using root key:', rootKey)
+    console.log('[appStore] initializeConfig (flat structure)')
     
     const newConfig: any = {
-      [rootKey]: {
-        'boundary conditions': [],
-        states: {}
-      }
+      'boundary conditions': [],
+      states: {}
     }
     
     // Set thermodynamics based on gas model
     if (projectConfig.gasModel === 'single-species') {
-      newConfig[rootKey].thermodynamics = {
+      newConfig.thermodynamics = {
         species: ['perfect gas']
       }
     } else if (projectConfig.gasModel === 'multispecies') {
       // Multispecies configuration
       if (projectConfig.reactionType === 'edl') {
         // EDL chemistry
-        newConfig[rootKey].thermodynamics = {
+        newConfig.thermodynamics = {
           'chemical nonequilibrium': true
         }
         
         if (projectConfig.planetaryBody === 'earth') {
           // Earth air models
           if (projectConfig.speciesModel === '5-species') {
-            newConfig[rootKey].thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O']
+            newConfig.thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O']
           } else if (projectConfig.speciesModel === '7-species') {
-            newConfig[rootKey].thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
+            newConfig.thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-']
           } else if (projectConfig.speciesModel === '11-species') {
-            newConfig[rootKey].thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-']
+            newConfig.thermodynamics.species = ['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-']
           }
         } else if (projectConfig.planetaryBody === 'mars') {
           // Mars Park model (5 species)
-          newConfig[rootKey].thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
+          newConfig.thermodynamics.species = ['CO2', 'CO', 'N2', 'O2', 'NO']
         }
       } else if (projectConfig.reactionType === 'combustion') {
         // Combustion chemistry
-        newConfig[rootKey].thermodynamics = {
+        newConfig.thermodynamics = {
           'chemical nonequilibrium': true,
           'reaction model filename': projectConfig.reactionModelFile || 'kinetic_data'
         }
         // Species will be extracted from reaction model file later
-        newConfig[rootKey].thermodynamics.species = []
+        newConfig.thermodynamics.species = []
       } else if (projectConfig.speciesType === 'non-reacting') {
         // Non-reacting multispecies
-        newConfig[rootKey].thermodynamics = {
+        newConfig.thermodynamics = {
           'chemical nonequilibrium': false,
           species: [] // User will add species manually
         }
@@ -909,16 +830,16 @@ export const useAppStore = create<AppState>((set) => ({
     
     // Set time accuracy based on time mode
     if (projectConfig.timeMode === 'unsteady' && projectConfig.timeAccuracy) {
-      newConfig[rootKey]['time accuracy'] = {
+      newConfig['time accuracy'] = {
         type: 'fixed timestep'
       }
       
       if (projectConfig.timeAccuracy.timeStep) {
-        newConfig[rootKey]['time accuracy'].timestep = projectConfig.timeAccuracy.timeStep
+        newConfig['time accuracy'].timestep = projectConfig.timeAccuracy.timeStep
       }
       
       if (projectConfig.timeAccuracy.cfl) {
-        newConfig[rootKey]['time accuracy'].cfl = projectConfig.timeAccuracy.cfl
+        newConfig['time accuracy'].cfl = projectConfig.timeAccuracy.cfl
       }
       
       if (projectConfig.timeAccuracy.scheme) {
@@ -928,19 +849,19 @@ export const useAppStore = create<AppState>((set) => ({
           'bdf2': 'BDF',
           'rk4': 'ESDIRK'
         }
-        newConfig[rootKey]['time accuracy'].scheme = schemeMap[projectConfig.timeAccuracy.scheme]
+        newConfig['time accuracy'].scheme = schemeMap[projectConfig.timeAccuracy.scheme]
         
         if (projectConfig.timeAccuracy.scheme === 'bdf1') {
-          newConfig[rootKey]['time accuracy'].order = 1
+          newConfig['time accuracy'].order = 1
         } else if (projectConfig.timeAccuracy.scheme === 'bdf2') {
-          newConfig[rootKey]['time accuracy'].order = 2
+          newConfig['time accuracy'].order = 2
         } else if (projectConfig.timeAccuracy.scheme === 'rk4') {
-          newConfig[rootKey]['time accuracy'].order = 4
+          newConfig['time accuracy'].order = 4
         }
       }
     } else {
       // Steady state - use local timestepping
-      newConfig[rootKey]['time accuracy'] = {
+      newConfig['time accuracy'] = {
         type: 'local timestepping'
       }
     }

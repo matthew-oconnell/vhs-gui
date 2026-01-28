@@ -57,13 +57,10 @@ describe('appStore - global render settings', () => {
           { id: 's2', name: 'Surface 2', metadata: { id: 's2', tag: 2, tagName: 'surface-2' } },
         ],
         configData: {
-          HyperSolve: {
-            'boundary conditions': [
+          'boundary conditions': [
               { id: 'bc1', type: 'no slip', 'mesh boundary tags': 2 }
             ]
-          }
         },
-        rootSolverKey: 'HyperSolve',
         surfaceVisibility: {}
       })
       
@@ -84,13 +81,10 @@ describe('appStore - global render settings', () => {
           { id: 's2', name: 'Surface 2', metadata: { id: 's2', tag: 2, tagName: 'surface-2' } },
         ],
         configData: {
-          HyperSolve: {
-            'boundary conditions': [
-              { id: 'bc1', type: 'no slip', 'mesh boundary tags': 2 }
-            ]
-          }
+          'boundary conditions': [
+            { id: 'bc1', type: 'no slip', 'mesh boundary tags': 2 }
+          ]
         },
-        rootSolverKey: 'HyperSolve',
         surfaceVisibility: { 's2': false },
         globalRenderSettings: {
           colorMode: 'solid',

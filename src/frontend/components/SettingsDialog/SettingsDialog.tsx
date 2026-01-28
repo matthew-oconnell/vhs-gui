@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { KNOWN_CATEGORIES, getFeatureFlags, toggleCategory } from '../../utils/featureFlags'
+import { getTagsByCategory } from '../../utils/featureTagLoader'
 import './SettingsDialog.css'
 
 interface SettingsDialogProps {
@@ -42,6 +43,25 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [enabledCategories, setEnabledCategories] = useState<Set<string>>(() => {
     return getFeatureFlags().enabledCategories
   })
+  
+  // Tag categorization (loaded from featureTagCategories.txt)
+  const [productTags, setProductTags] = useState<string[]>([])
+  const [featureTags, setFeatureTags] = useState<string[]>([])
+  const [visibilityTags, setVisibilityTags] = useState<string[]>([])
+  
+  // Load tag categories on mount
+  useEffect(() => {
+    async function loadCategories() {
+      const products = await getTagsByCategory('product')
+      const features = await getTagsByCategory('feature')
+      const visibility = await getTagsByCategory('visibility')
+      
+      setProductTags(products)
+      setFeatureTags(features)
+      setVisibilityTags(visibility)
+    }
+    loadCategories()
+  }, [])
   
   // Camera settings local state
   const [rotateSpeed, setRotateSpeed] = useState(cameraSettings.rotateSpeed)
@@ -519,36 +539,119 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
               <div className="settings-section">
                 <h3>Feature Categories</h3>
                 <p className="settings-description">
-                  Control which feature categories are visible in the configuration schema.
-                  By default, only "vulcan" features are shown. Enable additional categories as needed.
+                  Control which features are visible in the configuration schema.
+                  Categories use different visibility rules - see explanations below.
                 </p>
                 
-                <div className="feature-toggles">
-                  {Array.from(KNOWN_CATEGORIES).map(category => (
-                    <div key={category} className="settings-item feature-toggle-item">
-                      <label htmlFor={`feature-${category}`} className="feature-toggle-label">
-                        <input
-                          type="checkbox"
-                          id={`feature-${category}`}
-                          checked={enabledCategories.has(category)}
-                          onChange={() => {
-                            const newCategories = new Set(enabledCategories)
-                            if (newCategories.has(category)) {
-                              newCategories.delete(category)
-                            } else {
-                              newCategories.add(category)
-                            }
-                            setEnabledCategories(newCategories)
-                            toggleCategory(category)
-                          }}
-                        />
-                        <span className="feature-category-name">{category}</span>
-                      </label>
+                {/* Product Categories */}
+                {productTags.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: '20px', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>
+                      Solver Products
+                    </h4>
+                    <p className="settings-description" style={{ fontSize: '12px', marginBottom: '12px', color: '#999' }}>
+                      Enable at least one product. Features tagged with multiple products will appear if <strong>any</strong> of their products are enabled.
+                    </p>
+                    <div className="feature-toggles">
+                      {productTags.map(category => (
+                        <div key={category} className="settings-item feature-toggle-item">
+                          <label htmlFor={`feature-${category}`} className="feature-toggle-label">
+                            <input
+                              type="checkbox"
+                              id={`feature-${category}`}
+                              checked={enabledCategories.has(category)}
+                              onChange={() => {
+                                const newCategories = new Set(enabledCategories)
+                                if (newCategories.has(category)) {
+                                  newCategories.delete(category)
+                                } else {
+                                  newCategories.add(category)
+                                }
+                                setEnabledCategories(newCategories)
+                                toggleCategory(category)
+                              }}
+                            />
+                            <span className="feature-category-name">{category}</span>
+                          </label>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
                 
-                <div className="settings-info-box">
+                {/* Feature Categories */}
+                {featureTags.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: '20px', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>
+                      Capabilities & Modules
+                    </h4>
+                    <p className="settings-description" style={{ fontSize: '12px', marginBottom: '12px', color: '#999' }}>
+                      Enable capabilities you need. Features requiring multiple modules will appear if <strong>any</strong> of their modules are enabled.
+                    </p>
+                    <div className="feature-toggles">
+                      {featureTags.map(category => (
+                        <div key={category} className="settings-item feature-toggle-item">
+                          <label htmlFor={`feature-${category}`} className="feature-toggle-label">
+                            <input
+                              type="checkbox"
+                              id={`feature-${category}`}
+                              checked={enabledCategories.has(category)}
+                              onChange={() => {
+                                const newCategories = new Set(enabledCategories)
+                                if (newCategories.has(category)) {
+                                  newCategories.delete(category)
+                                } else {
+                                  newCategories.add(category)
+                                }
+                                setEnabledCategories(newCategories)
+                                toggleCategory(category)
+                              }}
+                            />
+                            <span className="feature-category-name">{category}</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                
+                {/* Visibility Toggles */}
+                {visibilityTags.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: '20px', marginBottom: '8px', fontSize: '14px', fontWeight: 600 }}>
+                      Developer Options
+                    </h4>
+                    <p className="settings-description" style={{ fontSize: '12px', marginBottom: '12px', color: '#999' }}>
+                      These options show advanced/experimental features. Features are hidden unless <strong>all</strong> required visibility toggles are enabled.
+                    </p>
+                    <div className="feature-toggles">
+                      {visibilityTags.map(category => (
+                        <div key={category} className="settings-item feature-toggle-item">
+                          <label htmlFor={`feature-${category}`} className="feature-toggle-label">
+                            <input
+                              type="checkbox"
+                              id={`feature-${category}`}
+                              checked={enabledCategories.has(category)}
+                              onChange={() => {
+                                const newCategories = new Set(enabledCategories)
+                                if (newCategories.has(category)) {
+                                  newCategories.delete(category)
+                                } else {
+                                  newCategories.add(category)
+                                }
+                                setEnabledCategories(newCategories)
+                                toggleCategory(category)
+                              }}
+                            />
+                            <span className="feature-category-name">{category}</span>
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+                
+                <div className="settings-info-box" style={{ marginTop: '20px' }}>
                   <strong>Note:</strong> Changes to feature categories will take effect immediately.
                   The configuration tree and property editors will update to show/hide properties
                   based on your selections.

@@ -418,6 +418,71 @@ These adapt automatically when the schema changes:
 
 ---
 
+### 10. Feature Tags ("only for" Categories)
+**File:** `public/featureTagCategories.txt`
+**File:** `public/featureTagCategories.README.md`
+**File:** `src/frontend/utils/featureFlags.ts` (KNOWN_CATEGORIES array)
+**File:** `src/frontend/utils/featureTagLoader.ts`
+**File:** `src/frontend/components/SettingsDialog/SettingsDialog.tsx` (feature toggles UI)
+
+**Overview:**
+The schema uses `"only for"` arrays to restrict when certain configuration options are shown in the GUI. These tags fall into three categories:
+1. **Product tags** - Which solver/product supports the feature (e.g., "vulcan", "hypersolve") - OR logic
+2. **Feature tags** - Which capabilities/modules are needed (e.g., "sketch-2-solution", "mhd") - OR logic  
+3. **Visibility tags** - Whether to hide the feature by default (e.g., "advanced", "experimental") - ALL must be enabled
+
+**Metadata File: `public/featureTagCategories.txt`**
+This file categorizes tags using a simple arrow syntax (similar to `bcTypeNameHints.txt`):
+```txt
+vulcan -> product
+sketch-2-solution -> feature
+experimental -> visibility
+```
+
+**How to Update When New Tags Appear:**
+
+1. **Identify new tags in schema:**
+   ```bash
+   # Search for "only for" in schema
+   grep -r '"only for"' public/schemas/input.schema.json
+   ```
+
+2. **Categorize the new tag in `public/featureTagCategories.txt`:**
+   - If it's a solver/product → add line: `new-tag -> product`
+   - If it's a capability/module → add line: `new-tag -> feature`
+   - If it controls default visibility → add line: `new-tag -> visibility`
+
+3. **Update `KNOWN_CATEGORIES` array in `featureFlags.ts`:**
+   ```typescript
+   export const KNOWN_CATEGORIES = [
+     'vulcan',
+     'hypersolve',
+     'new-tag-here',  // ← Add new tag
+     // ... etc
+   ]
+   ```
+
+4. **Update Settings UI in `SettingsDialog.tsx`:**
+   - The UI automatically groups tags by category using `getTagsByCategory()`
+   - Product tags appear in "Solver Products" section
+   - Feature tags appear in "Capabilities & Modules" section
+   - Visibility tags appear in "Developer Options" section
+   - No manual UI updates needed unless you want custom descriptions
+
+**Example - New Tag "quantum-physics":**
+1. Add to `featureTagCategories.txt`: `quantum-physics -> feature`
+2. Add to `KNOWN_CATEGORIES` in `featureFlags.ts`
+3. It will automatically appear in the "Capabilities & Modules" section
+
+**Tag Categories:**
+- **Product** (OR logic): `vulcan`, `hypersolve`
+- **Feature** (OR logic): `sketch-2-solution`, `mhd`, `particle`, `perfect gas`, `unsteady`, `structured-adaptation`
+- **Visibility** (ALL must be enabled): `advanced`, `experimental`, `developer`
+
+**See Also:** `public/featureTagCategories.README.md` for detailed documentation
+
+---
+
 ## 📋 Quick Checklist
 
 When you get a new `input.schema.json`:
@@ -438,6 +503,10 @@ When you get a new `input.schema.json`:
 - [ ] Check thermodynamics planetary atmosphere species lists
 - [ ] Update Earth/Mars species arrays in appStore.ts if chemistry models change
 - [ ] Verify thermodynamic data source enum values
+- [ ] Check for new "only for" tags in schema (search for `"only for"`)
+- [ ] Categorize new tags in `public/featureTagCategories.txt` (product/feature/visibility)
+- [ ] Add new tags to `KNOWN_CATEGORIES` in featureFlags.ts
+- [ ] Settings UI will automatically group tags - no manual updates needed
 - [ ] Test BC creation, initialization region creation, visualization creation, state wizard, and thermodynamics wizard
 - [ ] Verify all form fields render correctly
 

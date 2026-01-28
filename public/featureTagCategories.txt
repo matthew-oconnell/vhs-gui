@@ -1,0 +1,32 @@
+# Feature Tag Categories
+# This file defines how schema "only for" tags are categorized and interpreted.
+# Format: tag_name -> category_type
+# Lines starting with # are comments
+# 
+# Category Types:
+#   product   - Solver products (OR logic: show if ANY product tag matches)
+#   feature   - Capabilities/modules (OR logic: show if ANY feature tag matches)
+#   visibility - Special toggles (ALL must be enabled to show)
+#
+# When the schema updates with new "only for" tags, add them here to control
+# how they affect UI visibility. See docs/whenSchemaChanges.md for details.
+
+# Product Categories (OR logic)
+# Features tagged with these are available if ANY of these products are enabled
+vulcan -> product
+hypersolve -> product
+
+# Feature/Module Categories (OR logic)
+# Features tagged with these are available if ANY of these capabilities are enabled
+sketch-2-solution -> feature
+mhd -> feature
+particle -> feature
+perfect gas -> feature
+unsteady -> feature
+structured-adaptation -> feature
+
+# Visibility Toggles (ALL must be enabled)
+# These are special - features are HIDDEN unless explicitly toggled on
+advanced -> visibility
+developer -> visibility
+experimental -> visibility

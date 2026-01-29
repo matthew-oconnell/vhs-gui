@@ -52,10 +52,10 @@ describe('EditorPanel - Generic Object Editor Reactivity', () => {
       } as any,
       selectedBC: null,
       selectedState: null,
-      selectedSurface: null,
+      selectedTag: null,
       selectedViz: null,
       selectedInitRegion: null,
-      availableSurfaces: []
+      availableTags: []
     })
   })
 

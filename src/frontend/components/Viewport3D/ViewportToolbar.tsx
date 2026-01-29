@@ -13,12 +13,12 @@ export function ViewportToolbar() {
   const { 
     globalRenderSettings, 
     setColorMode, 
-    toggleHideAssignedSurfaces,
+    toggleHideAssignedTags,
     cameraSettings,
     setSelectionMode
   } = useAppStore()
   
-  const { colorMode, hideAssignedSurfaces } = globalRenderSettings
+  const { colorMode, hideAssignedTags } = globalRenderSettings
   const { selectionMode } = cameraSettings
 
   const handleColorModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -26,7 +26,7 @@ export function ViewportToolbar() {
   }
   
   const handleSelectionModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectionMode(e.target.value as 'face' | 'group')
+    setSelectionMode(e.target.value as 'tag' | 'group')  // MIGRATION: Changed from 'face' to 'tag'
   }
 
   const handleFitToView = () => {
@@ -43,7 +43,7 @@ export function ViewportToolbar() {
 
   return (
     <div className="viewport-toolbar">
-      {/* Row 1: Surface/Selection Controls */}
+      {/* Row 1: Tag/Selection Controls */}
       <div className="toolbar-row">
         <div className="toolbar-group">
           <Palette size={14} color="#808080" />
@@ -52,7 +52,7 @@ export function ViewportToolbar() {
             className="toolbar-select"
             value={colorMode}
             onChange={handleColorModeChange}
-            title="Select surface coloring mode"
+            title="Select tag coloring mode"
           >
             {COLOR_MODE_OPTIONS.map(option => (
               <option key={option.value} value={option.value}>
@@ -71,9 +71,9 @@ export function ViewportToolbar() {
             className="toolbar-select"
             value={selectionMode}
             onChange={handleSelectionModeChange}
-            title="Select individual faces or entire groups (by bc_name)"
+            title="Select individual tags or entire groups (tags with same name)"
           >
-            <option value="face">Faces</option>
+            <option value="tag">Tags</option>
             <option value="group">Groups</option>
           </select>
         </div>
@@ -82,9 +82,9 @@ export function ViewportToolbar() {
         
         <div className="toolbar-group">
           <button 
-            className={`toolbar-button ${hideAssignedSurfaces ? 'active' : ''}`}
-            onClick={toggleHideAssignedSurfaces}
-            title={hideAssignedSurfaces ? 'Show all surfaces' : 'Hide surfaces with assigned BCs'}
+            className={`toolbar-button ${hideAssignedTags ? 'active' : ''}`}
+            onClick={toggleHideAssignedTags}
+            title={hideAssignedTags ? 'Show all tags' : 'Hide tags with assigned BCs'}
           >
             <EyeOff size={14} />
             <span>Hide Assigned</span>
@@ -98,7 +98,7 @@ export function ViewportToolbar() {
           <button 
             className="toolbar-button" 
             onClick={handleFitToView}
-            title="Fit camera to visible surfaces"
+            title="Fit camera to visible tags"
           >
             <Maximize2 size={14} />
             <span>Fit</span>

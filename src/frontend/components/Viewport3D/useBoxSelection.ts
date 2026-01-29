@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useAppStore, BoxSelectionSettings, SurfaceBounds } from '../../store/appStore'
-import { Surface } from '../../types/surface'
+import { Surface } from '../../types/tag'
 import * as THREE from 'three'
 
 // Access box selection refs from window (set by Scene component)
@@ -37,10 +37,10 @@ function colorToIndex(r: number, g: number, b: number): number {
 /**
  * Expand selection to include all surfaces in the same groups (by bcName)
  */
-export function expandToGroups(selectedSurfaces: Surface[], allSurfaces: Surface[]): Surface[] {
+export function expandToGroups(selectedTags: Surface[], allSurfaces: Surface[]): Surface[] {
   // Get all bcNames from selected surfaces
   const selectedBcNames = new Set<string>()
-  for (const s of selectedSurfaces) {
+  for (const s of selectedTags) {
     if (s.metadata.bcName) {
       selectedBcNames.add(s.metadata.bcName)
     }
@@ -48,7 +48,7 @@ export function expandToGroups(selectedSurfaces: Surface[], allSurfaces: Surface
   
   // Include all surfaces with matching bcName, plus ungrouped selected surfaces
   return allSurfaces.filter(s => 
-    selectedSurfaces.some(sel => sel.id === s.id) ||
+    selectedTags.some(sel => sel.id === s.id) ||
     (s.metadata.bcName && selectedBcNames.has(s.metadata.bcName))
   )
 }
@@ -298,9 +298,9 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     updateBoxSelection,
     endBoxSelection,
     addSurfacesToSelection,
-    availableSurfaces,
+    availableTags,
     surfaceBounds,
-    surfaceVisibility,
+    tagVisibility,
     cameraSettings
   } = useAppStore()
   
@@ -322,8 +322,8 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     const height = canvas.clientHeight
     
     // Filter to only visible surfaces
-    const visibleSurfaces = availableSurfaces.filter(s => 
-      surfaceVisibility[s.id] !== false
+    const visibleSurfaces = availableTags.filter(s => 
+      tagVisibility[s.id] !== false
     )
     
     let selectedInBox: Surface[]
@@ -363,11 +363,11 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     
     // Apply group mode if enabled
     if (cameraSettings.selectionMode === 'group') {
-      return expandToGroups(selectedInBox, availableSurfaces)
+      return expandToGroups(selectedInBox, availableTags)
     }
     
     return selectedInBox
-  }, [availableSurfaces, surfaceBounds, surfaceVisibility, cameraSettings.selectionMode])
+  }, [availableTags, surfaceBounds, tagVisibility, cameraSettings.selectionMode])
   
   /**
    * Handle pointer down - check for modifier keys and start box selection

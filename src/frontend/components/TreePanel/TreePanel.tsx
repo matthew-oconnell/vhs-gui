@@ -105,7 +105,8 @@ function TreePanel({ panelRef }: TreePanelProps) {
         return {
           ...node,
           children: bcNodes.length > 0 ? bcNodes : node.children,
-          expanded: bcNodes.length > 0 ? true : node.expanded
+          // Preserve the node's current expanded state instead of forcing it to true
+          expanded: node.expanded
         }
       }
       
@@ -127,7 +128,8 @@ function TreePanel({ panelRef }: TreePanelProps) {
         return {
           ...node,
           children: stateNodes.length > 0 ? stateNodes : node.children,
-          expanded: stateNodes.length > 0 ? true : node.expanded
+          // Preserve the node's current expanded state instead of forcing it to true
+          expanded: node.expanded
         }
       }
 
@@ -149,7 +151,8 @@ function TreePanel({ panelRef }: TreePanelProps) {
         return {
           ...node,
           children: vizNodes.length > 0 ? vizNodes : node.children,
-          expanded: vizNodes.length > 0 ? true : node.expanded
+          // Preserve the node's current expanded state instead of forcing it to true
+          expanded: node.expanded
         }
       }
 
@@ -171,6 +174,7 @@ function TreePanel({ panelRef }: TreePanelProps) {
         return {
           ...node,
           children: initRegionNodes.length > 0 ? initRegionNodes : node.children,
+          // Preserve the node's current expanded state instead of forcing it to true
           expanded: initRegionNodes.length > 0 ? true : node.expanded
         }
       }

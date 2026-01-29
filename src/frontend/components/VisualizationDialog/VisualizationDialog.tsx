@@ -31,7 +31,7 @@ interface VisualizationDialogProps {
 }
 
 export default function VisualizationDialog({ isOpen, onClose }: VisualizationDialogProps) {
-  const { configData, setConfigData, availableSurfaces, setSelectedViz } = useAppStore()
+  const { configData, setConfigData, availableTags, setSelectedViz } = useAppStore()
 
   const [vizType, setVizType] = useState('volume')
   const [filename, setFilename] = useState('')
@@ -120,7 +120,7 @@ export default function VisualizationDialog({ isOpen, onClose }: VisualizationDi
   }
 
   const handleSelectAllTags = () => {
-    setSelectedTags(availableSurfaces.map(s => s.metadata.tag))
+    setSelectedTags(availableTags.map(s => s.metadata.tag))
   }
 
   const handleDeselectAllTags = () => {
@@ -474,7 +474,7 @@ export default function VisualizationDialog({ isOpen, onClose }: VisualizationDi
                 </span>
               </label>
               
-              {availableSurfaces.length === 0 ? (
+              {availableTags.length === 0 ? (
                 <div className="warning-message">
                   No surfaces available. Please load a mesh file first.
                 </div>
@@ -499,7 +499,7 @@ export default function VisualizationDialog({ isOpen, onClose }: VisualizationDi
                   </div>
                   
                   <div className="surface-checkbox-list">
-                    {availableSurfaces.map((surface) => (
+                    {availableTags.map((surface) => (
                       <label key={surface.id} className="surface-checkbox-item">
                         <input
                           type="checkbox"

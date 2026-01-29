@@ -13,12 +13,12 @@ import { ArrowGizmo } from './CylinderGizmo'
 import SurfaceAlreadyAssignedDialog from '../SurfaceAlreadyAssignedDialog/SurfaceAlreadyAssignedDialog'
 import ConfirmBCDeletionDialog from '../ConfirmBCDeletionDialog/ConfirmBCDeletionDialog'
 import SetBCNameDialog from '../SetBCNameDialog/SetBCNameDialog'
-import { getColorForSurface } from '../../utils/surfaceColorUtils'
+import { getColorForTag } from '../../utils/surfaceColorUtils'
 import { SelectionBox } from './SelectionBox'
 import { useBoxSelection } from './useBoxSelection'
 import './Viewport3D.css'
 
-// Sample surfaces with metadata
+// Sample tags with metadata
 const sampleSurfaces: Surface[] = [
   {
     id: 'surface-1',
@@ -51,17 +51,17 @@ function ClickableSurface({
   // Track right-click position and time to differentiate click from drag
   const rightClickStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   
-  const { selectedSurface, setSelectedSurface, selectedSurfaces, toggleSurfaceSelection, clearSurfaceSelection, selectedBC, soloBC, surfaceVisibility, surfaceRenderSettings, globalRenderSettings, configData, cameraSettings } = useAppStore()
+  const { selectedTag, setSelectedTag, selectedTags, toggleTagSelection, clearTagSelection, selectedBC, soloBC, tagVisibility, tagRenderSettings, globalRenderSettings, configData, cameraSettings } = useAppStore()
   const [hovered, setHovered] = useState(false)
   
-  // Check if this surface is in the multi-selection
-  const isSelected = selectedSurfaces.some(s => s.id === surface.id)
+  // Check if this tag is in the multi-selection
+  const isSelected = selectedTags.some(s => s.id === surface.id)
   
   // Get boundary conditions for color logic
   const boundaryConditions = configData['boundary conditions'] || []
   
   // Get render settings with defaults
-  const settings = surfaceRenderSettings[surface.id] ?? {
+  const settings = tagRenderSettings[surface.id] ?? {
     surfaceColor: '#4a9eff',
     meshColor: '#ffffff',
     renderMode: 'surface' as const,
@@ -80,7 +80,7 @@ function ClickableSurface({
     return geom
   }, [surface.geometry, surface.name])
   
-  // Check if this surface belongs to the selected BC
+  // Check if this tag belongs to the selected BC
   const belongsToSelectedBC = selectedBC ? (() => {
     const tags = selectedBC['mesh boundary tags']
     const surfaceTag = surface.metadata.tag
@@ -95,7 +95,7 @@ function ClickableSurface({
     return false
   })() : false
   
-  // Check if this surface belongs to the soloed BC
+  // Check if this tag belongs to the soloed BC
   const belongsToSoloBC = soloBC ? (() => {
     const tags = soloBC['mesh boundary tags']
     const surfaceTag = surface.metadata.tag
@@ -108,17 +108,17 @@ function ClickableSurface({
       return tags.split(',').map(s => parseInt(s.trim(), 10)).includes(surfaceTag)
     }
     return false
-  })() : true // Show all surfaces if no BC is soloed
+  })() : true // Show all tags if no BC is soloed
   
   // Check visibility from store (surfaceVisibility is updated by toggleHideAssignedSurfaces)
-  const isVisible = surfaceVisibility[surface.id] ?? true
+  const isVisible = tagVisibility[surface.id] ?? true
   
-  // Don't render if surface is hidden
+  // Don't render if tag is hidden
   if (!isVisible) {
     return null
   }
   
-  // Don't render if BC is soloed and this surface doesn't belong to it
+  // Don't render if BC is soloed and this tag doesn't belong to it
   if (soloBC && !belongsToSoloBC) {
     return null
   }
@@ -134,51 +134,51 @@ function ClickableSurface({
       (modifierKey === 'alt' && e.altKey)
     
     // Get selection mode from store
-    const selectionMode = cameraSettings.selectionMode || 'face'
+    const selectionMode = cameraSettings.selectionMode || 'tag'  // MIGRATION: Default changed from 'face' to 'tag'
     
     if (selectionMode === 'group' && surface.metadata.bcName) {
-      // Group selection mode: select all surfaces with same bc_name
-      const { availableSurfaces } = useAppStore.getState()
-      const groupSurfaces = availableSurfaces.filter(
+      // Group selection mode: select all tags with same bc_name
+      const { availableTags } = useAppStore.getState()
+      const groupSurfaces = availableTags.filter(
         s => s.metadata.bcName === surface.metadata.bcName
       )
       
       if (isModifierPressed) {
         // Toggle entire group in/out of selection
         const allSelected = groupSurfaces.every(gs => 
-          selectedSurfaces.some(s => s.id === gs.id)
+          selectedTags.some(s => s.id === gs.id)
         )
         
         if (allSelected) {
-          // Remove all group surfaces from selection
+          // Remove all group tags from selection
           groupSurfaces.forEach(gs => {
-            const isInSelection = selectedSurfaces.some(s => s.id === gs.id)
+            const isInSelection = selectedTags.some(s => s.id === gs.id)
             if (isInSelection) {
-              toggleSurfaceSelection(gs)
+              toggleTagSelection(gs)
             }
           })
         } else {
-          // Add all group surfaces to selection
+          // Add all group tags to selection
           groupSurfaces.forEach(gs => {
-            const isInSelection = selectedSurfaces.some(s => s.id === gs.id)
+            const isInSelection = selectedTags.some(s => s.id === gs.id)
             if (!isInSelection) {
-              toggleSurfaceSelection(gs)
+              toggleTagSelection(gs)
             }
           })
         }
       } else {
         // Replace selection with entire group
-        clearSurfaceSelection()
-        groupSurfaces.forEach(gs => toggleSurfaceSelection(gs))
+        clearTagSelection()
+        groupSurfaces.forEach(gs => toggleTagSelection(gs))
       }
     } else {
-      // Face selection mode (or ungrouped surface)
+      // Tag selection mode (or ungrouped tag)
       if (isModifierPressed) {
-        // Multi-select mode: toggle this surface in/out of selection
-        toggleSurfaceSelection(surface)
+        // Multi-select mode: toggle this tag in/out of selection
+        toggleTagSelection(surface)
       } else {
-        // Normal mode: select only this surface (clears others)
-        setSelectedSurface(surface)
+        // Normal mode: select only this tag (clears others)
+        setSelectedTag(surface)
       }
     }
   }
@@ -242,7 +242,7 @@ function ClickableSurface({
   }
   
   // Get base color from color mode
-  const baseColor = getColorForSurface(
+  const baseColor = getColorForTag(
     surface,
     globalRenderSettings.colorMode,
     globalRenderSettings,
@@ -1163,7 +1163,7 @@ function VisualizationLine({ viz, isSelected, vizIndex, controlsRef }: { viz: an
 
 function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surface: Surface) => void }) {
   const { scene, gl, camera } = useThree()
-  const { availableSurfaces, cameraSettings, selectedViz, selectedInitRegion, configData, clearSurfaceSelection } = useAppStore()
+  const { availableTags, cameraSettings, selectedViz, selectedInitRegion, configData, clearSurfaceSelection } = useAppStore()
   const controlsRef = useRef<any>(null)
   const isDraggingCamera = useRef(false)
   
@@ -1233,7 +1233,7 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
     }
   }, [gl])
   
-  console.log('[Viewport3D] Rendering scene, availableSurfaces:', availableSurfaces.length)
+  console.log('[Viewport3D] Rendering scene, availableTags:', availableTags.length)
   
   // Make isDraggingCamera accessible to child components
   const sceneContextValue = useMemo(() => ({ isDraggingCamera }), [])
@@ -1249,9 +1249,9 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
       <directionalLight position={[-10, -10, -5]} intensity={0.5} />
       <directionalLight position={[0, 10, 0]} intensity={0.3} />
 
-      {/* Surfaces from mesh or samples */}
-      {availableSurfaces.length > 0 ? (
-        availableSurfaces.map((surface) => (
+      {/* Tags from mesh or samples */}
+      {availableTags.length > 0 ? (
+        availableTags.map((surface) => (
           <ClickableSurface key={surface.id} surface={surface} onContextMenu={onSurfaceContextMenu} isDraggingCamera={isDraggingCamera} />
         ))
       ) : (
@@ -1302,7 +1302,7 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
         followCamera={false}
         infiniteGrid={false}
         onClick={(e) => {
-          // Only clear selection if clicking on grid (not on a surface)
+          // Only clear selection if clicking on grid (not on a tag)
           // Check if shift/ctrl/alt is held - if so, don't clear
           const modifierKey = cameraSettings.multiSelectModifier
           const isModifierPressed = 
@@ -1311,7 +1311,7 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
             (modifierKey === 'alt' && e.altKey)
           
           if (!isModifierPressed) {
-            clearSurfaceSelection()
+            clearTagSelection()
           }
         }}
       />
@@ -1345,16 +1345,16 @@ function Viewport3D() {
     totalFaces, 
     overlayPosition, 
     setOverlayPosition, 
-    selectedSurface,
-    setSelectedSurface,
-    selectedSurfaces,
+    selectedTag,
+    setSelectedTag,
+    selectedTags,
     configData,
     addBoundaryCondition,
     setSelectedBC,
     updateBoundaryCondition,
     deleteBoundaryCondition,
-    toggleSurfaceVisibility,
-    surfaceVisibility,
+    toggleTagVisibility,
+    tagVisibility,
     selectedInitRegion,
     selectedViz,
     boxSelectionSettings,
@@ -1462,15 +1462,15 @@ function Viewport3D() {
     }
   }, [isDragging, dragOffset])
   
-  // Close context menu if the surface it's attached to becomes invisible
+  // Close context menu if the tag it's attached to becomes invisible
   useEffect(() => {
     if (contextMenu) {
-      const isSurfaceVisible = surfaceVisibility[contextMenu.surface.id] ?? true
+      const isSurfaceVisible = tagVisibility[contextMenu.surface.id] ?? true
       if (!isSurfaceVisible) {
         setContextMenu(null)
       }
     }
-  }, [surfaceVisibility, contextMenu])
+  }, [tagVisibility, contextMenu])
   
   const findBCForSurface = (surface: Surface): BoundaryCondition | null => {
     const bcs = configData['boundary conditions'] || []
@@ -1505,7 +1505,7 @@ function Viewport3D() {
   const handleAddToBC = () => {
     if (!contextMenu) return
     
-    // TODO: Show dialog to select which BC to add the surface to
+    // TODO: Show dialog to select which BC to add the tag to
     // For now, just log it
     console.log('Add surface to BC:', contextMenu.surface)
     closeContextMenu()
@@ -1518,13 +1518,13 @@ function Viewport3D() {
     const existingBC = findBCForSurface(surface)
     
     if (existingBC) {
-      // Surface is already assigned, show warning
+      // Tag is already assigned, show warning
       setConflictingSurface(surface)
       setConflictingBC(existingBC)
       setShowAlreadyAssignedDialog(true)
       closeContextMenu()
     } else {
-      // Surface is not assigned, proceed normally
+      // Tag is not assigned, proceed normally
       setBCDialogInitialSurface(surface)
       setShowBCDialog(true)
       closeContextMenu()
@@ -1534,7 +1534,7 @@ function Viewport3D() {
   const handleAddToVisualization = () => {
     if (!contextMenu) return
     
-    // TODO: Show dialog to select which visualization to add the surface to
+    // TODO: Show dialog to select which visualization to add the tag to
     console.log('Add surface to visualization:', contextMenu.surface)
     closeContextMenu()
   }
@@ -1542,7 +1542,7 @@ function Viewport3D() {
   const handleCreateNewVisualization = () => {
     if (!contextMenu) return
     
-    // TODO: Implement surface visualization creation
+    // TODO: Implement tag visualization creation
     console.log('Create new surface visualization:', contextMenu.surface)
     closeContextMenu()
   }
@@ -1550,7 +1550,7 @@ function Viewport3D() {
   const handleHideSurface = () => {
     if (!contextMenu) return
     
-    toggleSurfaceVisibility(contextMenu.surface.id)
+    toggleTagVisibility(contextMenu.surface.id)
     // Don't call closeContextMenu() - let the useEffect handle it
   }
   
@@ -1560,9 +1560,9 @@ function Viewport3D() {
   }
   
   const handleBCNameSet = (bcName: string) => {
-    const { updateSurfaceBCName, selectedSurfaces } = useAppStore.getState()
-    const surfaceIds = selectedSurfaces.map(s => s.id)
-    updateSurfaceBCName(surfaceIds, bcName)
+    const { updateTagBCName, selectedTags } = useAppStore.getState()
+    const surfaceIds = selectedTags.map(s => s.id)
+    updateTagBCName(surfaceIds, bcName)
   }
   
   const handleGoToBC = () => {
@@ -1591,7 +1591,7 @@ function Viewport3D() {
       newTags = []
     }
     
-    // Check if BC will have no surfaces left
+    // Check if BC will have no tags left
     const willBeEmpty = newTags.length === 0
     
     if (willBeEmpty) {
@@ -1599,12 +1599,12 @@ function Viewport3D() {
       setShowAlreadyAssignedDialog(false)
       setShowConfirmDeletionDialog(true)
     } else {
-      // Remove surface from BC and continue
+      // Remove tag from BC and continue
       updateBoundaryCondition(conflictingBC.id, {
         'mesh boundary tags': newTags.length === 1 ? newTags[0] : newTags
       })
       
-      // Open BC creation dialog with the surface
+      // Open BC creation dialog with the tag
       setBCDialogInitialSurface(conflictingSurface)
       setShowBCDialog(true)
       setShowAlreadyAssignedDialog(false)
@@ -1619,7 +1619,7 @@ function Viewport3D() {
     // Delete the BC
     deleteBoundaryCondition(conflictingBC.id)
     
-    // Open BC creation dialog with the surface
+    // Open BC creation dialog with the tag
     setBCDialogInitialSurface(conflictingSurface)
     setShowBCDialog(true)
     setShowConfirmDeletionDialog(false)
@@ -1637,7 +1637,7 @@ function Viewport3D() {
     }
   }, [contextMenu])
   
-  // Handle Escape key to deselect surface (only when no dialogs are open)
+  // Handle Escape key to deselect tag (only when no dialogs are open)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -1646,9 +1646,9 @@ function Viewport3D() {
           return
         }
         
-        // Deselect surface if one is selected
-        if (selectedSurface) {
-          setSelectedSurface(null)
+        // Deselect tag if one is selected
+        if (selectedTag) {
+          setSelectedTag(null)
         }
       }
     }
@@ -1657,7 +1657,7 @@ function Viewport3D() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [selectedSurface, setSelectedSurface, showBCDialog, showAlreadyAssignedDialog, showConfirmDeletionDialog, contextMenu])
+  }, [selectedTag, setSelectedTag, showBCDialog, showAlreadyAssignedDialog, showConfirmDeletionDialog, contextMenu])
   
   return (
     <div className="panel viewport-panel">
@@ -1707,25 +1707,25 @@ function Viewport3D() {
             </div>
           </div>
           
-          {/* Surface metadata overlay */}
-          {selectedSurface && (
+          {/* Tag metadata overlay */}
+          {selectedTag && (
             <div className="overlay-corner bottom-left">
-              <div className="surface-metadata">
-                <div className="metadata-header">{selectedSurface.name}</div>
-                <div className="metadata-row">Tag: {selectedSurface.metadata.tag}</div>
-                {selectedSurface.metadata.bcName && (
-                  <div className="metadata-row">BC Name: {selectedSurface.metadata.bcName}</div>
+              <div className="tag-metadata">
+                <div className="metadata-header">{selectedTag.name}</div>
+                <div className="metadata-row">Tag: {selectedTag.metadata.tag}</div>
+                {selectedTag.metadata.bcName && (
+                  <div className="metadata-row">BC Name: {selectedTag.metadata.bcName}</div>
                 )}
-                {selectedSurface.metadata.isLumped && selectedSurface.metadata.originalRegionCount && (
+                {selectedTag.metadata.isLumped && selectedTag.metadata.originalRegionCount && (
                   <div className="metadata-row">
-                    Lumped: {selectedSurface.metadata.originalRegionCount} region{selectedSurface.metadata.originalRegionCount > 1 ? 's' : ''}
+                    Lumped: {selectedTag.metadata.originalRegionCount} region{selectedTag.metadata.originalRegionCount > 1 ? 's' : ''}
                   </div>
                 )}
                 {(() => {
                   const bcs = configData['boundary conditions'] || []
                   const associatedBC = bcs.find(bc => {
                     const tags = bc['mesh boundary tags']
-                    const surfaceTag = selectedSurface.metadata.tag
+                    const surfaceTag = selectedTag.metadata.tag
                     
                     if (Array.isArray(tags)) {
                       return (tags as any[]).includes(surfaceTag) || (tags as any[]).includes(String(surfaceTag))
@@ -1748,15 +1748,15 @@ function Viewport3D() {
           )}
           
           {/* Multi-selection feedback */}
-          {selectedSurfaces.length > 1 && (
-            <div className="overlay-corner bottom-left" style={{ marginTop: selectedSurface ? '8px' : '0' }}>
+          {selectedTags.length > 1 && (
+            <div className="overlay-corner bottom-left" style={{ marginTop: selectedTag ? '8px' : '0' }}>
               <div className="selection-feedback">
                 <div className="selection-count">
-                  {selectedSurfaces.length} face{selectedSurfaces.length > 1 ? 's' : ''} selected
+                  {selectedTags.length} face{selectedTags.length > 1 ? 's' : ''} selected
                   {(() => {
                     const { cameraSettings } = useAppStore.getState()
-                    if (cameraSettings.selectionMode === 'group' && selectedSurfaces.length > 0) {
-                      const bcNames = new Set(selectedSurfaces.map(s => s.metadata.bcName).filter(Boolean))
+                    if (cameraSettings.selectionMode === 'group' && selectedTags.length > 0) {
+                      const bcNames = new Set(selectedTags.map(s => s.metadata.bcName).filter(Boolean))
                       if (bcNames.size > 0) {
                         return <span className="group-info"> ({bcNames.size} group{bcNames.size > 1 ? 's' : ''})</span>
                       }
@@ -1766,7 +1766,7 @@ function Viewport3D() {
                 </div>
                 <button 
                   className="clear-selection-button"
-                  onClick={() => useAppStore.getState().clearSurfaceSelection()}
+                  onClick={() => useAppStore.getState().clearTagSelection()}
                   title="Clear selection"
                 >
                   Clear Selection
@@ -1831,7 +1831,7 @@ function Viewport3D() {
         initialSurface={bcDialogInitialSurface}
       />
       
-      {/* Surface Already Assigned Warning Dialog */}
+      {/* Tag Already Assigned Warning Dialog */}
       {conflictingSurface && conflictingBC && (
         <SurfaceAlreadyAssignedDialog
           isOpen={showAlreadyAssignedDialog}
@@ -1866,8 +1866,8 @@ function Viewport3D() {
         isOpen={showSetBCNameDialog}
         onClose={() => setShowSetBCNameDialog(false)}
         onSet={handleBCNameSet}
-        surfaceCount={selectedSurfaces.length}
-        currentBCName={selectedSurfaces.length === 1 ? selectedSurfaces[0]?.metadata.bcName : undefined}
+        surfaceCount={selectedTags.length}
+        currentBCName={selectedTags.length === 1 ? selectedTags[0]?.metadata.bcName : undefined}
       />
     </div>
   )

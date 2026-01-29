@@ -1,5 +1,10 @@
 /**
  * Adapter to convert ESP tessellation data to internal Surface format
+ * 
+ * MIGRATION NOTE: This adapter bridges ESP's terminology with our internal model:
+ * - ESP "face" → our Tag (1:1 mapping)
+ * - ESP "bc_name" attribute → our tagName (the CFD tag name)
+ * - ESP internal ID (e.g., "Body1_Face12") → stored as espInternalId for debugging
  */
 
 import { Surface, MeshGeometry } from '../types/surface'
@@ -11,6 +16,11 @@ import { ESPRegion, CSMBuildResponse } from './espApi'
  * ESP returns vertices and triangle cells per face.
  * We need to expand indexed triangles to non-indexed format
  * with computed normals for Three.js BufferGeometry.
+ * 
+ * CRITICAL MAPPING:
+ * - region.bc_name (from CSM attribute) = our tagName (the actual CFD tag name)
+ * - region.name (ESP internal) = stored for reference but not primary identifier
+ * - region.tag = CFD tag number
  */
 export const convertESPRegionsToSurfaces = (
   response: CSMBuildResponse,
@@ -53,7 +63,7 @@ export const convertESPRegionsToSurfaces = (
     console.log('[ESP Adapter] Global scale:', globalScale)
   }
   
-  // Convert each region to a Surface
+  // Convert each region to a Tag (Surface during migration)
   const surfaces: Surface[] = regions.map((region, index) => {
     const geometry = convertRegionToGeometry(region, globalCenter, globalScale)
     
@@ -63,10 +73,10 @@ export const convertESPRegionsToSurfaces = (
       metadata: {
         id: `esp-${region.body}-${region.face}`,
         tag: region.tag,
-        tagName: region.name,
-        bcName: region.bc_name,  // Pass through bc_name from ESP
-        bodyId: region.body,     // Store body ID for export
-        faceId: region.face      // Store face ID for export
+        tagName: region.name,   // ESP internal ID (e.g., "Body1_Face12")
+        bcName: region.bc_name, // CRITICAL: ESP bc_name attribute = CFD tag name
+        bodyId: region.body,    // Store body ID for CSM export
+        faceId: region.face     // Store face ID for CSM export
       },
       geometry
     }
@@ -169,6 +179,10 @@ function convertRegionToGeometry(
  * ESP can return many small faces. This combines faces from the
  * same body into a single surface for easier management.
  */
+/**
+ * @deprecated This lumping function will be removed in Phase 7
+ * MIGRATION: Lumping logic is being removed. UI will group tags by tagName instead.
+ */
 export const lumpESPRegionsByBody = (
   response: CSMBuildResponse,
   options?: {
@@ -210,7 +224,7 @@ export const lumpESPRegionsByBody = (
     globalScale = extent > 0 ? 10 / extent : 1
   }
   
-  // Create one surface per body
+  // Create one tag per body (lumped)
   const surfaces: Surface[] = []
   
   for (const [bodyId, bodyRegions] of bodiesMap) {

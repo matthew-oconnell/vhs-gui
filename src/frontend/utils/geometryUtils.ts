@@ -2,7 +2,7 @@
  * Geometry utility functions for mesh analysis and manipulation
  */
 
-import { Surface } from '../types/surface'
+import { Surface } from '../types/tag'
 
 export interface BoundingBox {
   min: { x: number; y: number; z: number }
@@ -31,10 +31,10 @@ export function calculateBoundingBox(surfaces: Surface[]): BoundingBox {
   let minX = Infinity, minY = Infinity, minZ = Infinity
   let maxX = -Infinity, maxY = -Infinity, maxZ = -Infinity
 
-  // Find min/max across all vertices in all surfaces
+  // Find min/max across all vertices in all tags
   surfaces.forEach(surface => {
     if (!surface.geometry?.vertices) {
-      return // Skip surfaces without geometry
+      return // Skip tags without geometry
     }
     
     // Vertices are stored as Float32Array [x1, y1, z1, x2, y2, z2, ...]

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle, type PanelImperativeHandle } from 'react-resizable-panels'
 import TreePanel from './components/TreePanel/TreePanel'
 import EditorPanel from './components/EditorPanel/EditorPanel'
-import SurfacesPanel from './components/SurfacesPanel/SurfacesPanel'
+import TagsPanel from './components/TagsPanel/TagsPanel'
 import ProjectFolderPanel from './components/ProjectFolderPanel/ProjectFolderPanel'
 import Viewport3D from './components/Viewport3D/Viewport3D'
 import MenuBar from './components/MenuBar/MenuBar'
@@ -15,9 +15,9 @@ import ConsolePanel from './components/ConsolePanel/ConsolePanel'
 import StatusBar from './components/StatusBar/StatusBar'
 import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
 import { useAppStore } from './store/appStore'
-import { useConsoleStore, log } from './store/consoleStore'
+import { useConsoleStore } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
-import { saveJsonFile, openJsonFile, openJsonFileWithHandle, promptForDirectoryAccess } from './utils/fileUtils'
+import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fileUtils'
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
@@ -47,14 +47,14 @@ function App() {
   const projectFolderPanelRef = useRef<PanelImperativeHandle>(null)
   const treePanelRef = useRef<PanelImperativeHandle>(null)
   const editorPanelRef = useRef<PanelImperativeHandle>(null)
-  const surfacesPanelRef = useRef<PanelImperativeHandle>(null)
+  const meshGroupsPanelRef = useRef<PanelImperativeHandle>(null)
   
   const { 
     configData, 
     initializeConfig, 
     loadMesh, 
     loadESPSurfaces, 
-    availableSurfaces, 
+    availableTags, 
     setConfigData,
     treeCollapsed,
     editorCollapsed,
@@ -150,153 +150,59 @@ function App() {
 
   const handleOpen = async () => {
     try {
-      // Open file picker and load JSON with file handle
-      const result = await openJsonFileWithHandle()
+      // Open file picker and load JSON
+      const loadedConfig = await openJsonFile()
       
       // If user cancelled, do nothing
-      if (!result) {
+      if (!loadedConfig) {
         return
       }
       
-      const { config: loadedConfig, fileHandle } = result
-      
-      console.log('[App] Loading config from File > Open:', fileHandle.name)
-      
       // Check if config has mesh filename
       const meshFilename = loadedConfig['mesh filename']
-      const { projectFolderHandle } = useAppStore.getState()
       let meshLoaded = false
       let showedLumpDialog = false
       
-      console.log('[App] Mesh filename from config:', meshFilename)
-      console.log('[App] Project folder open:', !!projectFolderHandle)
-      
       if (meshFilename) {
-        const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
-        console.log(`[App] Will attempt to auto-load mesh: "${filename}"`)
+        // Prompt user to select the directory containing the config and mesh
+        const directoryHandle = await promptForDirectoryAccess()
         
-        // Check if this is a CSM file (needs ESP server)
-        const isCSM = filename.toLowerCase().endsWith('.csm')
-        
-        if (isCSM) {
-          log('UI', `Detected CSM file, will use ESP server loading...`)
-          
-          // Try 1: Prompt user for directory access
-          log('UI', 'Prompting for directory access to locate CSM...')
-          const directoryHandle = await promptForDirectoryAccess()
-          
-          if (directoryHandle) {
-            try {
-              const csmHandle = await directoryHandle.getFileHandle(filename)
-              await handleLoadCSMFromHandle(csmHandle, directoryHandle)
-              meshLoaded = true
-              // CSM loads surfaces directly, transform config now
-              const currentSurfaces = useAppStore.getState().availableSurfaces
-              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-              const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
-              setConfigData(transformedConfig)
-              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
-              log('UI', `✓ CSM "${filename}" loaded from selected directory`)
-            } catch (error) {
-              log('UI', `✗ CSM "${filename}" not found in selected directory`)
+        if (directoryHandle) {
+          // Try to load mesh from the selected directory
+          meshLoaded = await loadMeshFromDirectory(
+            typeof meshFilename === 'string' ? meshFilename : meshFilename[0],
+            directoryHandle,
+            parseMeshFile,
+            loadMesh,
+            (parsedMesh, filename) => {
+              // Mesh has duplicates - will show lump dialog
+              // Store config to transform AFTER mesh actually loads
+              console.log('[App] Storing pending config to transform after lump dialog resolves')
+              showedLumpDialog = true
+              setPendingConfig(loadedConfig)
+              setPendingMesh({ parsedMesh, filename })
+              setShowLumpDialog(true)
             }
+          )
+          
+          if (meshLoaded) {
+            console.log(`[App] Mesh "${meshFilename}" loaded automatically from selected directory`)
           } else {
-            log('UI', 'User cancelled directory selection')
-          }
-          
-          // Try 2: Load from project root (if not already loaded)
-          if (!meshLoaded && projectFolderHandle) {
-            try {
-              log('UI', `Attempting to load CSM "${filename}" from project root...`)
-              const csmHandle = await projectFolderHandle.getFileHandle(filename)
-              await handleLoadCSMFromHandle(csmHandle, projectFolderHandle)
-              meshLoaded = true
-              // CSM loads surfaces directly, transform config now
-              const currentSurfaces = useAppStore.getState().availableSurfaces
-              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-              const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
-              setConfigData(transformedConfig)
-              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
-              log('UI', `✓ CSM "${filename}" loaded from project root`)
-            } catch (error) {
-              console.log(`[App] ✗ CSM "${filename}" not found in project root`)
-            }
-          }
-        } else {
-          // Regular mesh file (.stl, .obj, .meshb, etc.)
-          console.log(`[App] Regular mesh file, using standard parser...`)
-          
-          // Try 1: Prompt user for directory access (same directory as config file)
-          console.log('[App] Prompting for directory access to locate mesh...')
-          const directoryHandle = await promptForDirectoryAccess()
-          
-          if (directoryHandle) {
-            // Try to load mesh from the selected directory
-            meshLoaded = await loadMeshFromDirectory(
-              filename,
-              directoryHandle,
-              parseMeshFile,
-              loadMesh,
-              (parsedMesh, meshName) => {
-                // Mesh has duplicates - will show lump dialog
-                // Store config to transform AFTER mesh actually loads
-                console.log('[App] Storing pending config to transform after lump dialog resolves')
-                showedLumpDialog = true
-                setPendingConfig(loadedConfig)
-                setPendingMesh({ parsedMesh, filename: meshName })
-                setShowLumpDialog(true)
-              }
-            )
-            
-            if (meshLoaded) {
-              console.log(`[App] ✓ Mesh "${filename}" loaded from selected directory`)
-            } else {
-              console.log(`[App] ✗ Mesh "${filename}" not found in selected directory`)
-            }
-          } else {
-            console.log('[App] User cancelled directory selection')
-          }
-          
-          // Try 2: Load from project root (if not already loaded and project folder is open)
-          if (!meshLoaded && projectFolderHandle) {
-            console.log(`[App] Attempting to load mesh "${filename}" from project root...`)
-            meshLoaded = await loadMeshFromDirectory(
-              filename,
-              projectFolderHandle,
-              parseMeshFile,
-              loadMesh,
-              (parsedMesh, meshName) => {
-                showedLumpDialog = true
-                setPendingConfig(loadedConfig)
-                setPendingMesh({ parsedMesh, filename: meshName })
-                setShowLumpDialog(true)
-              }
-            )
-            
-            if (meshLoaded) {
-              console.log(`[App] ✓ Mesh "${filename}" loaded from project root`)
-            } else {
-              console.log(`[App] ✗ Mesh "${filename}" not found in project root`)
-            }
+            console.log(`[App] Mesh "${meshFilename}" not found in directory, will need to locate manually`)
           }
         }
         
-        if (!meshLoaded) {
-          console.log(`[App] ⚠ Mesh "${filename}" could not be auto-loaded`)
-          console.log(`[App] User will need to load mesh manually via File > Load Mesh`)
-        }
-      } else {
-        console.log('[App] No mesh filename in config, skipping auto-load')
+        // If user cancelled directory selection or mesh not found, they can load it later manually
       }
       
       // If mesh was loaded directly (no lump dialog), transform and set config now
       // If lump dialog was shown, this will be handled in handleLumpChoice
       if (!showedLumpDialog) {
-        const currentSurfaces = useAppStore.getState().availableSurfaces
+        const currentTags = useAppStore.getState().availableTags
         const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-        console.log('[App] Transforming config with surfaces:', currentSurfaces.length)
-        console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
+        console.log('[App] Transforming config with tags:', currentTags.length)
+        console.log('[App] Available tag numbers and names:', currentTags.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
+        const transformedConfig = transformLoadedConfig(loadedConfig, currentTags, rootKey)
         setConfigData(transformedConfig)
         console.log('[App] Transformed BCs:', transformedConfig['boundary conditions'])
         console.log('Configuration loaded successfully')
@@ -316,7 +222,7 @@ function App() {
     
     // Create a map of tag number to surface name
     const tagToName = new Map<number, string>()
-    availableSurfaces.forEach(surface => {
+    availableTags.forEach(surface => {
       tagToName.set(surface.metadata.tag, surface.metadata.tagName)
     })
     
@@ -382,8 +288,10 @@ function App() {
   const handleSave = async () => {
     console.log('Save file')
     console.log('Current config:', configData)
-    console.log('Boundary conditions:', configData['boundary conditions'])
-    console.log('Num BCs:', configData['boundary conditions']?.length || 0)
+    const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    console.log('Boundary conditions:', rootConfig?.['boundary conditions'])
+    console.log('Num BCs:', rootConfig?.['boundary conditions']?.length || 0)
     
     const configToSave = cleanConfigForSave(configData)
     
@@ -409,12 +317,6 @@ function App() {
       // Validation passed, save the file
       await saveJsonFile(configToSave, 'config.json')
       console.log('File saved successfully')
-      
-      // Trigger project folder refresh if folder is open
-      const { projectFolderHandle, triggerProjectFolderRefresh } = useAppStore.getState()
-      if (projectFolderHandle) {
-        triggerProjectFolderRefresh()
-      }
     } catch (error) {
       console.error('Error saving file:', error)
     }
@@ -447,10 +349,12 @@ function App() {
     }
     
     // Check 2: Ensure all mesh surfaces are assigned to boundary conditions
-    const availableSurfaces = useAppStore.getState().availableSurfaces
-    const boundaryConditions = configData['boundary conditions'] || []
+    const availableTags = useAppStore.getState().availableTags
+    const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+    const rootConfig = (configData as any)[rootKey]
+    const boundaryConditions = rootConfig?.['boundary conditions'] || []
     
-    if (availableSurfaces.length > 0) {
+    if (availableTags.length > 0) {
       // Get all surface tags assigned to BCs
       const assignedTags = new Set<number>()
       boundaryConditions.forEach(bc => {
@@ -469,7 +373,7 @@ function App() {
       })
       
       // Find unassigned surfaces
-      const unassignedSurfaces = availableSurfaces.filter(
+      const unassignedSurfaces = availableTags.filter(
         surface => !assignedTags.has(surface.metadata.tag)
       )
       
@@ -477,7 +381,7 @@ function App() {
         const surfaceNames = unassignedSurfaces.map(s => s.name).join(', ')
         errors.push({
           message: `Unassigned mesh surfaces: ${surfaceNames}. All surfaces must be assigned to boundary conditions.`,
-          path: 'boundary conditions'
+          path: `${rootKey}.boundary conditions`
         })
       }
     }
@@ -546,140 +450,50 @@ function App() {
 
   // Wrapper for loading config from FileSystemFileHandle
   // Auto-loads mesh file if project folder is open
-  const handleLoadConfigFromHandle = async (handle: FileSystemFileHandle, parentDir?: FileSystemDirectoryHandle) => {
+  const handleLoadConfigFromHandle = async (handle: FileSystemFileHandle) => {
     try {
       const file = await handle.getFile()
       const text = await file.text()
       const json = JSON.parse(text)
       
-      console.log('[App] Loading config from handle:', file.name)
-      console.log('[App] Has parentDir:', !!parentDir)
-      
-      // Check if config has mesh filename
+      // Check if config has mesh filename and project folder is open
       const meshFilename = json['mesh filename']
       const { projectFolderHandle } = useAppStore.getState()
       let meshLoaded = false
       let showedLumpDialog = false
       
-      console.log('[App] Mesh filename from config:', meshFilename)
-      console.log('[App] Project folder open:', !!projectFolderHandle)
-      
-      if (meshFilename) {
+      if (meshFilename && projectFolderHandle) {
+        // Try to auto-load mesh from project folder
         const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
-        console.log(`[App] Will attempt to auto-load mesh: "${filename}"`)
+        console.log(`[App] Auto-loading mesh "${filename}" from project folder...`)
         
-        // Check if this is a CSM file (needs ESP server)
-        const isCSM = filename.toLowerCase().endsWith('.csm')
+        meshLoaded = await loadMeshFromDirectory(
+          filename,
+          projectFolderHandle,
+          parseMeshFile,
+          loadMesh,
+          (parsedMesh, meshName) => {
+            // Mesh has duplicates - will show lump dialog
+            showedLumpDialog = true
+            setPendingConfig(json)
+            setPendingMesh({ parsedMesh, filename: meshName })
+            setShowLumpDialog(true)
+          }
+        )
         
-        if (isCSM) {
-          log('UI', `Detected CSM file, will use ESP server loading...`)
-          
-          // Try 1: Load from config's directory (if available)
-          if (parentDir) {
-            try {
-              log('UI', `Attempting to load CSM "${filename}" from config's directory...`)
-              const csmHandle = await parentDir.getFileHandle(filename)
-              await handleLoadCSMFromHandle(csmHandle, parentDir)
-              meshLoaded = true
-              // CSM loads surfaces directly, transform config now
-              const currentSurfaces = useAppStore.getState().availableSurfaces
-              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-              const transformedConfig = transformLoadedConfig(json, currentSurfaces, rootKey)
-              setConfigData(transformedConfig)
-              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
-              log('UI', `✓ CSM "${filename}" loaded from config's directory`)
-            } catch (error) {
-              log('UI', `✗ CSM "${filename}" not found in config's directory`)
-            }
-          }
-          
-          // Try 2: Load from project root (if not already loaded)
-          if (!meshLoaded && projectFolderHandle && parentDir !== projectFolderHandle) {
-            try {
-              log('UI', `Attempting to load CSM "${filename}" from project root...`)
-              const csmHandle = await projectFolderHandle.getFileHandle(filename)
-              await handleLoadCSMFromHandle(csmHandle, projectFolderHandle)
-              meshLoaded = true
-              // CSM loads surfaces directly, transform config now
-              const currentSurfaces = useAppStore.getState().availableSurfaces
-              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-              const transformedConfig = transformLoadedConfig(json, currentSurfaces, rootKey)
-              setConfigData(transformedConfig)
-              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
-              log('UI', `✓ CSM "${filename}" loaded from project root`)
-            } catch (error) {
-              log('UI', `✗ CSM "${filename}" not found in project root`)
-            }
-          }
+        if (meshLoaded) {
+          console.log(`[App] Mesh "${filename}" loaded automatically from project folder`)
         } else {
-          // Regular mesh file (.stl, .obj, .meshb, etc.)
-          console.log(`[App] Regular mesh file, using standard parser...`)
-          
-          // Try 1: Load from config's directory (if available)
-          if (parentDir) {
-            console.log(`[App] Attempting to load mesh "${filename}" from config's directory...`)
-            meshLoaded = await loadMeshFromDirectory(
-              filename,
-              parentDir,
-              parseMeshFile,
-              loadMesh,
-              (parsedMesh, meshName) => {
-                showedLumpDialog = true
-                setPendingConfig(json)
-                setPendingMesh({ parsedMesh, filename: meshName })
-                setShowLumpDialog(true)
-              }
-            )
-            
-            if (meshLoaded) {
-              console.log(`[App] ✓ Mesh "${filename}" loaded from config's directory`)
-            } else {
-              console.log(`[App] ✗ Mesh "${filename}" not found in config's directory`)
-            }
-          } else {
-            console.log(`[App] No parent directory available, skipping config directory search`)
-          }
-          
-          // Try 2: Load from project root (if not already loaded and project folder is open)
-          if (!meshLoaded && projectFolderHandle && parentDir !== projectFolderHandle) {
-            console.log(`[App] Attempting to load mesh "${filename}" from project root...`)
-            meshLoaded = await loadMeshFromDirectory(
-              filename,
-              projectFolderHandle,
-              parseMeshFile,
-              loadMesh,
-              (parsedMesh, meshName) => {
-                showedLumpDialog = true
-                setPendingConfig(json)
-                setPendingMesh({ parsedMesh, filename: meshName })
-                setShowLumpDialog(true)
-              }
-            )
-            
-            if (meshLoaded) {
-              console.log(`[App] ✓ Mesh "${filename}" loaded from project root`)
-            } else {
-              console.log(`[App] ✗ Mesh "${filename}" not found in project root`)
-            }
-          } else if (!meshLoaded && !projectFolderHandle) {
-            console.log(`[App] No project folder open, skipping project root search`)
-          }
+          console.log(`[App] Mesh "${filename}" not found in project folder`)
         }
-        
-        if (!meshLoaded) {
-          console.log(`[App] ⚠ Mesh "${filename}" could not be auto-loaded`)
-          console.log(`[App] User will need to load mesh manually`)
-        }
-      } else {
-        console.log('[App] No mesh filename in config, skipping auto-load')
       }
       
       // If mesh was loaded directly (no lump dialog), transform and set config now
       // If lump dialog was shown, this will be handled in handleLumpChoice
       if (!showedLumpDialog) {
-        const currentSurfaces = useAppStore.getState().availableSurfaces
+        const currentTags = useAppStore.getState().availableTags
         const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-        const transformedConfig = transformLoadedConfig(json, currentSurfaces, rootKey)
+        const transformedConfig = transformLoadedConfig(json, currentTags, rootKey)
         setConfigData(transformedConfig)
         console.log('[App] Config loaded successfully')
       } else {
@@ -727,7 +541,7 @@ function App() {
   }
 
   // Wrapper for loading CSM from FileSystemFileHandle with auto-dependency loading
-  const handleLoadCSMFromHandle = async (handle: FileSystemFileHandle, parentDir?: FileSystemDirectoryHandle) => {
+  const handleLoadCSMFromHandle = async (handle: FileSystemFileHandle) => {
     console.log('[App] Load CSM from handle clicked')
     
     try {
@@ -766,31 +580,17 @@ function App() {
         for (const importPath of imports) {
           let loaded = false
           
-          // Try 1: Auto-load from CSM file's directory (if available)
-          if (parentDir) {
+          // Try auto-loading from project folder first
+          if (projectFolderHandle) {
             try {
-              log('Geometry', 'info', `Searching in CSM directory: ${importPath}`)
-              const depHandle = await parentDir.getFileHandle(importPath)
-              const depFile = await depHandle.getFile()
-              dependencies.set(importPath, depFile)
-              log('Geometry', 'success', `Auto-loaded from CSM directory: ${depFile.name} (${depFile.size} bytes)`)
-              loaded = true
-            } catch (error) {
-              log('Geometry', 'warning', `Not found in CSM directory: ${importPath}`)
-            }
-          }
-          
-          // Try 2: Auto-load from project folder root (if not already loaded)
-          if (!loaded && projectFolderHandle) {
-            try {
-              log('Geometry', 'info', `Searching in project root: ${importPath}`)
+              log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
               const depHandle = await projectFolderHandle.getFileHandle(importPath)
               const depFile = await depHandle.getFile()
               dependencies.set(importPath, depFile)
-              log('Geometry', 'success', `Auto-loaded from project root: ${depFile.name} (${depFile.size} bytes)`)
+              log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
               loaded = true
             } catch (error) {
-              log('Geometry', 'warning', `Not found in project root: ${importPath}`)
+              log('Geometry', 'warning', `Could not auto-load ${importPath}`)
             }
           }
           
@@ -1068,11 +868,11 @@ function App() {
       // NOW transform and set the pending config with the loaded mesh surfaces
       if (pendingConfig) {
         console.log('[App] Transforming pending config after mesh load')
-        const currentSurfaces = useAppStore.getState().availableSurfaces
+        const currentTags = useAppStore.getState().availableTags
         const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-        console.log('[App] Available surfaces after mesh load:', currentSurfaces.length)
-        console.log('[App] Available surface tags:', currentSurfaces.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const transformedConfig = transformLoadedConfig(pendingConfig, currentSurfaces, rootKey)
+        console.log('[App] Available surfaces after mesh load:', currentTags.length)
+        console.log('[App] Available surface tags:', currentTags.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
+        const transformedConfig = transformLoadedConfig(pendingConfig, currentTags, rootKey)
         setConfigData(transformedConfig)
         console.log('[App] Configuration set with BCs:', transformedConfig['boundary conditions'])
         setPendingConfig(null)
@@ -1121,13 +921,6 @@ function App() {
       
       console.log('[App] CSM exported successfully as:', handle.name)
       console.log('[App] Generated CSM preview:\n', generatedCSM.slice(0, 500) + '...')
-      
-      // Trigger project folder refresh if folder is open
-      const { projectFolderHandle, triggerProjectFolderRefresh } = useAppStore.getState()
-      if (projectFolderHandle) {
-        triggerProjectFolderRefresh()
-      }
-      
       alert(`CSM file saved successfully as ${handle.name}\n\nOperations recorded: ${csmBuilder.getOperationCount()}`)
     } catch (error) {
       if ((error as any).name === 'AbortError') {
@@ -1246,9 +1039,9 @@ import "${file.name}"
   const handleCreateFarfield = async () => {
     console.log('[App] Create Farfield clicked')
     
-    const { availableSurfaces } = useAppStore.getState()
+    const { availableTags } = useAppStore.getState()
     
-    if (availableSurfaces.length === 0) {
+    if (availableTags.length === 0) {
       alert('No geometry loaded.\n\nPlease import geometry first using File → Import Geometry.')
       return
     }
@@ -1259,7 +1052,7 @@ import "${file.name}"
     }
     
     // Calculate bounding box
-    const boundingBox = calculateBoundingBox(availableSurfaces)
+    const boundingBox = calculateBoundingBox(availableTags)
     console.log('[App] Bounding box:', boundingBox)
     
     // Show wizard
@@ -1272,14 +1065,14 @@ import "${file.name}"
     try {
       log('Farfield', 'info', 'Starting farfield domain creation...')
       
-      const { availableSurfaces } = useAppStore.getState()
+      const { availableTags } = useAppStore.getState()
       
       if (!importedGeometryFile) {
         throw new Error('No imported geometry file')
       }
       
       // Calculate farfield parameters
-      const boundingBox = calculateBoundingBox(availableSurfaces)
+      const boundingBox = calculateBoundingBox(availableTags)
       const radius = boundingBox.characteristicLength * multiplier
       
       log('Farfield', 'info', `Multiplier: ${multiplier}`)
@@ -1469,16 +1262,16 @@ subtract
             {/* Vertical Resize Handle */}
             <PanelResizeHandle className="resize-handle resize-handle-vertical" />
             
-            {/* Surfaces Panel - Bottom */}
+            {/* Mesh Groups Panel - Bottom */}
             <Panel 
-              id="surfaces-panel"
-              ref={surfacesPanelRef}
+              id="mesh-groups-panel"
+              ref={meshGroupsPanelRef}
               defaultSize={25} 
               minSize={15}
               collapsible={true}
               collapsedSize={3}
             >
-              <SurfacesPanel panelRef={surfacesPanelRef} />
+              <TagsPanel panelRef={meshGroupsPanelRef} />
             </Panel>
           </PanelGroup>
         </Panel>
@@ -1527,12 +1320,6 @@ subtract
               const configToSave = cleanConfigForSave(configData)
               await saveJsonFile(configToSave, 'config.json')
               console.log('File saved successfully (validation bypassed)')
-              
-              // Trigger project folder refresh if folder is open
-              const { projectFolderHandle, triggerProjectFolderRefresh } = useAppStore.getState()
-              if (projectFolderHandle) {
-                triggerProjectFolderRefresh()
-              }
             } catch (error) {
               console.error('Error saving file:', error)
             }
@@ -1541,8 +1328,8 @@ subtract
       )}
 
       {showFarfieldWizard && (() => {
-        const { availableSurfaces } = useAppStore.getState()
-        const boundingBox = calculateBoundingBox(availableSurfaces)
+        const { availableTags } = useAppStore.getState()
+        const boundingBox = calculateBoundingBox(availableTags)
         
         return (
           <FarfieldWizard

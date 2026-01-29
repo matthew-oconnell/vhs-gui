@@ -7,7 +7,7 @@ describe('appStore - updateThermodynamics', () => {
     useAppStore.setState({
       configData: {
         thermodynamics: {
-          'chemical nonequilibrium': true,
+          'chemistry model': 'finite-rate',
           species: ['N2', 'O2', 'NO'],
           'reaction model filename': 'kinetic_data'
         }
@@ -19,7 +19,7 @@ describe('appStore - updateThermodynamics', () => {
     })
   })
 
-  it('disables chemical nonequilibrium when ideal gas is selected', () => {
+  it('sets chemistry model to frozen when ideal gas is selected', () => {
     const { updateThermodynamics } = useAppStore.getState()
     
     updateThermodynamics({
@@ -29,7 +29,7 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-    expect(state.configData.thermodynamics?.['chemical nonequilibrium']).toBe(false)
+    expect(state.configData.thermodynamics?.['chemistry model']).toBe('frozen')
   })
 
   it('sets species to perfect gas for ideal gas', () => {
@@ -78,7 +78,7 @@ describe('appStore - updateThermodynamics', () => {
     useAppStore.setState({
       configData: {
         thermodynamics: {
-          'chemical nonequilibrium': true,
+          'chemistry model': 'finite-rate',
           species: ['N2', 'O2', 'NO', 'N', 'O'],
           'reaction model filename': 'air-5species.dat',
           'thermal nonequilibrium': true
@@ -98,7 +98,7 @@ describe('appStore - updateThermodynamics', () => {
     const thermo = state.configData.thermodynamics
     
     // Should completely replace with ideal gas config
-    expect(thermo?.['chemical nonequilibrium']).toBe(false)
+    expect(thermo?.['chemistry model']).toBe('frozen')
     expect(thermo?.species).toEqual(['perfect gas'])
     expect(thermo?.['molecular weight']).toBe(28.97)
     expect(thermo?.['ratio of specific heats']).toBe(1.4)
@@ -122,7 +122,7 @@ describe('appStore - updateThermodynamics', () => {
     useAppStore.setState({
       configData: {
         thermodynamics: {
-          'chemical nonequilibrium': true,
+          'chemistry model': 'finite-rate',
           species: ['N2', 'O2', 'NO'],
           'reaction model filename': 'kinetic_data'
         }
@@ -138,7 +138,7 @@ describe('appStore - updateThermodynamics', () => {
     })
     
     const state = useAppStore.getState()
-        expect(state.configData.thermodynamics?.['chemical nonequilibrium']).toBe(false)
+        expect(state.configData.thermodynamics?.['chemistry model']).toBe('frozen')
     expect(state.configData.thermodynamics?.species).toEqual(['perfect gas'])
       })
 
@@ -157,7 +157,7 @@ describe('appStore - updateThermodynamics', () => {
       const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
       expect(thermo?.['thermodynamic data source']).toBe('NASA_9_coefficient')
       expect(thermo?.['molecular weight']).toBeUndefined()
       expect(thermo?.['ratio of specific heats']).toBeUndefined()
@@ -176,7 +176,7 @@ describe('appStore - updateThermodynamics', () => {
       const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-'])
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
     })
 
     it('creates Earth 11-species atmosphere configuration', () => {
@@ -192,7 +192,7 @@ describe('appStore - updateThermodynamics', () => {
       const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'N2+', 'O2+', 'N+', 'O+', 'e-'])
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
     })
 
     it('creates Mars Park 5-species atmosphere configuration', () => {
@@ -207,7 +207,7 @@ describe('appStore - updateThermodynamics', () => {
       const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['CO2', 'CO', 'N2', 'O2', 'NO'])
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
       expect(thermo?.['thermodynamic data source']).toBe('NASA_9_coefficient')
     })
 
@@ -219,7 +219,7 @@ describe('appStore - updateThermodynamics', () => {
               species: ['perfect gas'],
               'molecular weight': 28.97,
               'ratio of specific heats': 1.4,
-              'chemical nonequilibrium': false
+              'chemistry model': 'frozen'
             }
       }
     })
@@ -237,7 +237,7 @@ describe('appStore - updateThermodynamics', () => {
       
       // Should completely replace with multispecies config
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
       expect(thermo?.['molecular weight']).toBeUndefined()
       expect(thermo?.['ratio of specific heats']).toBeUndefined()
     })
@@ -258,7 +258,7 @@ describe('appStore - updateThermodynamics', () => {
       const thermo = state.configData.thermodynamics
       
       expect(thermo?.species).toEqual(['H2', 'O2', 'OH', 'H', 'O', 'H2O'])
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
       expect(thermo?.['thermodynamic data source']).toBe('NASA_9_coefficient')
       expect(thermo?.['reaction model filename']).toBe('reac_mod.H2_7x7')
     })
@@ -337,7 +337,7 @@ describe('appStore - updateThermodynamics', () => {
         configData: {
         thermodynamics: {
               species: ['N2', 'O2', 'NO', 'N', 'O'],
-              'chemical nonequilibrium': true,
+              'chemistry model': 'finite-rate',
               'thermodynamic data source': 'NASA_9_coefficient'
             }
       }
@@ -360,8 +360,8 @@ describe('appStore - updateThermodynamics', () => {
     })
   })
 
-  describe('Chemical Nonequilibrium Toggle (Phase 5)', () => {
-    it('enables chemical nonequilibrium when explicitly set to true', () => {
+  describe('Chemistry Model Toggle (Phase 5)', () => {
+    it('sets chemistry model to finite-rate when explicitly set to true', () => {
       useAppStore.setState({
         configData: {},
       })
@@ -378,11 +378,11 @@ describe('appStore - updateThermodynamics', () => {
       const state = useAppStore.getState()
       const thermo = state.configData.thermodynamics
       
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O'])
     })
 
-    it('disables chemical nonequilibrium when explicitly set to false (frozen flow)', () => {
+    it('sets chemistry model to frozen when explicitly set to false (frozen flow)', () => {
       useAppStore.setState({
         configData: {},
       })
@@ -399,11 +399,11 @@ describe('appStore - updateThermodynamics', () => {
       const state = useAppStore.getState()
       const thermo = state.configData.thermodynamics
       
-      expect(thermo?.['chemical nonequilibrium']).toBe(false)
+      expect(thermo?.['chemistry model']).toBe('frozen')
       expect(thermo?.species).toEqual(['N2', 'O2', 'NO', 'N', 'O', 'NO+', 'e-'])
     })
 
-    it('defaults to true when chemicalNonequilibrium not provided (backwards compatible)', () => {
+    it('defaults to finite-rate when chemicalNonequilibrium not provided (backwards compatible)', () => {
       useAppStore.setState({
         configData: {},
       })
@@ -419,11 +419,11 @@ describe('appStore - updateThermodynamics', () => {
       const state = useAppStore.getState()
       const thermo = state.configData.thermodynamics
       
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
       expect(thermo?.species).toEqual(['CO2', 'CO', 'N2', 'O2', 'NO'])
     })
 
-    it('sets chemical nonequilibrium false for mixing-only combustion', () => {
+    it('sets chemistry model to frozen for mixing-only combustion', () => {
       useAppStore.setState({
         configData: {},
       })
@@ -440,12 +440,12 @@ describe('appStore - updateThermodynamics', () => {
       const state = useAppStore.getState()
       const thermo = state.configData.thermodynamics
       
-      expect(thermo?.['chemical nonequilibrium']).toBe(false)
+      expect(thermo?.['chemistry model']).toBe('frozen')
       expect(thermo?.['reaction model filename']).toBe('reac_mod.H2')
       expect(thermo?.species).toEqual(['H2', 'O2', 'H2O'])
     })
 
-    it('sets chemical nonequilibrium true for combusting mode', () => {
+    it('sets chemistry model to finite-rate for combusting mode', () => {
       useAppStore.setState({
         configData: {},
       })
@@ -463,7 +463,7 @@ describe('appStore - updateThermodynamics', () => {
       const state = useAppStore.getState()
       const thermo = state.configData.thermodynamics
       
-      expect(thermo?.['chemical nonequilibrium']).toBe(true)
+      expect(thermo?.['chemistry model']).toBe('finite-rate')
       expect(thermo?.['reaction model filename']).toBe('reac_mod.H2')
       expect(thermo?.species).toEqual(['H2', 'O2', 'H2O', 'OH', 'H', 'O', 'N2'])
     })

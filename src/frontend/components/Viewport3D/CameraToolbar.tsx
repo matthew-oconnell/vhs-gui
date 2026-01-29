@@ -8,7 +8,7 @@ import './CameraToolbar.css'
 // Component that provides camera control functions
 export function CameraControls() {
   const { camera, controls, invalidate } = useThree()
-  const { availableSurfaces, surfaceVisibility, soloBC } = useAppStore()
+  const { availableTags, tagVisibility, soloBC } = useAppStore()
   const controlsRef = useRef<any>(controls)
   
   useEffect(() => {
@@ -19,16 +19,16 @@ export function CameraControls() {
   useEffect(() => {
     ;(window as any).cameraControlFunctions = {
       fitToView: () => {
-        // Calculate bounding box of all visible surfaces
+        // Calculate bounding box of all visible tags
         const box = new THREE.Box3()
         let hasVisibleGeometry = false
         
-        availableSurfaces.forEach(surface => {
-          // Check if surface is visible
-          const isVisible = surfaceVisibility[surface.id] ?? true
+        availableTags.forEach(surface => {
+          // Check if tag is visible
+          const isVisible = tagVisibility[surface.id] ?? true
           if (!isVisible) return
           
-          // Check if surface belongs to solo BC
+          // Check if tag belongs to solo BC
           if (soloBC) {
             const tags = soloBC['mesh boundary tags']
             const surfaceTag = surface.metadata.tag
@@ -45,7 +45,7 @@ export function CameraControls() {
             if (!belongsToSoloBC) return
           }
           
-          // Add surface geometry to bounding box
+          // Add tag geometry to bounding box
           if (surface.geometry) {
             const vertices = surface.geometry.vertices
             for (let i = 0; i < vertices.length; i += 3) {
@@ -152,7 +152,7 @@ export function CameraControls() {
     return () => {
       delete (window as any).cameraControlFunctions
     }
-  }, [camera, controls, invalidate, availableSurfaces, surfaceVisibility, soloBC])
+  }, [camera, controls, invalidate, availableTags, tagVisibility, soloBC])
   
   return null
 }
@@ -177,7 +177,7 @@ export function CameraToolbar() {
         <button 
           className="toolbar-button" 
           onClick={handleFitToView}
-          title="Fit camera to visible surfaces"
+          title="Fit camera to visible tags"
         >
           <Maximize2 size={14} />
           <span>Fit</span>

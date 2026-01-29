@@ -1,8 +1,8 @@
 /**
- * Transform loaded configuration to add UI fields and convert surface names to tag numbers
+ * Transform loaded configuration to add UI fields and convert tag names to tag numbers
  * 
  * @param config - The raw configuration object loaded from JSON
- * @param surfaces - Array of mesh surfaces with metadata (tag, tagName)
+ * @param surfaces - Array of mesh tags with metadata (tag, tagName)
  * @param rootSolverKey - The root solver key (e.g., 'HyperSolve'), defaults to 'HyperSolve'
  * @returns Transformed configuration ready for the UI
  */
@@ -13,25 +13,13 @@ export const transformLoadedConfig = (
 ): any => {
   const transformed = JSON.parse(JSON.stringify(config)) // Deep clone
   
-  // Create a map of surface name to tag number
-  // Use bcName (from ESP bc_name attribute) as the primary lookup key
+  // Create a map of tag name to tag number
   const nameToTag = new Map<string, number>()
   surfaces.forEach(surface => {
-    // Prefer bcName (ESP's bc_name attribute) over tagName (auto-generated)
-    if (surface.metadata.bcName) {
-      nameToTag.set(surface.metadata.bcName, surface.metadata.tag)
-    }
-    // Also map the tagName for backwards compatibility
     nameToTag.set(surface.metadata.tagName, surface.metadata.tag)
   })
   
-  console.log('[transformLoadedConfig] Surface name to tag map:', Object.fromEntries(nameToTag))
-  console.log('[transformLoadedConfig] Input config structure:', {
-    hasRootLevelBCs: !!transformed['boundary conditions'],
-    hasNestedBCs: !!transformed[rootSolverKey]?.['boundary conditions'],
-    rootSolverKey,
-    bcCount: transformed['boundary conditions']?.length || transformed[rootSolverKey]?.['boundary conditions']?.length || 0
-  })
+  console.log('[transformLoadedConfig] Tag name to tag number map:', Object.fromEntries(nameToTag))
   
   // Determine if config is flat or nested under root solver key
   let bcArray = transformed['boundary conditions']
@@ -40,16 +28,13 @@ export const transformLoadedConfig = (
   
   // If not found at root level, check under root solver key
   if (!bcArray && transformed[rootSolverKey]) {
-    console.log('[transformLoadedConfig] BCs not found at root, checking nested structure')
     bcArray = transformed[rootSolverKey]['boundary conditions']
     statesObj = transformed[rootSolverKey].states
     initRegionsArray = transformed[rootSolverKey]['initialization regions']
-  } else {
-    console.log('[transformLoadedConfig] Using flat structure (BCs at root level)')
   }
   
   // Add 'id' and 'name' to boundary conditions
-  // Convert mesh boundary tags from surface names to numbers
+  // Convert mesh boundary tags from tag names to numbers
   if (bcArray) {
     const transformedBCs = bcArray.map((bc: any, index: number) => {
       // Generate ID for UI
@@ -59,7 +44,7 @@ export const transformLoadedConfig = (
         name: bc.name || `BC ${index + 1}` // Add default name if missing
       }
       
-      // Convert mesh boundary tags from surface names to tag numbers
+      // Convert mesh boundary tags from tag names to tag numbers
       if (bcWithId['mesh boundary tags'] !== undefined) {
         const tags = bcWithId['mesh boundary tags']
         console.log(`[transformLoadedConfig] BC "${bcWithId.name || bcWithId.type}" raw tags:`, tags)
@@ -67,14 +52,14 @@ export const transformLoadedConfig = (
           bcWithId['mesh boundary tags'] = tags.map((tag: string | number) => {
             if (typeof tag === 'string') {
               const tagNum = nameToTag.get(tag)
-              console.log(`  - Mapping surface name "${tag}" to tag number:`, tagNum)
+              console.log(`  - Mapping tag name "${tag}" to tag number:`, tagNum)
               return tagNum ?? tag
             }
             return tag
           })
         } else if (typeof tags === 'string') {
           const tagNum = nameToTag.get(tags)
-          console.log(`  - Mapping surface name "${tags}" to tag number:`, tagNum)
+          console.log(`  - Mapping tag name "${tags}" to tag number:`, tagNum)
           bcWithId['mesh boundary tags'] = tagNum !== undefined ? tagNum : tags
         }
         console.log(`[transformLoadedConfig] BC "${bcWithId.name || bcWithId.type}" transformed tags:`, bcWithId['mesh boundary tags'])
@@ -85,15 +70,10 @@ export const transformLoadedConfig = (
     
     // Update the BCs in the correct location
     if (transformed['boundary conditions']) {
-      console.log('[transformLoadedConfig] Writing BCs to root level (flat structure)')
       transformed['boundary conditions'] = transformedBCs
     } else if (transformed[rootSolverKey]) {
-      console.log('[transformLoadedConfig] Writing BCs to nested structure:', rootSolverKey)
       transformed[rootSolverKey]['boundary conditions'] = transformedBCs
     }
-    console.log('[transformLoadedConfig] Final BC count:', transformedBCs.length)
-  } else {
-    console.log('[transformLoadedConfig] No BCs found in config')
   }
   
   // Add 'id' to states
@@ -133,12 +113,6 @@ export const transformLoadedConfig = (
       transformed[rootSolverKey]['initialization regions'] = transformedRegions
     }
   }
-  
-  console.log('[transformLoadedConfig] Returning transformed config with structure:', {
-    hasRootLevelBCs: !!transformed['boundary conditions'],
-    hasNestedBCs: !!transformed[rootSolverKey]?.['boundary conditions'],
-    bcCount: transformed['boundary conditions']?.length || 0
-  })
   
   return transformed
 }

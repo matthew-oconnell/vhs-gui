@@ -122,17 +122,17 @@ export default function BoundaryConditionDialog({
   initialSurface 
 }: BoundaryConditionDialogProps) {
   const { 
-    availableSurfaces, 
+    availableTags, 
     configData, 
     addBoundaryCondition, 
     setSelectedBC,
     addState,
-    selectedSurfaces
+    selectedTags
   } = useAppStore()
 
   const [bcName, setBcName] = useState('')
   const [bcType, setBcType] = useState('no slip')
-  const [selectedSurfaceTags, setSelectedSurfaceTags] = useState<number[]>([])
+  const [selectedTagTags, setSelectedSurfaceTags] = useState<number[]>([])
   const [stateName, setStateName] = useState('')
   const [wallTemperature, setWallTemperature] = useState<'adiabatic' | 'radiative equilibrium' | 'constant'>('adiabatic')
   const [constantTempValue, setConstantTempValue] = useState(300)
@@ -166,7 +166,7 @@ export default function BoundaryConditionDialog({
       }
     })
     
-    return availableSurfaces.filter(surf => !assignedTags.has(surf.metadata.tag))
+    return availableTags.filter(surf => !assignedTags.has(surf.metadata.tag))
   }
 
   const unassignedSurfaces = getUnassignedSurfaces()
@@ -209,9 +209,9 @@ export default function BoundaryConditionDialog({
   useEffect(() => {
     if (isOpen) {
       // Check if we have a multi-selection or single surface
-      if (selectedSurfaces.length > 0) {
+      if (selectedTags.length > 0) {
         // Use all selected surfaces from the store
-        const tags = selectedSurfaces.map(s => s.metadata.tag)
+        const tags = selectedTags.map(s => s.metadata.tag)
         setSelectedSurfaceTags(tags)
         
         // For the name: if initialSurface exists (right-clicked), use it; otherwise use first selected
@@ -222,7 +222,7 @@ export default function BoundaryConditionDialog({
           setBcName(tagName)
         } else {
           // No right-click, just using selected surfaces
-          tagName = selectedSurfaces[0].metadata.bcName || selectedSurfaces[0].metadata.tagName
+          tagName = selectedTags[0].metadata.bcName || selectedTags[0].metadata.tagName
           setBcName(tagName)
         }
         
@@ -252,7 +252,7 @@ export default function BoundaryConditionDialog({
         setConstantTempValue(300)
       }
     }
-  }, [isOpen, initialSurface, selectedSurfaces, availableBCTypes, bcTypeHints])
+  }, [isOpen, initialSurface, selectedTags, availableBCTypes, bcTypeHints])
 
   const handleStateChange = (value: string) => {
     if (value === '__CREATE_NEW__') {
@@ -290,7 +290,7 @@ export default function BoundaryConditionDialog({
   }
 
   const handleCreate = () => {
-    if (selectedSurfaceTags.length === 0) {
+    if (selectedTagTags.length === 0) {
       alert('Please select at least one surface')
       return
     }
@@ -306,7 +306,7 @@ export default function BoundaryConditionDialog({
       id: `bc-${Date.now()}`,
       name: bcName || `${bcType} BC`,
       type: bcType,
-      'mesh boundary tags': selectedSurfaceTags.length === 1 ? selectedSurfaceTags[0] : selectedSurfaceTags,
+      'mesh boundary tags': selectedTagTags.length === 1 ? selectedTagTags[0] : selectedTagTags,
     }
 
     // Add state if required
@@ -466,7 +466,7 @@ export default function BoundaryConditionDialog({
               <span>
                 Mesh Surfaces * 
                 <span className="label-hint">
-                  ({selectedSurfaceTags.length} selected)
+                  ({selectedTagTags.length} selected)
                 </span>
               </span>
             </div>
@@ -500,7 +500,7 @@ export default function BoundaryConditionDialog({
                     <label key={surface.id} className="surface-checkbox-item">
                       <input
                         type="checkbox"
-                        checked={selectedSurfaceTags.includes(surface.metadata.tag)}
+                        checked={selectedTagTags.includes(surface.metadata.tag)}
                         onChange={() => handleSurfaceToggle(surface.metadata.tag)}
                       />
                       <span className="surface-checkbox-label">
@@ -527,7 +527,7 @@ export default function BoundaryConditionDialog({
           <button 
             className="modal-button modal-button-primary" 
             onClick={handleCreate}
-            disabled={selectedSurfaceTags.length === 0}
+            disabled={selectedTagTags.length === 0}
           >
             Create Boundary Condition
           </button>

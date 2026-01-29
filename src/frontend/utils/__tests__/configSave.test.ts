@@ -11,7 +11,7 @@ import { describe, it, expect } from 'vitest'
  */
 
 // Helper function that mimics cleanConfigForSave from App.tsx
-const cleanConfigForSave = (config: any, availableSurfaces: Array<{ metadata: { tag: number; tagName: string } }>, rootSolverKey: string = 'HyperSolve'): any => {
+const cleanConfigForSave = (config: any, availableTags: Array<{ metadata: { tag: number; tagName: string } }>, rootSolverKey: string = 'HyperSolve'): any => {
   const cleaned = JSON.parse(JSON.stringify(config)) // Deep clone
   
   // Determine if config is flat or nested under root solver key

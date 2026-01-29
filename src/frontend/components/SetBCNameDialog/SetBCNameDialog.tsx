@@ -40,8 +40,8 @@ function SetBCNameDialog({ isOpen, onClose, onSet, surfaceCount, currentBCName }
           <div className="set-bc-name-dialog-content">
             <p className="dialog-description">
               {surfaceCount === 1 
-                ? 'Enter a boundary condition name for this surface:' 
-                : `Enter a boundary condition name for ${surfaceCount} selected surfaces:`}
+                ? 'Enter a boundary condition name for this tag:' 
+                : `Enter a boundary condition name for ${surfaceCount} selected tags:`}
             </p>
             
             <div className="form-group">

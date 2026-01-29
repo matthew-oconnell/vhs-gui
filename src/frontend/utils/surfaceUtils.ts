@@ -1,4 +1,4 @@
-import { Surface } from '../types/surface'
+import { Surface } from '../types/tag'
 
 /**
  * Calculate the area-weighted average normal for a surface

@@ -32,7 +32,7 @@ export interface ThermodynamicsConfig {
   // Manual species selection
   selectedSpecies?: string[]
   
-  // Chemical nonequilibrium toggle (Phase 5)
+  // Chemistry model toggle (Phase 5) - maps to 'chemistry model' enum in schema
   chemicalNonequilibrium?: boolean
 }
 
@@ -484,8 +484,8 @@ function ThermodynamicsWizard({ onClose, onUpdate }: ThermodynamicsWizardProps) 
               {config.chemicalNonequilibrium !== undefined && (
                 <div className="info-box" style={{ marginTop: '16px' }}>
                   <strong>Note:</strong> {config.chemicalNonequilibrium 
-                    ? 'Chemical nonequilibrium will be enabled. The solver will compute reaction rates.'
-                    : 'Chemical nonequilibrium will be disabled. Species composition stays constant.'}
+                    ? 'Chemistry model will be set to "finite-rate". The solver will compute reaction rates.'
+                    : 'Chemistry model will be set to "frozen". Species composition stays constant.'}
                 </div>
               )}
             </div>

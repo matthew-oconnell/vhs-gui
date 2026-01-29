@@ -214,7 +214,7 @@ describe('stripJsonComments', () => {
       const input = `{
   "thermodynamics": {
     "species": ["N2", "O2", "NO"],  // reactive species
-    "model": "chemical nonequilibrium"  # finite-rate chemistry
+    "chemistry model": "finite-rate"  # enable chemistry
   }
 }`
 
@@ -222,7 +222,7 @@ describe('stripJsonComments', () => {
       const parsed = JSON.parse(result)
       
       expect(parsed.thermodynamics.species).toEqual(['N2', 'O2', 'NO'])
-      expect(parsed.thermodynamics.model).toBe('chemical nonequilibrium')
+      expect(parsed.thermodynamics['chemistry model']).toBe('finite-rate')
     })
 
     it('handles arrays with comments', () => {

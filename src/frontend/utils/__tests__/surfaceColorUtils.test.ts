@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import {
-  isSurfaceAssigned,
-  getBCForSurface,
+  isTagAssigned,
+  getBCForTag,
   getRandomColorForId,
   getColorForBCType,
-  getColorForSurface,
-  shouldSurfaceBeVisible,
+  getColorForTag,
+  shouldTagBeVisible,
   DEFAULT_BC_TYPE_COLORS
 } from '../surfaceColorUtils'
-import { Surface } from '../../types/surface'
+import { Surface } from '../../types/tag'
 import { BoundaryCondition } from '../../types/config'
 import { GlobalRenderSettings } from '../../store/appStore'
 
@@ -27,73 +27,73 @@ const createBC = (type: string, tags: number | number[] | string): BoundaryCondi
 
 const defaultSettings: GlobalRenderSettings = {
   colorMode: 'solid',
-  hideAssignedSurfaces: false,
+  hideAssignedTags: false,
   unassignedColor: '#ff4444',
   assignedColor: '#44aa44',
   solidColor: '#4a9eff'
 }
 
-describe('isSurfaceAssigned', () => {
+describe('isTagAssigned', () => {
   it('returns false when no boundary conditions exist', () => {
     const surface = createSurface('s1', 1)
-    expect(isSurfaceAssigned(surface, [])).toBe(false)
+    expect(isTagAssigned(surface, [])).toBe(false)
   })
 
   it('returns true when surface tag matches BC with number tag', () => {
     const surface = createSurface('s1', 1)
     const bc = createBC('no slip', 1)
-    expect(isSurfaceAssigned(surface, [bc])).toBe(true)
+    expect(isTagAssigned(surface, [bc])).toBe(true)
   })
 
   it('returns true when surface tag is in BC array tags', () => {
     const surface = createSurface('s2', 2)
     const bc = createBC('dirichlet', [1, 2, 3])
-    expect(isSurfaceAssigned(surface, [bc])).toBe(true)
+    expect(isTagAssigned(surface, [bc])).toBe(true)
   })
 
   it('returns true when surface tag is in BC string tags', () => {
     const surface = createSurface('s3', 3)
     const bc = createBC('riemann', '1, 2, 3')
-    expect(isSurfaceAssigned(surface, [bc])).toBe(true)
+    expect(isTagAssigned(surface, [bc])).toBe(true)
   })
 
   it('returns false when surface tag does not match any BC', () => {
     const surface = createSurface('s5', 5)
     const bc = createBC('no slip', [1, 2, 3])
-    expect(isSurfaceAssigned(surface, [bc])).toBe(false)
+    expect(isTagAssigned(surface, [bc])).toBe(false)
   })
 
   it('checks multiple BCs and returns true if any match', () => {
     const surface = createSurface('s2', 2)
     const bc1 = createBC('no slip', 1)
     const bc2 = createBC('dirichlet', 2)
-    expect(isSurfaceAssigned(surface, [bc1, bc2])).toBe(true)
+    expect(isTagAssigned(surface, [bc1, bc2])).toBe(true)
   })
 })
 
-describe('getBCForSurface', () => {
+describe('getBCForTag', () => {
   it('returns null when no boundary conditions exist', () => {
     const surface = createSurface('s1', 1)
-    expect(getBCForSurface(surface, [])).toBeNull()
+    expect(getBCForTag(surface, [])).toBeNull()
   })
 
   it('returns the matching BC', () => {
     const surface = createSurface('s1', 1)
     const bc = createBC('no slip', 1)
-    expect(getBCForSurface(surface, [bc])).toEqual(bc)
+    expect(getBCForTag(surface, [bc])).toEqual(bc)
   })
 
   it('returns first matching BC when multiple match', () => {
     const surface = createSurface('s1', 1)
     const bc1 = createBC('no slip', 1)
     const bc2 = createBC('dirichlet', 1)
-    expect(getBCForSurface(surface, [bc1, bc2])).toEqual(bc1)
+    expect(getBCForTag(surface, [bc1, bc2])).toEqual(bc1)
   })
 
   it('returns null when no BC matches', () => {
     const surface = createSurface('s5', 5)
     const bc = createBC('no slip', 1)
-    expect(getBCForSurface(surface, [bc])).toBeNull()
+    expect(getBCForTag(surface, [bc])).toBeNull()
   })
 })
 
@@ -140,69 +140,69 @@ describe('getColorForBCType', () => {
   })
 })
 
-describe('getColorForSurface', () => {
+describe('getColorForTag', () => {
   const surface = createSurface('s1', 1)
   const assignedSurface = createSurface('s2', 2)
   const bcs = [createBC('no slip', 2)]
 
   it('returns solid color in solid mode', () => {
-    const color = getColorForSurface(surface, 'solid', defaultSettings, bcs)
+    const color = getColorForTag(surface, 'solid', defaultSettings, bcs)
     expect(color).toBe(defaultSettings.solidColor)
   })
 
   it('returns unassigned color for unassigned surface in assigned-status mode', () => {
-    const color = getColorForSurface(surface, 'assigned-status', defaultSettings, bcs)
+    const color = getColorForTag(surface, 'assigned-status', defaultSettings, bcs)
     expect(color).toBe(defaultSettings.unassignedColor)
   })
 
   it('returns assigned color for assigned surface in assigned-status mode', () => {
-    const color = getColorForSurface(assignedSurface, 'assigned-status', defaultSettings, bcs)
+    const color = getColorForTag(assignedSurface, 'assigned-status', defaultSettings, bcs)
     expect(color).toBe(defaultSettings.assignedColor)
   })
 
   it('returns BC type color for assigned surface in bc-type mode', () => {
-    const color = getColorForSurface(assignedSurface, 'bc-type', defaultSettings, bcs)
+    const color = getColorForTag(assignedSurface, 'bc-type', defaultSettings, bcs)
     expect(color).toBe(DEFAULT_BC_TYPE_COLORS['no slip'])
   })
 
   it('returns unassigned color for unassigned surface in bc-type mode', () => {
-    const color = getColorForSurface(surface, 'bc-type', defaultSettings, bcs)
+    const color = getColorForTag(surface, 'bc-type', defaultSettings, bcs)
     expect(color).toBe(defaultSettings.unassignedColor)
   })
 
   it('returns deterministic random color in random mode', () => {
-    const color1 = getColorForSurface(surface, 'random', defaultSettings, bcs)
-    const color2 = getColorForSurface(surface, 'random', defaultSettings, bcs)
+    const color1 = getColorForTag(surface, 'random', defaultSettings, bcs)
+    const color2 = getColorForTag(surface, 'random', defaultSettings, bcs)
     expect(color1).toBe(color2)
     expect(color1).toMatch(/^hsl\(\d+, \d+%, \d+%\)$/)
   })
 })
 
-describe('shouldSurfaceBeVisible', () => {
+describe('shouldTagBeVisible', () => {
   const surface = createSurface('s1', 1)
   const assignedSurface = createSurface('s2', 2)
   const bcs = [createBC('no slip', 2)]
 
   it('returns true when hideAssigned is false and no manual override', () => {
-    expect(shouldSurfaceBeVisible(surface, false, bcs)).toBe(true)
-    expect(shouldSurfaceBeVisible(assignedSurface, false, bcs)).toBe(true)
+    expect(shouldTagBeVisible(surface, false, bcs)).toBe(true)
+    expect(shouldTagBeVisible(assignedSurface, false, bcs)).toBe(true)
   })
 
   it('hides assigned surfaces when hideAssigned is true', () => {
-    expect(shouldSurfaceBeVisible(surface, true, bcs)).toBe(true)
-    expect(shouldSurfaceBeVisible(assignedSurface, true, bcs)).toBe(false)
+    expect(shouldTagBeVisible(surface, true, bcs)).toBe(true)
+    expect(shouldTagBeVisible(assignedSurface, true, bcs)).toBe(false)
   })
 
   it('respects manual visibility override (false)', () => {
-    expect(shouldSurfaceBeVisible(surface, false, bcs, false)).toBe(false)
+    expect(shouldTagBeVisible(surface, false, bcs, false)).toBe(false)
   })
 
   it('shows surface when manual visibility is true', () => {
-    expect(shouldSurfaceBeVisible(surface, false, bcs, true)).toBe(true)
+    expect(shouldTagBeVisible(surface, false, bcs, true)).toBe(true)
   })
 
   it('manual hide takes precedence over hideAssigned setting', () => {
     // Surface is unassigned, hideAssigned is true, but manual is false
-    expect(shouldSurfaceBeVisible(surface, true, bcs, false)).toBe(false)
+    expect(shouldTagBeVisible(surface, true, bcs, false)).toBe(false)
   })
 })

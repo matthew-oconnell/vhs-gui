@@ -116,7 +116,8 @@
   color: #4a9eff;
 }
 
-.surface-metadata {
+/* Tag metadata display - Phase 7 complete */
+.tag-metadata {
   background-color: rgba(0, 0, 0, 0.6);
   padding: 8px 12px;
   border-radius: 4px;

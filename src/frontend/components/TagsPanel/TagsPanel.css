@@ -1,8 +1,9 @@
-.surfaces-panel {
+/* Panel renamed from SurfacesPanel to TagsPanel - Phase 7 complete */
+.tags-panel {
   font-size: 13px;
 }
 
-.surfaces-list {
+.tags-list {
   display: flex;
   flex-direction: column;
   gap: 8px;

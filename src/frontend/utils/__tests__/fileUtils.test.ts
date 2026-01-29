@@ -100,7 +100,7 @@ describe('openJsonFile', () => {
         HyperSolve: {
           thermodynamics: {
             species: ['N2', 'O2', 'NO'],
-            'chemical nonequilibrium': true
+            'chemistry model': 'finite-rate'
           },
           'time accuracy': {
             type: 'fixed timestep',
@@ -127,7 +127,7 @@ describe('openJsonFile', () => {
       // Assert: Should be migrated to flat structure
       expect(result.HyperSolve).toBeUndefined()
       expect(result.thermodynamics.species).toHaveLength(3)
-      expect(result.thermodynamics['chemical nonequilibrium']).toBe(true)
+      expect(result.thermodynamics['chemistry model']).toBe('finite-rate')
       expect(result['time accuracy'].type).toBe('fixed timestep')
     })
   })
@@ -485,7 +485,7 @@ describe('openJsonFile', () => {
           },
           thermodynamics: {
             species: ['N2', 'O2', 'NO', 'N', 'O'],
-            'chemical nonequilibrium': true
+            'chemistry model': 'finite-rate'
           },
           'time accuracy': {
             type: 'fixed timestep',

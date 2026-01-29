@@ -24,12 +24,12 @@ interface StatusBarProps {
 
 function StatusBar({ onOpenThermodynamicsWizard, onOpenTurbulenceWizard }: StatusBarProps = {}) {
   const { 
-    availableSurfaces,
+    availableTags,
     configData,
     meshNeedsExport,
   } = useAppStore()
 
-  const hasMesh = availableSurfaces.length > 0
+  const hasMesh = availableTags.length > 0
 
   // Build checklist items based on current project state
   const checklistItems: ChecklistItem[] = []
@@ -46,7 +46,7 @@ function StatusBar({ onOpenThermodynamicsWizard, onOpenTurbulenceWizard }: Statu
       details: meshNeedsExport 
         ? 'Needs re-export' 
         : meshFilename 
-          ? `${availableSurfaces.length.toLocaleString()} surfaces`
+          ? `${availableTags.length.toLocaleString()} tags`
           : 'No filename set'
     })
   }
@@ -66,7 +66,7 @@ function StatusBar({ onOpenThermodynamicsWizard, onOpenTurbulenceWizard }: Statu
 
   // 3. Boundary Conditions
   const bcProgress = (() => {
-    const total = availableSurfaces.length
+    const total = availableTags.length
     if (total === 0) return { assigned: 0, total: 0, isComplete: false }
 
     const bcs = configData['boundary conditions'] || []

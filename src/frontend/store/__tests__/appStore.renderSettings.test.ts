@@ -7,7 +7,7 @@ describe('appStore - global render settings', () => {
     useAppStore.setState({
       globalRenderSettings: {
         colorMode: 'solid',
-        hideAssignedSurfaces: false,
+        hideAssignedTags: false,
         unassignedColor: '#ff4444',
         assignedColor: '#44aa44',
         solidColor: '#4a9eff'
@@ -43,16 +43,16 @@ describe('appStore - global render settings', () => {
     })
   })
 
-  describe('hideAssignedSurfaces', () => {
+  describe('hideAssignedTags', () => {
     it('defaults to false', () => {
       const { globalRenderSettings } = useAppStore.getState()
-      expect(globalRenderSettings.hideAssignedSurfaces).toBe(false)
+      expect(globalRenderSettings.hideAssignedTags).toBe(false)
     })
 
     it('toggles to true and hides assigned surfaces', () => {
       // Setup: add surfaces and a BC that assigns to surface tag 2
       useAppStore.setState({
-        availableSurfaces: [
+        availableTags: [
           { id: 's1', name: 'Surface 1', metadata: { id: 's1', tag: 1, tagName: 'surface-1' } },
           { id: 's2', name: 'Surface 2', metadata: { id: 's2', tag: 2, tagName: 'surface-2' } },
         ],
@@ -61,22 +61,22 @@ describe('appStore - global render settings', () => {
               { id: 'bc1', type: 'no slip', 'mesh boundary tags': 2 }
             ]
         },
-        surfaceVisibility: {}
+        tagVisibility: {}
       })
       
-      useAppStore.getState().toggleHideAssignedSurfaces()
+      useAppStore.getState().toggleHideAssignedTags()
       
       const state = useAppStore.getState()
-      expect(state.globalRenderSettings.hideAssignedSurfaces).toBe(true)
+      expect(state.globalRenderSettings.hideAssignedTags).toBe(true)
       // Surface 2 (assigned) should be hidden, Surface 1 (unassigned) should still be visible
-      expect(state.surfaceVisibility['s2']).toBe(false)
-      expect(state.surfaceVisibility['s1']).toBeUndefined() // unassigned surfaces unchanged
+      expect(state.tagVisibility['s2']).toBe(false)
+      expect(state.tagVisibility['s1']).toBeUndefined() // unassigned surfaces unchanged
     })
 
     it('toggles back to false and shows assigned surfaces', () => {
       // Setup with hidden assigned surface
       useAppStore.setState({
-        availableSurfaces: [
+        availableTags: [
           { id: 's1', name: 'Surface 1', metadata: { id: 's1', tag: 1, tagName: 'surface-1' } },
           { id: 's2', name: 'Surface 2', metadata: { id: 's2', tag: 2, tagName: 'surface-2' } },
         ],
@@ -85,22 +85,22 @@ describe('appStore - global render settings', () => {
             { id: 'bc1', type: 'no slip', 'mesh boundary tags': 2 }
           ]
         },
-        surfaceVisibility: { 's2': false },
+        tagVisibility: { 's2': false },
         globalRenderSettings: {
           colorMode: 'solid',
-          hideAssignedSurfaces: true,
+          hideAssignedTags: true,
           unassignedColor: '#ff4444',
           assignedColor: '#44aa44',
           solidColor: '#4a9eff'
         }
       })
       
-      useAppStore.getState().toggleHideAssignedSurfaces()
+      useAppStore.getState().toggleHideAssignedTags()
       
       const state = useAppStore.getState()
-      expect(state.globalRenderSettings.hideAssignedSurfaces).toBe(false)
+      expect(state.globalRenderSettings.hideAssignedTags).toBe(false)
       // Surface 2 should now be visible again
-      expect(state.surfaceVisibility['s2']).toBe(true)
+      expect(state.tagVisibility['s2']).toBe(true)
     })
   })
 
@@ -128,12 +128,12 @@ describe('appStore - global render settings', () => {
 
     it('preserves other settings when changing one color', () => {
       useAppStore.getState().setColorMode('assigned-status')
-      useAppStore.getState().toggleHideAssignedSurfaces()
+      useAppStore.getState().toggleHideAssignedTags()
       useAppStore.getState().setUnassignedColor('#ff0000')
       
       const { globalRenderSettings } = useAppStore.getState()
       expect(globalRenderSettings.colorMode).toBe('assigned-status')
-      expect(globalRenderSettings.hideAssignedSurfaces).toBe(true)
+      expect(globalRenderSettings.hideAssignedTags).toBe(true)
       expect(globalRenderSettings.unassignedColor).toBe('#ff0000')
       expect(globalRenderSettings.assignedColor).toBe('#44aa44') // unchanged
     })

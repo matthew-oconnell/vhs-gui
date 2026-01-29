@@ -3,26 +3,27 @@ import { useState, useMemo, RefObject } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { Surface } from '../../types/surface'
 import type { PanelImperativeHandle } from 'react-resizable-panels'
-import './SurfacesPanel.css'
+import './TagsPanel.css'
 
-interface SurfaceGroup {
+// MIGRATION: Group interface - surfaces will become tags
+interface TagGroup {
   groupId: string
   displayName: string
-  surfaces: Surface[]
-  bcName?: string
+  surfaces: Surface[]  // MIGRATION: Will become tags: Tag[]
+  bcName?: string      // MIGRATION: Will become tagName
 }
 
-interface SurfacesPanelProps {
+interface TagsPanelProps {
   panelRef: RefObject<PanelImperativeHandle>
 }
 
-function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
+function TagsPanel({ panelRef }: TagsPanelProps) {
   const { 
-    availableSurfaces, 
-    surfaceVisibility, 
-    toggleSurfaceVisibility,
-    surfaceRenderSettings,
-    updateSurfaceRenderSettings,
+    availableTags, 
+    tagVisibility, 
+    toggleTagVisibility,
+    tagRenderSettings,
+    updateTagRenderSettings,
     configData,
     surfacesCollapsed,
     setSurfacesCollapsed
@@ -46,7 +47,7 @@ function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
   const surfaceGroups = useMemo(() => {
     const groups = new Map<string, SurfaceGroup>()
     
-    for (const surface of availableSurfaces) {
+    for (const surface of availableTags) {
       const bcName = surface.metadata.bcName
       
       if (bcName) {
@@ -74,64 +75,64 @@ function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
     }
     
     return Array.from(groups.values())
-  }, [availableSurfaces])
+  }, [availableTags])
   
   const getDefaultSettings = (surfaceId: string) => ({
-    surfaceColor: surfaceRenderSettings[surfaceId]?.surfaceColor ?? '#4a9eff',
-    meshColor: surfaceRenderSettings[surfaceId]?.meshColor ?? '#ffffff',
-    renderMode: surfaceRenderSettings[surfaceId]?.renderMode ?? 'surface' as const,
-    opacity: surfaceRenderSettings[surfaceId]?.opacity ?? 1
+    surfaceColor: tagRenderSettings[surfaceId]?.surfaceColor ?? '#4a9eff',
+    meshColor: tagRenderSettings[surfaceId]?.meshColor ?? '#ffffff',
+    renderMode: tagRenderSettings[surfaceId]?.renderMode ?? 'surface' as const,
+    opacity: tagRenderSettings[surfaceId]?.opacity ?? 1
   })
 
   return (
-    <div className="panel surfaces-panel">
+    <div className="panel tags-panel">
       <div className="panel-header">
         <button 
           className="panel-collapse-btn"
           onClick={(e) => {
-            console.log('[SurfacesPanel] Collapse button clicked!')
+            console.log('[TagsPanel] Collapse button clicked!')
             e.stopPropagation()
             if (panelRef.current) {
-              console.log('[SurfacesPanel] panelRef is available')
-              console.log('[SurfacesPanel] isCollapsed:', panelRef.current.isCollapsed())
+              console.log('[TagsPanel] panelRef is available')
+              console.log('[TagsPanel] isCollapsed:', panelRef.current.isCollapsed())
               if (panelRef.current.isCollapsed()) {
-                console.log('[SurfacesPanel] Calling expand()')
+                console.log('[TagsPanel] Calling expand()')
                 panelRef.current.expand()
                 setSurfacesCollapsed(false)
               } else {
-                console.log('[SurfacesPanel] Calling collapse()')
+                console.log('[TagsPanel] Calling collapse()')
                 panelRef.current.collapse()
                 setSurfacesCollapsed(true)
               }
             } else {
-              console.log('[SurfacesPanel] panelRef.current is null!')
+              console.log('[TagsPanel] panelRef.current is null!')
             }
           }}
-          title={surfacesCollapsed ? 'Expand Mesh Surfaces' : 'Collapse Mesh Surfaces'}
+          title={surfacesCollapsed ? 'Expand Mesh Groups' : 'Collapse Mesh Groups'}
         >
           <span className="collapse-icon">{surfacesCollapsed ? '▶' : '▼'}</span>
         </button>
         <Layers size={16} />
-        <span>Mesh Surfaces</span>
+        <span>Mesh Groups</span>
       </div>
       <div className="panel-content">
         {surfaceGroups.length === 0 ? (
           <div className="empty-message">
-            No mesh loaded. Load a mesh file to see surfaces.
+            No mesh loaded. Load a mesh file to see tags.
           </div>
         ) : (
-          <div className="surfaces-list">
+          <div className="tags-list">
             {surfaceGroups.map((group) => {
               const isExpanded = expandedGroups.has(group.groupId)
               const isMultiFace = group.surfaces.length > 1
               
               // For groups, check if all surfaces are visible
-              const allVisible = group.surfaces.every(s => surfaceVisibility[s.id] ?? true)
-              const someVisible = group.surfaces.some(s => surfaceVisibility[s.id] ?? true)
+              const allVisible = group.surfaces.every(s => tagVisibility[s.id] ?? true)
+              const someVisible = group.surfaces.some(s => tagVisibility[s.id] ?? true)
               
               // For single surface groups, use the surface directly
               const primarySurface = group.surfaces[0]
-              const isVisible = surfaceVisibility[primarySurface.id] ?? true
+              const isVisible = tagVisibility[primarySurface.id] ?? true
               
               // Find associated BC for the group
               const associatedBC = configData['boundary conditions']?.find(bc => {
@@ -153,15 +154,15 @@ function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
                 if (isMultiFace) {
                   // Toggle all surfaces in the group
                   group.surfaces.forEach(surface => {
-                    const currentlyVisible = surfaceVisibility[surface.id] ?? true
+                    const currentlyVisible = tagVisibility[surface.id] ?? true
                     if (allVisible || currentlyVisible) {
-                      toggleSurfaceVisibility(surface.id)
+                      toggleTagVisibility(surface.id)
                     } else if (!someVisible) {
-                      toggleSurfaceVisibility(surface.id)
+                      toggleTagVisibility(surface.id)
                     }
                   })
                 } else {
-                  toggleSurfaceVisibility(primarySurface.id)
+                  toggleTagVisibility(primarySurface.id)
                 }
               }
               
@@ -172,8 +173,8 @@ function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
                       className="visibility-toggle"
                       onClick={handleToggleVisibility}
                       title={isMultiFace 
-                        ? (allVisible ? 'Hide all faces' : 'Show all faces')
-                        : (isVisible ? 'Hide surface' : 'Show surface')}
+                        ? (allVisible ? 'Hide all tags in group' : 'Show all tags in group')
+                        : (isVisible ? 'Hide tag' : 'Show tag')}
                     >
                       {isMultiFace 
                         ? (allVisible ? <Eye size={16} /> : someVisible ? <Eye size={16} style={{ opacity: 0.5 }} /> : <EyeOff size={16} />)
@@ -185,7 +186,7 @@ function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
                       title={!associatedBC ? 'Not assigned to any boundary condition' : ''}
                     >
                       {group.displayName}
-                      {isMultiFace && <span className="face-count"> ({group.surfaces.length} faces)</span>}
+                      {isMultiFace && <span className="face-count"> ({group.surfaces.length} tags)</span>}
                     </div>
                     <button
                       className="expand-toggle"
@@ -202,14 +203,14 @@ function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
                         // Show list of faces in the group
                         <div className="grouped-faces">
                           {group.surfaces.map((surface) => {
-                            const faceVisible = surfaceVisibility[surface.id] ?? true
+                            const faceVisible = tagVisibility[surface.id] ?? true
                             return (
                               <div key={surface.id} className="face-detail-item">
                                 <button
                                   className="visibility-toggle small"
                                   onClick={(e) => {
                                     e.stopPropagation()
-                                    toggleSurfaceVisibility(surface.id)
+                                    toggleTagVisibility(surface.id)
                                   }}
                                   title={faceVisible ? 'Hide face' : 'Show face'}
                                 >
@@ -268,4 +269,4 @@ function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
   )
 }
 
-export default SurfacesPanel
+export default TagsPanel

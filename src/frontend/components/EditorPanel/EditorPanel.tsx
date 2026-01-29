@@ -97,7 +97,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
   const [showThermoWizard, setShowThermoWizard] = useState(false)
   const [showTurbulenceWizard, setShowTurbulenceWizard] = useState(false)
   const [normalPreset, setNormalPreset] = useState<string>('custom')
-  const [selectedSurfaceForNormal, setSelectedSurfaceForNormal] = useState<string>('')
+  const [selectedTagForNormal, setSelectedSurfaceForNormal] = useState<string>('')
   const [schema, setSchema] = useState<Schema | null>(null)
   const [availableBCTypes, setAvailableBCTypes] = useState<string[]>(BC_TYPES)
   
@@ -133,7 +133,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
   
   const { 
     selectedNode, 
-    selectedSurface, 
+    selectedTag, 
     selectedBC,
     selectedState,
     selectedViz,
@@ -144,7 +144,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
     setSoloBC,
     configData,
     setConfigData,
-    availableSurfaces,
+    availableTags,
     addBoundaryCondition, 
     updateBoundaryCondition,
     deleteBoundaryCondition,
@@ -369,7 +369,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
           <button 
             className="icon-button"
             onClick={() => setSoloBC(soloBC?.id === selectedBC.id ? null : selectedBC)}
-            title={soloBC?.id === selectedBC.id ? "Show all surfaces" : "Solo this BC (hide others)"}
+            title={soloBC?.id === selectedBC.id ? "Show all tags" : "Solo this BC (hide others)"}
             style={{ color: soloBC?.id === selectedBC.id ? '#4da6ff' : '#cccccc' }}
           >
             {soloBC?.id === selectedBC.id ? <Eye size={14} /> : <EyeOff size={14} />}
@@ -473,7 +473,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
               defaultValue=""
             >
               <option value="">Select surface to add...</option>
-              {availableSurfaces.map((surf) => (
+              {availableTags.map((surf) => (
                 <option key={surf.id} value={surf.metadata.tag}>
                   {surf.metadata.tagName} (tag {surf.metadata.tag})
                 </option>
@@ -896,14 +896,14 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
                   <select
                     className="form-input"
                     style={{ flex: '1 1 auto', minWidth: 0 }}
-                    value={selectedSurfaceForNormal}
+                    value={selectedTagForNormal}
                     onChange={(e) => {
                       const surfaceId = e.target.value
                       setSelectedSurfaceForNormal(surfaceId)
                       
                       if (surfaceId) {
                         setNormalPreset('surface-normal')
-                        const surface = availableSurfaces.find(s => s.id === surfaceId)
+                        const surface = availableTags.find(s => s.id === surfaceId)
                         if (surface) {
                           const normal = calculateAreaWeightedNormal(surface)
                           handleUpdate({ normal })
@@ -914,7 +914,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
                     }}
                   >
                     <option value="">Normal from surface...</option>
-                    {availableSurfaces.map(surface => (
+                    {availableTags.map(surface => (
                       <option key={surface.id} value={surface.id}>
                         {surface.name || surface.metadata?.tagName || `Tag ${surface.metadata?.tag}`}
                       </option>
@@ -1173,7 +1173,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
                     if (!selectedTag) return
                     
                     // Find the surface with this tag
-                    const surface = availableSurfaces.find(s => s.metadata.tag === selectedTag)
+                    const surface = availableTags.find(s => s.metadata.tag === selectedTag)
                     if (!surface || !surface.geometry) return
                     
                     // Compute AABB from vertices (vertices are already in physical coordinates)
@@ -1265,7 +1265,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
                   }}
                 >
                   <option value="">Select a surface...</option>
-                  {availableSurfaces.map(surface => (
+                  {availableTags.map(surface => (
                     <option key={surface.id} value={surface.metadata.tag}>
                       Tag {surface.metadata.tag}: {surface.name}
                     </option>
@@ -1378,7 +1378,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
                     if (!selectedTag) return
                     
                     // Find the surface with this tag
-                    const surface = availableSurfaces.find(s => s.metadata.tag === selectedTag)
+                    const surface = availableTags.find(s => s.metadata.tag === selectedTag)
                     if (!surface || !surface.geometry) return
                     
                     // Compute centroid
@@ -1457,7 +1457,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
                   }}
                 >
                   <option value="">Select a surface...</option>
-                  {availableSurfaces.map(surface => (
+                  {availableTags.map(surface => (
                     <option key={surface.id} value={surface.metadata.tag}>
                       Tag {surface.metadata.tag}: {surface.name}
                     </option>

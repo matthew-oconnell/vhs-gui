@@ -1,11 +1,11 @@
-import { Surface } from '../types/surface'
+import { Surface } from '../types/tag'
 import { BoundaryCondition } from '../types/config'
 import { ColorMode, GlobalRenderSettings } from '../store/appStore'
 
 /**
  * Check if a surface is assigned to any boundary condition
  */
-export function isSurfaceAssigned(
+export function isTagAssigned(
   surface: Surface,
   boundaryConditions: BoundaryCondition[]
 ): boolean {
@@ -36,7 +36,7 @@ export function isSurfaceAssigned(
 /**
  * Get the boundary condition assigned to a surface, if any
  */
-export function getBCForSurface(
+export function getBCForTag(
   surface: Surface,
   boundaryConditions: BoundaryCondition[]
 ): BoundaryCondition | null {
@@ -83,7 +83,7 @@ export function getRandomColorForId(id: string): string {
   hash = (hash >> 16) ^ hash
   
   // Use golden angle (137.5°) for optimal hue distribution
-  // This ensures adjacent surfaces get maximally different hues
+  // This ensures adjacent tags get maximally different hues
   const goldenAngle = 137.508
   const hue = (hash * goldenAngle) % 360
   const saturation = 55 + (hash % 25) // 55-80%
@@ -133,7 +133,7 @@ export function getColorForBCType(
 /**
  * Main function to get the display color for a surface based on color mode
  */
-export function getColorForSurface(
+export function getColorForTag(
   surface: Surface,
   colorMode: ColorMode,
   globalSettings: GlobalRenderSettings,
@@ -145,16 +145,16 @@ export function getColorForSurface(
       return globalSettings.solidColor
     
     case 'assigned-status': {
-      const isAssigned = isSurfaceAssigned(surface, boundaryConditions)
+      const isAssigned = isTagAssigned(surface, boundaryConditions)
       return isAssigned ? globalSettings.assignedColor : globalSettings.unassignedColor
     }
     
     case 'bc-type': {
-      const bc = getBCForSurface(surface, boundaryConditions)
+      const bc = getBCForTag(surface, boundaryConditions)
       if (bc && bc.type) {
         return getColorForBCType(bc.type, bcTypeColors)
       }
-      // Unassigned surfaces show unassigned color in bc-type mode
+      // Unassigned tags show unassigned color in bc-type mode
       return globalSettings.unassignedColor
     }
     
@@ -169,20 +169,20 @@ export function getColorForSurface(
 /**
  * Check if a surface should be visible based on render settings
  */
-export function shouldSurfaceBeVisible(
+export function shouldTagBeVisible(
   surface: Surface,
-  hideAssignedSurfaces: boolean,
+  hideAssignedTags: boolean,
   boundaryConditions: BoundaryCondition[],
   manualVisibility?: boolean
 ): boolean {
-  // Manual visibility override (from SurfacesPanel toggles)
+  // Manual visibility override (from TagsPanel toggles)
   if (manualVisibility === false) {
     return false
   }
   
-  // Hide assigned surfaces if that setting is enabled
-  if (hideAssignedSurfaces) {
-    const isAssigned = isSurfaceAssigned(surface, boundaryConditions)
+  // Hide assigned tags if that setting is enabled
+  if (hideAssignedTags) {
+    const isAssigned = isTagAssigned(surface, boundaryConditions)
     if (isAssigned) {
       return false
     }

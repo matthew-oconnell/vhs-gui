@@ -33,7 +33,7 @@ interface InitializationRegionDialogProps {
 }
 
 export default function InitializationRegionDialog({ isOpen, onClose }: InitializationRegionDialogProps) {
-  const { configData, setConfigData, availableSurfaces, setSelectedInitRegion, addState } = useAppStore()
+  const { configData, setConfigData, availableTags, setSelectedInitRegion, addState } = useAppStore()
 
   const [regionType, setRegionType] = useState('box')
   const [stateName, setStateName] = useState('')
@@ -127,7 +127,7 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
   }
 
   const handleSelectAllTags = () => {
-    setSelectedTags(availableSurfaces.map(s => s.metadata.tag))
+    setSelectedTags(availableTags.map(s => s.metadata.tag))
   }
 
   const handleDeselectAllTags = () => {
@@ -727,7 +727,7 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
                   </span>
                 </label>
                 
-                {availableSurfaces.length === 0 ? (
+                {availableTags.length === 0 ? (
                   <div className="warning-message">
                     No surfaces available. Please load a mesh file first.
                   </div>
@@ -752,7 +752,7 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
                     </div>
                     
                     <div className="surface-checkbox-list">
-                      {availableSurfaces.map((surface) => (
+                      {availableTags.map((surface) => (
                         <label key={surface.id} className="surface-checkbox-item">
                           <input
                             type="checkbox"

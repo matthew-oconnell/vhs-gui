@@ -65,9 +65,9 @@ else
     # Download ESP128
     echo "Downloading $TARBALL..."
     if command -v curl > /dev/null; then
-        curl -L -o "third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL"
+        curl -L --insecure -o "third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL"
     elif command -v wget > /dev/null; then
-        wget -O "third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL"
+        wget --no-check-certificate -O "third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL"
     else
         echo "❌ Error: Neither curl nor wget found. Please install one of them."
         exit 1

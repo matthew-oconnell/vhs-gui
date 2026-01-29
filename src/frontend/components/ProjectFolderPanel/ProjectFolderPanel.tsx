@@ -7,9 +7,19 @@ import './ProjectFolderPanel.css'
 
 interface ProjectFolderPanelProps {
   panelRef: RefObject<PanelImperativeHandle>
+  onLoadConfig?: (fileHandle: FileSystemFileHandle) => Promise<void>
+  onLoadMesh?: (fileHandle: FileSystemFileHandle) => Promise<void>
+  onLoadCSM?: (fileHandle: FileSystemFileHandle) => Promise<void>
 }
 
-function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
+interface ContextMenuState {
+  visible: boolean
+  x: number
+  y: number
+  node: FileTreeNode | null
+}
+
+function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM }: ProjectFolderPanelProps) {
   const {
     projectFolderHandle,
     projectFolderCollapsed,
@@ -19,6 +29,12 @@ function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
   
   const [fileTree, setFileTree] = useState<FileTreeNode[]>([])
   const [loading, setLoading] = useState(false)
+  const [contextMenu, setContextMenu] = useState<ContextMenuState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    node: null
+  })
   
   // Load file tree when folder is opened
   useEffect(() => {
@@ -89,9 +105,55 @@ function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
     }
   }
 
+  // Close context menu when clicking anywhere
+  useEffect(() => {
+    const handleClick = () => setContextMenu(prev => ({ ...prev, visible: false }))
+    if (contextMenu.visible) {
+      document.addEventListener('click', handleClick)
+      return () => document.removeEventListener('click', handleClick)
+    }
+  }, [contextMenu.visible])
+
+  const handleContextMenuAction = async (action: string, node: FileTreeNode) => {
+    if (node.handle.kind !== 'file') return
+    const fileHandle = node.handle as FileSystemFileHandle
+    
+    try {
+      switch (action) {
+        case 'load-config':
+          if (onLoadConfig) await onLoadConfig(fileHandle)
+          break
+        case 'load-mesh':
+          if (onLoadMesh) await onLoadMesh(fileHandle)
+          break
+        case 'load-csm':
+          if (onLoadCSM) await onLoadCSM(fileHandle)
+          break
+      }
+    } catch (error) {
+      console.error(`Error executing ${action} on ${node.name}:`, error)
+    }
+    
+    setContextMenu({ visible: false, x: 0, y: 0, node: null })
+  }
+
   const FileTreeNodeComponent = ({ node, depth = 0 }: { node: FileTreeNode; depth?: number }) => {
     const [expanded, setExpanded] = useState(true)
     const iconName = node.fileType ? getFileIcon(node.fileType) : 'file'
+    
+    const handleContextMenu = (e: React.MouseEvent) => {
+      if (node.type === 'directory') return
+      
+      e.preventDefault()
+      e.stopPropagation()
+      
+      setContextMenu({
+        visible: true,
+        x: e.clientX,
+        y: e.clientY,
+        node
+      })
+    }
     
     return (
       <div className="file-tree-node" style={{ paddingLeft: `${depth * 12}px` }}>
@@ -110,7 +172,11 @@ function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
             ))}
           </>
         ) : (
-          <div className="file-tree-item file">
+          <div 
+            className="file-tree-item file" 
+            onContextMenu={handleContextMenu}
+            title={`Right-click for options`}
+          >
             <span className="indent" />
             {renderIcon(iconName)}
             <span className="file-name">{node.name}</span>
@@ -122,6 +188,45 @@ function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
 
   return (
     <div className={`project-folder-panel ${projectFolderCollapsed ? 'collapsed' : ''}`}>
+      {/* Context Menu */}
+      {contextMenu.visible && contextMenu.node && (
+        <div 
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            zIndex: 10000
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {contextMenu.node.fileType === 'config' && (
+            <div 
+              className="context-menu-item"
+              onClick={() => handleContextMenuAction('load-config', contextMenu.node!)}
+            >
+              Load Configuration
+            </div>
+          )}
+          {contextMenu.node.fileType === 'mesh' && (
+            <div 
+              className="context-menu-item"
+              onClick={() => handleContextMenuAction('load-mesh', contextMenu.node!)}
+            >
+              Load Mesh
+            </div>
+          )}
+          {contextMenu.node.fileType === 'cad' && (
+            <div 
+              className="context-menu-item"
+              onClick={() => handleContextMenuAction('load-csm', contextMenu.node!)}
+            >
+              Load Mesh via ESP
+            </div>
+          )}
+        </div>
+      )}
+      
       <div className="panel-header" onClick={handleToggleCollapse}>
         <div className="panel-title">
           {projectFolderCollapsed ? (

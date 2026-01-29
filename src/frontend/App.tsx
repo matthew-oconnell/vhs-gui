@@ -448,6 +448,257 @@ function App() {
     }
   }
 
+  // Wrapper for loading config from FileSystemFileHandle
+  // Auto-loads mesh file if project folder is open
+  const handleLoadConfigFromHandle = async (handle: FileSystemFileHandle) => {
+    try {
+      const file = await handle.getFile()
+      const text = await file.text()
+      const json = JSON.parse(text)
+      
+      // Check if config has mesh filename and project folder is open
+      const meshFilename = json['mesh filename']
+      const { projectFolderHandle } = useAppStore.getState()
+      let meshLoaded = false
+      let showedLumpDialog = false
+      
+      if (meshFilename && projectFolderHandle) {
+        // Try to auto-load mesh from project folder
+        const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
+        console.log(`[App] Auto-loading mesh "${filename}" from project folder...`)
+        
+        meshLoaded = await loadMeshFromDirectory(
+          filename,
+          projectFolderHandle,
+          parseMeshFile,
+          loadMesh,
+          (parsedMesh, meshName) => {
+            // Mesh has duplicates - will show lump dialog
+            showedLumpDialog = true
+            setPendingConfig(json)
+            setPendingMesh({ parsedMesh, filename: meshName })
+            setShowLumpDialog(true)
+          }
+        )
+        
+        if (meshLoaded) {
+          console.log(`[App] Mesh "${filename}" loaded automatically from project folder`)
+        } else {
+          console.log(`[App] Mesh "${filename}" not found in project folder`)
+        }
+      }
+      
+      // If mesh was loaded directly (no lump dialog), transform and set config now
+      // If lump dialog was shown, this will be handled in handleLumpChoice
+      if (!showedLumpDialog) {
+        const currentSurfaces = useAppStore.getState().availableSurfaces
+        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+        const transformedConfig = transformLoadedConfig(json, currentSurfaces, rootKey)
+        setConfigData(transformedConfig)
+        console.log('[App] Config loaded successfully')
+      } else {
+        console.log('[App] Config transformation deferred until after lump dialog')
+      }
+    } catch (error) {
+      console.error('[App] Error loading config from handle:', error)
+      alert(`Failed to load configuration: ${(error as Error).message}`)
+    }
+  }
+
+  // Wrapper for loading mesh from FileSystemFileHandle
+  const handleLoadMeshFromHandle = async (handle: FileSystemFileHandle) => {
+    try {
+      const file = await handle.getFile()
+      const parsedMesh = await parseMeshFile(file)
+      
+      // Check for duplicate tag names
+      const tagNames = new Set<string>()
+      const hasDuplicates = parsedMesh.regions.some(region => {
+        if (tagNames.has(region.name)) return true
+        tagNames.add(region.name)
+        return false
+      })
+      
+      if (hasDuplicates) {
+        setPendingMesh({ parsedMesh, filename: handle.name })
+        setShowLumpDialog(true)
+      } else {
+        loadMesh(parsedMesh, handle.name, false)
+      }
+    } catch (error) {
+      console.error('[App] Error loading mesh from handle:', error)
+    }
+  }
+
+  // Wrapper for loading CAD from FileSystemFileHandle
+  const handleLoadCADFromHandle = async (handle: FileSystemFileHandle) => {
+    try {
+      const file = await handle.getFile()
+      handleLoadCADFile(file)
+    } catch (error) {
+      console.error('[App] Error loading CAD from handle:', error)
+    }
+  }
+
+  // Wrapper for loading CSM from FileSystemFileHandle with auto-dependency loading
+  const handleLoadCSMFromHandle = async (handle: FileSystemFileHandle) => {
+    console.log('[App] Load CSM from handle clicked')
+    
+    try {
+      log('ESP', 'info', 'Checking ESP server health...')
+      
+      // First check if ESP server is available
+      const health = await checkESPHealth()
+      if (!health.esp_available) {
+        log('ESP', 'error', `ESP server not available: ${health.message}`)
+        alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
+        return
+      }
+      
+      log('ESP', 'success', 'ESP server is ready')
+      
+      const file = await handle.getFile()
+      log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
+      
+      // Read file contents
+      const csmContent = await file.text()
+      log('ESP', 'info', `CSM loaded: ${csmContent.split('\n').length} lines`)
+      
+      // Check for import/restore statements
+      const { parseCSMImports } = await import('./utils/csmParser')
+      const imports = parseCSMImports(csmContent)
+      
+      const { projectFolderHandle } = useAppStore.getState()
+      let response
+      
+      if (imports.length > 0) {
+        log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
+        
+        // Prompt user for each dependency file
+        const dependencies = new Map<string, File>()
+        
+        for (const importPath of imports) {
+          let loaded = false
+          
+          // Try auto-loading from project folder first
+          if (projectFolderHandle) {
+            try {
+              log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
+              const depHandle = await projectFolderHandle.getFileHandle(importPath)
+              const depFile = await depHandle.getFile()
+              dependencies.set(importPath, depFile)
+              log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
+              loaded = true
+            } catch (error) {
+              log('Geometry', 'warning', `Could not auto-load ${importPath}`)
+            }
+          }
+          
+          // Fallback: prompt user if not auto-loaded
+          if (!loaded) {
+            try {
+              log('Geometry', 'info', `Waiting for: ${importPath}`)
+              
+              const [depHandle] = await window.showOpenFilePicker({
+                types: [{
+                  description: `CSM Dependency: ${importPath}`,
+                  accept: { 
+                    'application/stp': ['.stp', '.step'],
+                    'application/iges': ['.igs', '.iges'],
+                    'application/octet-stream': ['.egads'],
+                    '*/*': []
+                  }
+                }],
+                suggestedName: importPath,
+                multiple: false
+              })
+              
+              const depFile = await depHandle.getFile()
+              log('Geometry', 'success', `Loaded: ${depFile.name} (${depFile.size} bytes)`)
+              
+              // Use the import path as the key (preserves relative path semantics)
+              dependencies.set(importPath, depFile)
+              
+            } catch (depError) {
+              if ((depError as any).name === 'AbortError') {
+                log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
+                alert(
+                  `Missing Required File\n\n` +
+                  `The CSM file needs: ${importPath}\n\n` +
+                  `Without this file, the geometry cannot be loaded.\n` +
+                  `Cancelling CSM load.`
+                )
+                return
+              }
+              throw depError
+            }
+          }
+        }
+        
+        // Build CSM with dependencies
+        log('ESP', 'info', `Building CSM with ${dependencies.size} dependencies...`)
+        setEspLoading(true)
+        setEspLoadingMessage('Building CSM geometry')
+        setEspLogLines([])
+        
+        const { buildCSMWithDepsStreaming } = await import('./utils/espApi')
+        response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
+          const level = detectESPLogLevel(logLine)
+          log('ESP', level, logLine)
+          setEspLogLines(prev => [...prev, logLine])
+        })
+        
+        setEspLoading(false)
+        
+      } else {
+        // No imports - use standard build
+        log('ESP', 'info', 'Building CSM (no dependencies)...')
+        setEspLoading(true)
+        setEspLoadingMessage('Building CSM geometry')
+        setEspLogLines([])
+        
+        response = await buildCSM(csmContent)
+        
+        setEspLoading(false)
+      }
+      
+      if (!response.success) {
+        log('ESP', 'error', `Build failed: ${response.message}`)
+        throw new Error(response.message)
+      }
+      
+      // Add server build log (only for non-streaming builds)
+      if (response.build_log?.length) {
+        response.build_log.forEach(line => {
+          const level = detectESPLogLevel(line)
+          log('ESP', level, line)
+        })
+      }
+      
+      log('ESP', 'success', `Build complete: ${response.message}`)
+      log('Geometry', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
+      log('Geometry', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
+      
+      // Convert ESP regions to our Surface format (individual faces)
+      const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
+      log('Geometry', 'success', `Converted to ${surfaces?.length || 0} surfaces`)
+      
+      // Load into the store (pass CSM content for export)
+      loadESPSurfaces(surfaces, file.name, csmContent)
+      
+      log('Geometry', 'success', 'CSM loaded successfully!')
+      
+    } catch (error) {
+      setEspLoading(false)
+      if ((error as any).name === 'AbortError') {
+        log('Geometry', 'warning', 'File selection cancelled')
+        return
+      }
+      log('Geometry', 'error', `Failed to load CSM: ${(error as Error).message}`)
+      console.error('[App] Error loading CSM:', error)
+    }
+  }
+
   const handleLoadCSM = async () => {
     console.log('[App] Open CSM clicked')
     
@@ -963,7 +1214,12 @@ subtract
               collapsible={true}
               collapsedSize={3}
             >
-              <ProjectFolderPanel panelRef={projectFolderPanelRef} />
+              <ProjectFolderPanel 
+                panelRef={projectFolderPanelRef}
+                onLoadConfig={handleLoadConfigFromHandle}
+                onLoadMesh={handleLoadMeshFromHandle}
+                onLoadCSM={handleLoadCSMFromHandle}
+              />
             </Panel>
             
             {/* Vertical Resize Handle */}

@@ -1,0 +1,102 @@
+.project-folder-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background-color: var(--panel-bg);
+  border-right: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+.project-folder-panel.collapsed {
+  overflow: visible;
+}
+
+.project-folder-panel .panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: var(--panel-header-bg);
+  border-bottom: 1px solid var(--border-color);
+  cursor: pointer;
+  user-select: none;
+  min-height: 32px;
+}
+
+.project-folder-panel .panel-header:hover {
+  background-color: var(--hover-bg);
+}
+
+.project-folder-panel .panel-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-color);
+}
+
+.project-folder-panel .panel-content {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+/* Empty State */
+.project-folder-panel .empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  text-align: center;
+}
+
+.project-folder-panel .empty-icon {
+  color: var(--icon-color);
+  opacity: 0.5;
+  margin-bottom: 16px;
+}
+
+.project-folder-panel .empty-message {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.project-folder-panel .open-folder-btn {
+  padding: 8px 16px;
+  background-color: var(--button-bg);
+  color: var(--button-text);
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.project-folder-panel .open-folder-btn:hover {
+  background-color: var(--button-hover-bg);
+}
+
+/* File Tree */
+.project-folder-panel .file-tree {
+  font-size: 13px;
+}
+
+.project-folder-panel .folder-name {
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background-color: var(--hover-bg);
+  border-radius: 3px;
+}
+
+.project-folder-panel .placeholder-text {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-style: italic;
+  padding: 8px;
+}

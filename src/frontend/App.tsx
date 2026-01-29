@@ -3,6 +3,7 @@ import { Panel, PanelGroup, PanelResizeHandle, type PanelImperativeHandle } from
 import TreePanel from './components/TreePanel/TreePanel'
 import EditorPanel from './components/EditorPanel/EditorPanel'
 import SurfacesPanel from './components/SurfacesPanel/SurfacesPanel'
+import ProjectFolderPanel from './components/ProjectFolderPanel/ProjectFolderPanel'
 import Viewport3D from './components/Viewport3D/Viewport3D'
 import MenuBar from './components/MenuBar/MenuBar'
 import NewProjectWizard, { ProjectConfig } from './components/MenuBar/NewProjectWizard'
@@ -43,6 +44,7 @@ function App() {
   const [espLogLines, setEspLogLines] = useState<string[]>([])
   
   // Refs for imperative panel control
+  const projectFolderPanelRef = useRef<PanelImperativeHandle>(null)
   const treePanelRef = useRef<PanelImperativeHandle>(null)
   const editorPanelRef = useRef<PanelImperativeHandle>(null)
   const surfacesPanelRef = useRef<PanelImperativeHandle>(null)
@@ -56,7 +58,8 @@ function App() {
     setConfigData,
     treeCollapsed,
     editorCollapsed,
-    surfacesCollapsed
+    surfacesCollapsed,
+    projectFolderCollapsed
   } = useAppStore()
   const { setCollapsed, isCollapsed, log } = useConsoleStore()
 
@@ -926,14 +929,29 @@ subtract
         onOpenTurbulenceWizard={() => setShowTurbulenceWizardFromStatusBar(true)}
       />
       <PanelGroup direction="horizontal">
-        {/* Left Panel Group - contains tree, editor, and surfaces vertically stacked */}
+        {/* Left Panel Group - contains project folder, tree, editor, and surfaces vertically stacked */}
         <Panel defaultSize={25} minSize={15} maxSize={40}>
           <PanelGroup direction="vertical">
-            {/* Tree Panel - Top */}
+            {/* Project Folder Panel - Top */}
+            <Panel 
+              id="project-folder-panel"
+              ref={projectFolderPanelRef}
+              defaultSize={25} 
+              minSize={10}
+              collapsible={true}
+              collapsedSize={3}
+            >
+              <ProjectFolderPanel panelRef={projectFolderPanelRef} />
+            </Panel>
+            
+            {/* Vertical Resize Handle */}
+            <PanelResizeHandle className="resize-handle resize-handle-vertical" />
+            
+            {/* Tree Panel */}
             <Panel 
               id="tree-panel"
               ref={treePanelRef}
-              defaultSize={33} 
+              defaultSize={25} 
               minSize={15}
               collapsible={true}
               collapsedSize={3}
@@ -948,7 +966,7 @@ subtract
             <Panel 
               id="editor-panel"
               ref={editorPanelRef}
-              defaultSize={34} 
+              defaultSize={25} 
               minSize={15}
               collapsible={true}
               collapsedSize={3}
@@ -970,7 +988,7 @@ subtract
             <Panel 
               id="surfaces-panel"
               ref={surfacesPanelRef}
-              defaultSize={33} 
+              defaultSize={25} 
               minSize={15}
               collapsible={true}
               collapsedSize={3}

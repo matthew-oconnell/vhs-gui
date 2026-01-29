@@ -162,9 +162,16 @@ interface AppState {
   treeCollapsed: boolean
   editorCollapsed: boolean
   surfacesCollapsed: boolean
+  projectFolderCollapsed: boolean
   setTreeCollapsed: (collapsed: boolean) => void
   setEditorCollapsed: (collapsed: boolean) => void
   setSurfacesCollapsed: (collapsed: boolean) => void
+  setProjectFolderCollapsed: (collapsed: boolean) => void
+  
+  // Project folder
+  projectFolderHandle: FileSystemDirectoryHandle | null
+  openProjectFolder: (handle: FileSystemDirectoryHandle) => void
+  closeProjectFolder: () => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -1151,7 +1158,14 @@ export const useAppStore = create<AppState>((set) => ({
   treeCollapsed: false,
   editorCollapsed: false,
   surfacesCollapsed: false,
+  projectFolderCollapsed: false,
   setTreeCollapsed: (collapsed) => set({ treeCollapsed: collapsed }),
   setEditorCollapsed: (collapsed) => set({ editorCollapsed: collapsed }),
   setSurfacesCollapsed: (collapsed) => set({ surfacesCollapsed: collapsed }),
+  setProjectFolderCollapsed: (collapsed) => set({ projectFolderCollapsed: collapsed }),
+  
+  // Project folder
+  projectFolderHandle: null,
+  openProjectFolder: (handle) => set({ projectFolderHandle: handle }),
+  closeProjectFolder: () => set({ projectFolderHandle: null }),
 }))

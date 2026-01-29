@@ -94,6 +94,54 @@
   border-radius: 3px;
 }
 
+.project-folder-panel .loading-tree,
+.project-folder-panel .empty-tree {
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 8px;
+  text-align: center;
+}
+
+.project-folder-panel .file-tree-node {
+  user-select: none;
+}
+
+.project-folder-panel .file-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.1s;
+}
+
+.project-folder-panel .file-tree-item:hover {
+  background-color: var(--hover-bg);
+}
+
+.project-folder-panel .file-tree-item.directory {
+  font-weight: 500;
+}
+
+.project-folder-panel .file-tree-item .file-icon {
+  flex-shrink: 0;
+  color: var(--icon-color);
+}
+
+.project-folder-panel .file-tree-item .file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-color);
+}
+
+.project-folder-panel .file-tree-item .indent {
+  width: 14px;
+  flex-shrink: 0;
+}
+
 .project-folder-panel .placeholder-text {
   color: var(--text-secondary);
   font-size: 12px;

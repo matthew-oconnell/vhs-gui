@@ -1,7 +1,8 @@
-import { Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react'
-import { useState, RefObject } from 'react'
+import { Folder, FolderOpen, ChevronRight, ChevronDown, FileJson, Box, PenTool, Flame, File as FileIcon } from 'lucide-react'
+import { useState, RefObject, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
 import type { PanelImperativeHandle } from 'react-resizable-panels'
+import { readDirectoryRecursive, getFileIcon, FileTreeNode } from '../../utils/projectFileUtils'
 import './ProjectFolderPanel.css'
 
 interface ProjectFolderPanelProps {
@@ -15,6 +16,27 @@ function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
     setProjectFolderCollapsed,
     openProjectFolder
   } = useAppStore()
+  
+  const [fileTree, setFileTree] = useState<FileTreeNode[]>([])
+  const [loading, setLoading] = useState(false)
+  
+  // Load file tree when folder is opened
+  useEffect(() => {
+    if (projectFolderHandle) {
+      setLoading(true)
+      readDirectoryRecursive(projectFolderHandle)
+        .then(tree => {
+          setFileTree(tree)
+          setLoading(false)
+        })
+        .catch(error => {
+          console.error('Error reading directory:', error)
+          setLoading(false)
+        })
+    } else {
+      setFileTree([])
+    }
+  }, [projectFolderHandle])
 
   const handleToggleCollapse = () => {
     const newCollapsed = !projectFolderCollapsed
@@ -49,6 +71,55 @@ function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
     }
   }
 
+  const renderIcon = (iconName: string, size = 16) => {
+    const props = { size, className: 'file-icon' }
+    switch (iconName) {
+      case 'file-json':
+        return <FileJson {...props} />
+      case 'box':
+        return <Box {...props} />
+      case 'pen-tool':
+        return <PenTool {...props} />
+      case 'flame':
+        return <Flame {...props} />
+      case 'folder':
+        return <Folder {...props} />
+      default:
+        return <FileIcon {...props} />
+    }
+  }
+
+  const FileTreeNodeComponent = ({ node, depth = 0 }: { node: FileTreeNode; depth?: number }) => {
+    const [expanded, setExpanded] = useState(true)
+    const iconName = node.fileType ? getFileIcon(node.fileType) : 'file'
+    
+    return (
+      <div className="file-tree-node" style={{ paddingLeft: `${depth * 12}px` }}>
+        {node.type === 'directory' ? (
+          <>
+            <div 
+              className="file-tree-item directory" 
+              onClick={() => setExpanded(!expanded)}
+            >
+              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              {renderIcon(iconName)}
+              <span className="file-name">{node.name}</span>
+            </div>
+            {expanded && node.children && node.children.map((child, idx) => (
+              <FileTreeNodeComponent key={`${child.name}-${idx}`} node={child} depth={depth + 1} />
+            ))}
+          </>
+        ) : (
+          <div className="file-tree-item file">
+            <span className="indent" />
+            {renderIcon(iconName)}
+            <span className="file-name">{node.name}</span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className={`project-folder-panel ${projectFolderCollapsed ? 'collapsed' : ''}`}>
       <div className="panel-header" onClick={handleToggleCollapse}>
@@ -76,8 +147,15 @@ function ProjectFolderPanel({ panelRef }: ProjectFolderPanelProps) {
           ) : (
             <div className="file-tree">
               <div className="folder-name">{projectFolderHandle.name}</div>
-              {/* File tree will go here */}
-              <div className="placeholder-text">File tree coming soon...</div>
+              {loading ? (
+                <div className="loading-tree">Loading...</div>
+              ) : fileTree.length > 0 ? (
+                fileTree.map((node, idx) => (
+                  <FileTreeNodeComponent key={`${node.name}-${idx}`} node={node} />
+                ))
+              ) : (
+                <div className="empty-tree">No files found</div>
+              )}
             </div>
           )}
         </div>

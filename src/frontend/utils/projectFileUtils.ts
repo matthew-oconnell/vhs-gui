@@ -9,6 +9,7 @@ export interface FileTreeNode {
   type: 'file' | 'directory'
   fileType?: FileType
   handle: FileSystemFileHandle | FileSystemDirectoryHandle
+  parent?: FileSystemDirectoryHandle  // Parent directory handle for deletion
   children?: FileTreeNode[]
 }
 
@@ -65,7 +66,8 @@ export function getFileIcon(fileType: FileType): string {
  * Recursively read directory structure and build file tree
  */
 export async function readDirectoryRecursive(
-  directoryHandle: FileSystemDirectoryHandle
+  directoryHandle: FileSystemDirectoryHandle,
+  parent?: FileSystemDirectoryHandle
 ): Promise<FileTreeNode[]> {
   const nodes: FileTreeNode[] = []
   
@@ -77,15 +79,17 @@ export async function readDirectoryRecursive(
         type: 'file',
         fileType: getFileType(name),
         handle,
+        parent: directoryHandle,  // Store parent for deletion
       })
     } else if (handle.kind === 'directory') {
       // Recursively read subdirectory
-      const children = await readDirectoryRecursive(handle)
+      const children = await readDirectoryRecursive(handle, directoryHandle)
       nodes.push({
         name,
         type: 'directory',
         fileType: 'folder',
         handle,
+        parent: directoryHandle,  // Store parent for deletion
         children,
       })
     }

@@ -88,10 +88,45 @@
 .project-folder-panel .folder-name {
   font-weight: 600;
   color: #cccccc;
-  margin-bottom: 8px;
   padding: 4px 8px;
   background-color: #2a2d2e;
   border-radius: 3px;
+  flex: 1;
+}
+
+.project-folder-panel .folder-name-container {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.project-folder-panel .new-folder-btn {
+  padding: 4px 8px;
+  background-color: #2a2d2e;
+  color: #cccccc;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.1s;
+}
+
+.project-folder-panel .new-folder-btn:hover {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.project-folder-panel .selection-status {
+  font-size: 11px;
+  color: #1177bb;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  background-color: #094771;
+  border-radius: 3px;
+  font-weight: 500;
 }
 
 .project-folder-panel .loading-tree,
@@ -122,6 +157,20 @@
 
 .project-folder-panel .file-tree-item.file:active {
   background-color: #37373d;
+}
+
+.project-folder-panel .file-tree-item.selected {
+  background-color: #094771;
+}
+
+.project-folder-panel .file-tree-item.selected:hover {
+  background-color: #0e639c;
+}
+
+.project-folder-panel .file-tree-item.drag-over {
+  background-color: #0e639c;
+  outline: 2px solid #1177bb;
+  outline-offset: -2px;
 }
 
 .project-folder-panel .file-tree-item.directory {
@@ -173,5 +222,20 @@
 
 .context-menu-item:hover {
   background-color: #0e639c;
+  color: #ffffff;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background-color: #3e3e42;
+  margin: 4px 0;
+}
+
+.context-menu-item-danger {
+  color: #f48771;
+}
+
+.context-menu-item-danger:hover {
+  background-color: #c5382e;
   color: #ffffff;
 }

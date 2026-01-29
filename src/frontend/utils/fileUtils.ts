@@ -119,6 +119,17 @@ export const saveJsonFile = async (data: any, filename: string = 'config.json'):
  * @throws Error if JSON parsing fails or file reading fails
  */
 export const openJsonFile = async (): Promise<any> => {
+  const result = await openJsonFileWithHandle()
+  return result?.config ?? null
+}
+
+/**
+ * Opens a file picker dialog and reads a JSON file, returning both the config and file handle
+ * 
+ * @returns Promise that resolves with { config, fileHandle }, or null if user cancels
+ * @throws Error if JSON parsing fails or file reading fails
+ */
+export const openJsonFileWithHandle = async (): Promise<{ config: any; fileHandle: FileSystemFileHandle } | null> => {
   try {
     // Check if the File System Access API is available
     if (!('showOpenFilePicker' in window)) {
@@ -159,7 +170,7 @@ export const openJsonFile = async (): Promise<any> => {
     // Auto-migrate deprecated BC types
     config = migrateBCTypes(config)
     
-    return config
+    return { config, fileHandle }
   } catch (error) {
     // If user cancels the file picker, return null instead of throwing
     if ((error as Error).name === 'AbortError') {

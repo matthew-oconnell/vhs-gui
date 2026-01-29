@@ -172,6 +172,8 @@ interface AppState {
   projectFolderHandle: FileSystemDirectoryHandle | null
   openProjectFolder: (handle: FileSystemDirectoryHandle) => void
   closeProjectFolder: () => void
+  refreshProjectFolderTrigger: number
+  triggerProjectFolderRefresh: () => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -1168,4 +1170,8 @@ export const useAppStore = create<AppState>((set) => ({
   projectFolderHandle: null,
   openProjectFolder: (handle) => set({ projectFolderHandle: handle }),
   closeProjectFolder: () => set({ projectFolderHandle: null }),
+  refreshProjectFolderTrigger: 0,
+  triggerProjectFolderRefresh: () => set((state) => ({ 
+    refreshProjectFolderTrigger: state.refreshProjectFolderTrigger + 1 
+  })),
 }))

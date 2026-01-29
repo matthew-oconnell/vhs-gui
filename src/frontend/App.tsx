@@ -17,7 +17,7 @@ import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
 import { useAppStore } from './store/appStore'
 import { useConsoleStore } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
-import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fileUtils'
+import { saveJsonFile, openJsonFile, openJsonFileWithHandle, promptForDirectoryAccess } from './utils/fileUtils'
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
@@ -150,49 +150,133 @@ function App() {
 
   const handleOpen = async () => {
     try {
-      // Open file picker and load JSON
-      const loadedConfig = await openJsonFile()
+      // Open file picker and load JSON with file handle
+      const result = await openJsonFileWithHandle()
       
       // If user cancelled, do nothing
-      if (!loadedConfig) {
+      if (!result) {
         return
       }
       
+      const { config: loadedConfig, fileHandle } = result
+      
+      console.log('[App] Loading config from File > Open:', fileHandle.name)
+      
       // Check if config has mesh filename
       const meshFilename = loadedConfig['mesh filename']
+      const { projectFolderHandle } = useAppStore.getState()
       let meshLoaded = false
       let showedLumpDialog = false
       
+      console.log('[App] Mesh filename from config:', meshFilename)
+      console.log('[App] Project folder open:', !!projectFolderHandle)
+      
       if (meshFilename) {
-        // Prompt user to select the directory containing the config and mesh
-        const directoryHandle = await promptForDirectoryAccess()
+        const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
+        console.log(`[App] Will attempt to auto-load mesh: "${filename}"`)
         
-        if (directoryHandle) {
-          // Try to load mesh from the selected directory
-          meshLoaded = await loadMeshFromDirectory(
-            typeof meshFilename === 'string' ? meshFilename : meshFilename[0],
-            directoryHandle,
-            parseMeshFile,
-            loadMesh,
-            (parsedMesh, filename) => {
-              // Mesh has duplicates - will show lump dialog
-              // Store config to transform AFTER mesh actually loads
-              console.log('[App] Storing pending config to transform after lump dialog resolves')
-              showedLumpDialog = true
-              setPendingConfig(loadedConfig)
-              setPendingMesh({ parsedMesh, filename })
-              setShowLumpDialog(true)
-            }
-          )
+        // Check if this is a CSM file (needs ESP server)
+        const isCSM = filename.toLowerCase().endsWith('.csm')
+        
+        if (isCSM) {
+          console.log(`[App] Detected CSM file, will use ESP server loading...`)
           
-          if (meshLoaded) {
-            console.log(`[App] Mesh "${meshFilename}" loaded automatically from selected directory`)
+          // Try 1: Prompt user for directory access
+          console.log('[App] Prompting for directory access to locate CSM...')
+          const directoryHandle = await promptForDirectoryAccess()
+          
+          if (directoryHandle) {
+            try {
+              const csmHandle = await directoryHandle.getFileHandle(filename)
+              await handleLoadCSMFromHandle(csmHandle, directoryHandle)
+              meshLoaded = true
+              showedLumpDialog = true // CSM loading sets config internally
+              console.log(`[App] ✓ CSM "${filename}" loaded from selected directory`)
+            } catch (error) {
+              console.log(`[App] ✗ CSM "${filename}" not found in selected directory`)
+            }
           } else {
-            console.log(`[App] Mesh "${meshFilename}" not found in directory, will need to locate manually`)
+            console.log('[App] User cancelled directory selection')
+          }
+          
+          // Try 2: Load from project root (if not already loaded)
+          if (!meshLoaded && projectFolderHandle) {
+            try {
+              console.log(`[App] Attempting to load CSM "${filename}" from project root...`)
+              const csmHandle = await projectFolderHandle.getFileHandle(filename)
+              await handleLoadCSMFromHandle(csmHandle, projectFolderHandle)
+              meshLoaded = true
+              showedLumpDialog = true // CSM loading sets config internally
+              console.log(`[App] ✓ CSM "${filename}" loaded from project root`)
+            } catch (error) {
+              console.log(`[App] ✗ CSM "${filename}" not found in project root`)
+            }
+          }
+        } else {
+          // Regular mesh file (.stl, .obj, .meshb, etc.)
+          console.log(`[App] Regular mesh file, using standard parser...`)
+          
+          // Try 1: Prompt user for directory access (same directory as config file)
+          console.log('[App] Prompting for directory access to locate mesh...')
+          const directoryHandle = await promptForDirectoryAccess()
+          
+          if (directoryHandle) {
+            // Try to load mesh from the selected directory
+            meshLoaded = await loadMeshFromDirectory(
+              filename,
+              directoryHandle,
+              parseMeshFile,
+              loadMesh,
+              (parsedMesh, meshName) => {
+                // Mesh has duplicates - will show lump dialog
+                // Store config to transform AFTER mesh actually loads
+                console.log('[App] Storing pending config to transform after lump dialog resolves')
+                showedLumpDialog = true
+                setPendingConfig(loadedConfig)
+                setPendingMesh({ parsedMesh, filename: meshName })
+                setShowLumpDialog(true)
+              }
+            )
+            
+            if (meshLoaded) {
+              console.log(`[App] ✓ Mesh "${filename}" loaded from selected directory`)
+            } else {
+              console.log(`[App] ✗ Mesh "${filename}" not found in selected directory`)
+            }
+          } else {
+            console.log('[App] User cancelled directory selection')
+          }
+          
+          // Try 2: Load from project root (if not already loaded and project folder is open)
+          if (!meshLoaded && projectFolderHandle) {
+            console.log(`[App] Attempting to load mesh "${filename}" from project root...`)
+            meshLoaded = await loadMeshFromDirectory(
+              filename,
+              projectFolderHandle,
+              parseMeshFile,
+              loadMesh,
+              (parsedMesh, meshName) => {
+                showedLumpDialog = true
+                setPendingConfig(loadedConfig)
+                setPendingMesh({ parsedMesh, filename: meshName })
+                setShowLumpDialog(true)
+              }
+            )
+            
+            if (meshLoaded) {
+              console.log(`[App] ✓ Mesh "${filename}" loaded from project root`)
+            } else {
+              console.log(`[App] ✗ Mesh "${filename}" not found in project root`)
+            }
           }
         }
         
-        // If user cancelled directory selection or mesh not found, they can load it later manually
+        if (!meshLoaded) {
+          console.log(`[App] ⚠ Mesh "${filename}" could not be auto-loaded`)
+          console.log(`[App] User will need to load mesh manually via File > Load Mesh`)
+        }
+      } else {
+        console.log('[App] No mesh filename in config, skipping auto-load')
       }
       
       // If mesh was loaded directly (no lump dialog), transform and set config now
@@ -317,6 +401,12 @@ function App() {
       // Validation passed, save the file
       await saveJsonFile(configToSave, 'config.json')
       console.log('File saved successfully')
+      
+      // Trigger project folder refresh if folder is open
+      const { projectFolderHandle, triggerProjectFolderRefresh } = useAppStore.getState()
+      if (projectFolderHandle) {
+        triggerProjectFolderRefresh()
+      }
     } catch (error) {
       console.error('Error saving file:', error)
     }
@@ -450,42 +540,122 @@ function App() {
 
   // Wrapper for loading config from FileSystemFileHandle
   // Auto-loads mesh file if project folder is open
-  const handleLoadConfigFromHandle = async (handle: FileSystemFileHandle) => {
+  const handleLoadConfigFromHandle = async (handle: FileSystemFileHandle, parentDir?: FileSystemDirectoryHandle) => {
     try {
       const file = await handle.getFile()
       const text = await file.text()
       const json = JSON.parse(text)
       
-      // Check if config has mesh filename and project folder is open
+      console.log('[App] Loading config from handle:', file.name)
+      console.log('[App] Has parentDir:', !!parentDir)
+      
+      // Check if config has mesh filename
       const meshFilename = json['mesh filename']
       const { projectFolderHandle } = useAppStore.getState()
       let meshLoaded = false
       let showedLumpDialog = false
       
-      if (meshFilename && projectFolderHandle) {
-        // Try to auto-load mesh from project folder
+      console.log('[App] Mesh filename from config:', meshFilename)
+      console.log('[App] Project folder open:', !!projectFolderHandle)
+      
+      if (meshFilename) {
         const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
-        console.log(`[App] Auto-loading mesh "${filename}" from project folder...`)
+        console.log(`[App] Will attempt to auto-load mesh: "${filename}"`)
         
-        meshLoaded = await loadMeshFromDirectory(
-          filename,
-          projectFolderHandle,
-          parseMeshFile,
-          loadMesh,
-          (parsedMesh, meshName) => {
-            // Mesh has duplicates - will show lump dialog
-            showedLumpDialog = true
-            setPendingConfig(json)
-            setPendingMesh({ parsedMesh, filename: meshName })
-            setShowLumpDialog(true)
+        // Check if this is a CSM file (needs ESP server)
+        const isCSM = filename.toLowerCase().endsWith('.csm')
+        
+        if (isCSM) {
+          console.log(`[App] Detected CSM file, will use ESP server loading...`)
+          
+          // Try 1: Load from config's directory (if available)
+          if (parentDir) {
+            try {
+              console.log(`[App] Attempting to load CSM "${filename}" from config's directory...`)
+              const csmHandle = await parentDir.getFileHandle(filename)
+              await handleLoadCSMFromHandle(csmHandle, parentDir)
+              meshLoaded = true
+              showedLumpDialog = true // CSM loading sets config internally
+              console.log(`[App] ✓ CSM "${filename}" loaded from config's directory`)
+            } catch (error) {
+              console.log(`[App] ✗ CSM "${filename}" not found in config's directory`)
+            }
           }
-        )
-        
-        if (meshLoaded) {
-          console.log(`[App] Mesh "${filename}" loaded automatically from project folder`)
+          
+          // Try 2: Load from project root (if not already loaded)
+          if (!meshLoaded && projectFolderHandle && parentDir !== projectFolderHandle) {
+            try {
+              console.log(`[App] Attempting to load CSM "${filename}" from project root...`)
+              const csmHandle = await projectFolderHandle.getFileHandle(filename)
+              await handleLoadCSMFromHandle(csmHandle, projectFolderHandle)
+              meshLoaded = true
+              showedLumpDialog = true // CSM loading sets config internally
+              console.log(`[App] ✓ CSM "${filename}" loaded from project root`)
+            } catch (error) {
+              console.log(`[App] ✗ CSM "${filename}" not found in project root`)
+            }
+          }
         } else {
-          console.log(`[App] Mesh "${filename}" not found in project folder`)
+          // Regular mesh file (.stl, .obj, .meshb, etc.)
+          console.log(`[App] Regular mesh file, using standard parser...`)
+          
+          // Try 1: Load from config's directory (if available)
+          if (parentDir) {
+            console.log(`[App] Attempting to load mesh "${filename}" from config's directory...`)
+            meshLoaded = await loadMeshFromDirectory(
+              filename,
+              parentDir,
+              parseMeshFile,
+              loadMesh,
+              (parsedMesh, meshName) => {
+                showedLumpDialog = true
+                setPendingConfig(json)
+                setPendingMesh({ parsedMesh, filename: meshName })
+                setShowLumpDialog(true)
+              }
+            )
+            
+            if (meshLoaded) {
+              console.log(`[App] ✓ Mesh "${filename}" loaded from config's directory`)
+            } else {
+              console.log(`[App] ✗ Mesh "${filename}" not found in config's directory`)
+            }
+          } else {
+            console.log(`[App] No parent directory available, skipping config directory search`)
+          }
+          
+          // Try 2: Load from project root (if not already loaded and project folder is open)
+          if (!meshLoaded && projectFolderHandle && parentDir !== projectFolderHandle) {
+            console.log(`[App] Attempting to load mesh "${filename}" from project root...`)
+            meshLoaded = await loadMeshFromDirectory(
+              filename,
+              projectFolderHandle,
+              parseMeshFile,
+              loadMesh,
+              (parsedMesh, meshName) => {
+                showedLumpDialog = true
+                setPendingConfig(json)
+                setPendingMesh({ parsedMesh, filename: meshName })
+                setShowLumpDialog(true)
+              }
+            )
+            
+            if (meshLoaded) {
+              console.log(`[App] ✓ Mesh "${filename}" loaded from project root`)
+            } else {
+              console.log(`[App] ✗ Mesh "${filename}" not found in project root`)
+            }
+          } else if (!meshLoaded && !projectFolderHandle) {
+            console.log(`[App] No project folder open, skipping project root search`)
+          }
         }
+        
+        if (!meshLoaded) {
+          console.log(`[App] ⚠ Mesh "${filename}" could not be auto-loaded`)
+          console.log(`[App] User will need to load mesh manually`)
+        }
+      } else {
+        console.log('[App] No mesh filename in config, skipping auto-load')
       }
       
       // If mesh was loaded directly (no lump dialog), transform and set config now
@@ -541,7 +711,7 @@ function App() {
   }
 
   // Wrapper for loading CSM from FileSystemFileHandle with auto-dependency loading
-  const handleLoadCSMFromHandle = async (handle: FileSystemFileHandle) => {
+  const handleLoadCSMFromHandle = async (handle: FileSystemFileHandle, parentDir?: FileSystemDirectoryHandle) => {
     console.log('[App] Load CSM from handle clicked')
     
     try {
@@ -580,17 +750,31 @@ function App() {
         for (const importPath of imports) {
           let loaded = false
           
-          // Try auto-loading from project folder first
-          if (projectFolderHandle) {
+          // Try 1: Auto-load from CSM file's directory (if available)
+          if (parentDir) {
             try {
-              log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
+              log('Geometry', 'info', `Searching in CSM directory: ${importPath}`)
+              const depHandle = await parentDir.getFileHandle(importPath)
+              const depFile = await depHandle.getFile()
+              dependencies.set(importPath, depFile)
+              log('Geometry', 'success', `Auto-loaded from CSM directory: ${depFile.name} (${depFile.size} bytes)`)
+              loaded = true
+            } catch (error) {
+              log('Geometry', 'warning', `Not found in CSM directory: ${importPath}`)
+            }
+          }
+          
+          // Try 2: Auto-load from project folder root (if not already loaded)
+          if (!loaded && projectFolderHandle) {
+            try {
+              log('Geometry', 'info', `Searching in project root: ${importPath}`)
               const depHandle = await projectFolderHandle.getFileHandle(importPath)
               const depFile = await depHandle.getFile()
               dependencies.set(importPath, depFile)
-              log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
+              log('Geometry', 'success', `Auto-loaded from project root: ${depFile.name} (${depFile.size} bytes)`)
               loaded = true
             } catch (error) {
-              log('Geometry', 'warning', `Could not auto-load ${importPath}`)
+              log('Geometry', 'warning', `Not found in project root: ${importPath}`)
             }
           }
           
@@ -921,6 +1105,13 @@ function App() {
       
       console.log('[App] CSM exported successfully as:', handle.name)
       console.log('[App] Generated CSM preview:\n', generatedCSM.slice(0, 500) + '...')
+      
+      // Trigger project folder refresh if folder is open
+      const { projectFolderHandle, triggerProjectFolderRefresh } = useAppStore.getState()
+      if (projectFolderHandle) {
+        triggerProjectFolderRefresh()
+      }
+      
       alert(`CSM file saved successfully as ${handle.name}\n\nOperations recorded: ${csmBuilder.getOperationCount()}`)
     } catch (error) {
       if ((error as any).name === 'AbortError') {
@@ -1320,6 +1511,12 @@ subtract
               const configToSave = cleanConfigForSave(configData)
               await saveJsonFile(configToSave, 'config.json')
               console.log('File saved successfully (validation bypassed)')
+              
+              // Trigger project folder refresh if folder is open
+              const { projectFolderHandle, triggerProjectFolderRefresh } = useAppStore.getState()
+              if (projectFolderHandle) {
+                triggerProjectFolderRefresh()
+              }
             } catch (error) {
               console.error('Error saving file:', error)
             }

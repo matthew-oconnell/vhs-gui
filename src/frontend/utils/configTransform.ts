@@ -14,12 +14,24 @@ export const transformLoadedConfig = (
   const transformed = JSON.parse(JSON.stringify(config)) // Deep clone
   
   // Create a map of surface name to tag number
+  // Use bcName (from ESP bc_name attribute) as the primary lookup key
   const nameToTag = new Map<string, number>()
   surfaces.forEach(surface => {
+    // Prefer bcName (ESP's bc_name attribute) over tagName (auto-generated)
+    if (surface.metadata.bcName) {
+      nameToTag.set(surface.metadata.bcName, surface.metadata.tag)
+    }
+    // Also map the tagName for backwards compatibility
     nameToTag.set(surface.metadata.tagName, surface.metadata.tag)
   })
   
   console.log('[transformLoadedConfig] Surface name to tag map:', Object.fromEntries(nameToTag))
+  console.log('[transformLoadedConfig] Input config structure:', {
+    hasRootLevelBCs: !!transformed['boundary conditions'],
+    hasNestedBCs: !!transformed[rootSolverKey]?.['boundary conditions'],
+    rootSolverKey,
+    bcCount: transformed['boundary conditions']?.length || transformed[rootSolverKey]?.['boundary conditions']?.length || 0
+  })
   
   // Determine if config is flat or nested under root solver key
   let bcArray = transformed['boundary conditions']
@@ -28,9 +40,12 @@ export const transformLoadedConfig = (
   
   // If not found at root level, check under root solver key
   if (!bcArray && transformed[rootSolverKey]) {
+    console.log('[transformLoadedConfig] BCs not found at root, checking nested structure')
     bcArray = transformed[rootSolverKey]['boundary conditions']
     statesObj = transformed[rootSolverKey].states
     initRegionsArray = transformed[rootSolverKey]['initialization regions']
+  } else {
+    console.log('[transformLoadedConfig] Using flat structure (BCs at root level)')
   }
   
   // Add 'id' and 'name' to boundary conditions
@@ -70,10 +85,15 @@ export const transformLoadedConfig = (
     
     // Update the BCs in the correct location
     if (transformed['boundary conditions']) {
+      console.log('[transformLoadedConfig] Writing BCs to root level (flat structure)')
       transformed['boundary conditions'] = transformedBCs
     } else if (transformed[rootSolverKey]) {
+      console.log('[transformLoadedConfig] Writing BCs to nested structure:', rootSolverKey)
       transformed[rootSolverKey]['boundary conditions'] = transformedBCs
     }
+    console.log('[transformLoadedConfig] Final BC count:', transformedBCs.length)
+  } else {
+    console.log('[transformLoadedConfig] No BCs found in config')
   }
   
   // Add 'id' to states
@@ -113,6 +133,12 @@ export const transformLoadedConfig = (
       transformed[rootSolverKey]['initialization regions'] = transformedRegions
     }
   }
+  
+  console.log('[transformLoadedConfig] Returning transformed config with structure:', {
+    hasRootLevelBCs: !!transformed['boundary conditions'],
+    hasNestedBCs: !!transformed[rootSolverKey]?.['boundary conditions'],
+    bcCount: transformed['boundary conditions']?.length || 0
+  })
   
   return transformed
 }

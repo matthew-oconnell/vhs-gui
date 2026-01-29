@@ -15,7 +15,7 @@ import ConsolePanel from './components/ConsolePanel/ConsolePanel'
 import StatusBar from './components/StatusBar/StatusBar'
 import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
 import { useAppStore } from './store/appStore'
-import { useConsoleStore } from './store/consoleStore'
+import { useConsoleStore, log } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
 import { saveJsonFile, openJsonFile, openJsonFileWithHandle, promptForDirectoryAccess } from './utils/fileUtils'
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
@@ -179,10 +179,10 @@ function App() {
         const isCSM = filename.toLowerCase().endsWith('.csm')
         
         if (isCSM) {
-          console.log(`[App] Detected CSM file, will use ESP server loading...`)
+          log('UI', `Detected CSM file, will use ESP server loading...`)
           
           // Try 1: Prompt user for directory access
-          console.log('[App] Prompting for directory access to locate CSM...')
+          log('UI', 'Prompting for directory access to locate CSM...')
           const directoryHandle = await promptForDirectoryAccess()
           
           if (directoryHandle) {
@@ -190,24 +190,34 @@ function App() {
               const csmHandle = await directoryHandle.getFileHandle(filename)
               await handleLoadCSMFromHandle(csmHandle, directoryHandle)
               meshLoaded = true
-              showedLumpDialog = true // CSM loading sets config internally
-              console.log(`[App] ✓ CSM "${filename}" loaded from selected directory`)
+              // CSM loads surfaces directly, transform config now
+              const currentSurfaces = useAppStore.getState().availableSurfaces
+              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+              const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
+              setConfigData(transformedConfig)
+              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
+              log('UI', `✓ CSM "${filename}" loaded from selected directory`)
             } catch (error) {
-              console.log(`[App] ✗ CSM "${filename}" not found in selected directory`)
+              log('UI', `✗ CSM "${filename}" not found in selected directory`)
             }
           } else {
-            console.log('[App] User cancelled directory selection')
+            log('UI', 'User cancelled directory selection')
           }
           
           // Try 2: Load from project root (if not already loaded)
           if (!meshLoaded && projectFolderHandle) {
             try {
-              console.log(`[App] Attempting to load CSM "${filename}" from project root...`)
+              log('UI', `Attempting to load CSM "${filename}" from project root...`)
               const csmHandle = await projectFolderHandle.getFileHandle(filename)
               await handleLoadCSMFromHandle(csmHandle, projectFolderHandle)
               meshLoaded = true
-              showedLumpDialog = true // CSM loading sets config internally
-              console.log(`[App] ✓ CSM "${filename}" loaded from project root`)
+              // CSM loads surfaces directly, transform config now
+              const currentSurfaces = useAppStore.getState().availableSurfaces
+              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+              const transformedConfig = transformLoadedConfig(loadedConfig, currentSurfaces, rootKey)
+              setConfigData(transformedConfig)
+              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
+              log('UI', `✓ CSM "${filename}" loaded from project root`)
             } catch (error) {
               console.log(`[App] ✗ CSM "${filename}" not found in project root`)
             }
@@ -372,10 +382,8 @@ function App() {
   const handleSave = async () => {
     console.log('Save file')
     console.log('Current config:', configData)
-    const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    console.log('Boundary conditions:', rootConfig?.['boundary conditions'])
-    console.log('Num BCs:', rootConfig?.['boundary conditions']?.length || 0)
+    console.log('Boundary conditions:', configData['boundary conditions'])
+    console.log('Num BCs:', configData['boundary conditions']?.length || 0)
     
     const configToSave = cleanConfigForSave(configData)
     
@@ -440,9 +448,7 @@ function App() {
     
     // Check 2: Ensure all mesh surfaces are assigned to boundary conditions
     const availableSurfaces = useAppStore.getState().availableSurfaces
-    const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-    const rootConfig = (configData as any)[rootKey]
-    const boundaryConditions = rootConfig?.['boundary conditions'] || []
+    const boundaryConditions = configData['boundary conditions'] || []
     
     if (availableSurfaces.length > 0) {
       // Get all surface tags assigned to BCs
@@ -471,7 +477,7 @@ function App() {
         const surfaceNames = unassignedSurfaces.map(s => s.name).join(', ')
         errors.push({
           message: `Unassigned mesh surfaces: ${surfaceNames}. All surfaces must be assigned to boundary conditions.`,
-          path: `${rootKey}.boundary conditions`
+          path: 'boundary conditions'
         })
       }
     }
@@ -566,33 +572,43 @@ function App() {
         const isCSM = filename.toLowerCase().endsWith('.csm')
         
         if (isCSM) {
-          console.log(`[App] Detected CSM file, will use ESP server loading...`)
+          log('UI', `Detected CSM file, will use ESP server loading...`)
           
           // Try 1: Load from config's directory (if available)
           if (parentDir) {
             try {
-              console.log(`[App] Attempting to load CSM "${filename}" from config's directory...`)
+              log('UI', `Attempting to load CSM "${filename}" from config's directory...`)
               const csmHandle = await parentDir.getFileHandle(filename)
               await handleLoadCSMFromHandle(csmHandle, parentDir)
               meshLoaded = true
-              showedLumpDialog = true // CSM loading sets config internally
-              console.log(`[App] ✓ CSM "${filename}" loaded from config's directory`)
+              // CSM loads surfaces directly, transform config now
+              const currentSurfaces = useAppStore.getState().availableSurfaces
+              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+              const transformedConfig = transformLoadedConfig(json, currentSurfaces, rootKey)
+              setConfigData(transformedConfig)
+              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
+              log('UI', `✓ CSM "${filename}" loaded from config's directory`)
             } catch (error) {
-              console.log(`[App] ✗ CSM "${filename}" not found in config's directory`)
+              log('UI', `✗ CSM "${filename}" not found in config's directory`)
             }
           }
           
           // Try 2: Load from project root (if not already loaded)
           if (!meshLoaded && projectFolderHandle && parentDir !== projectFolderHandle) {
             try {
-              console.log(`[App] Attempting to load CSM "${filename}" from project root...`)
+              log('UI', `Attempting to load CSM "${filename}" from project root...`)
               const csmHandle = await projectFolderHandle.getFileHandle(filename)
               await handleLoadCSMFromHandle(csmHandle, projectFolderHandle)
               meshLoaded = true
-              showedLumpDialog = true // CSM loading sets config internally
-              console.log(`[App] ✓ CSM "${filename}" loaded from project root`)
+              // CSM loads surfaces directly, transform config now
+              const currentSurfaces = useAppStore.getState().availableSurfaces
+              const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+              const transformedConfig = transformLoadedConfig(json, currentSurfaces, rootKey)
+              setConfigData(transformedConfig)
+              log('UI', `✓ CSM loaded, config transformed with ${transformedConfig['boundary conditions']?.length || 0} BCs`)
+              log('UI', `✓ CSM "${filename}" loaded from project root`)
             } catch (error) {
-              console.log(`[App] ✗ CSM "${filename}" not found in project root`)
+              log('UI', `✗ CSM "${filename}" not found in project root`)
             }
           }
         } else {

@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { useState, useEffect, useRef } from 'react'
+import { Panel, PanelGroup, PanelResizeHandle, type PanelImperativeHandle } from 'react-resizable-panels'
 import TreePanel from './components/TreePanel/TreePanel'
 import EditorPanel from './components/EditorPanel/EditorPanel'
 import SurfacesPanel from './components/SurfacesPanel/SurfacesPanel'
@@ -42,7 +42,22 @@ function App() {
   const [espLoadingMessage, setEspLoadingMessage] = useState('')
   const [espLogLines, setEspLogLines] = useState<string[]>([])
   
-  const { configData, initializeConfig, loadMesh, loadESPSurfaces, availableSurfaces, setConfigData } = useAppStore()
+  // Refs for imperative panel control
+  const treePanelRef = useRef<PanelImperativeHandle>(null)
+  const editorPanelRef = useRef<PanelImperativeHandle>(null)
+  const surfacesPanelRef = useRef<PanelImperativeHandle>(null)
+  
+  const { 
+    configData, 
+    initializeConfig, 
+    loadMesh, 
+    loadESPSurfaces, 
+    availableSurfaces, 
+    setConfigData,
+    treeCollapsed,
+    editorCollapsed,
+    surfacesCollapsed
+  } = useAppStore()
   const { setCollapsed, isCollapsed, log } = useConsoleStore()
 
   /**
@@ -915,16 +930,32 @@ subtract
         <Panel defaultSize={25} minSize={15} maxSize={40}>
           <PanelGroup direction="vertical">
             {/* Tree Panel - Top */}
-            <Panel defaultSize={33} minSize={15}>
-              <TreePanel />
+            <Panel 
+              id="tree-panel"
+              ref={treePanelRef}
+              defaultSize={33} 
+              minSize={15}
+              collapsible={true}
+              collapsedSize={3}
+            >
+              <TreePanel panelRef={treePanelRef} />
             </Panel>
             
             {/* Vertical Resize Handle */}
             <PanelResizeHandle className="resize-handle resize-handle-vertical" />
             
             {/* Editor Panel - Middle */}
-            <Panel defaultSize={34} minSize={15}>
+            <Panel 
+              id="editor-panel"
+              ref={editorPanelRef}
+              defaultSize={34} 
+              minSize={15}
+              collapsible={true}
+              collapsedSize={3}
+            >
               <EditorPanel 
+                panelRef={editorPanelRef}
+                treePanelRef={treePanelRef}
                 openThermoWizard={showThermoWizardFromStatusBar} 
                 onCloseThermoWizard={() => setShowThermoWizardFromStatusBar(false)}
                 openTurbulenceWizard={showTurbulenceWizardFromStatusBar}
@@ -936,8 +967,15 @@ subtract
             <PanelResizeHandle className="resize-handle resize-handle-vertical" />
             
             {/* Surfaces Panel - Bottom */}
-            <Panel defaultSize={33} minSize={15}>
-              <SurfacesPanel />
+            <Panel 
+              id="surfaces-panel"
+              ref={surfacesPanelRef}
+              defaultSize={33} 
+              minSize={15}
+              collapsible={true}
+              collapsedSize={3}
+            >
+              <SurfacesPanel panelRef={surfacesPanelRef} />
             </Panel>
           </PanelGroup>
         </Panel>

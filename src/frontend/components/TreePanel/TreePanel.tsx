@@ -1,12 +1,17 @@
 import { FolderTree, ChevronRight, ChevronDown, File, Folder, List, FileCode, Settings } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, RefObject } from 'react'
 import { TreeNode, buildTreeFromSchema } from '../../utils/schemaParser'
 import { useAppStore } from '../../store/appStore'
 import { subscribeToFeatureFlags } from '../../utils/featureFlags'
 import PropertyEditorDialog from '../PropertyEditorDialog/PropertyEditorDialog'
+import type { PanelImperativeHandle } from 'react-resizable-panels'
 import './TreePanel.css'
 
-function TreePanel() {
+interface TreePanelProps {
+  panelRef: RefObject<PanelImperativeHandle>
+}
+
+function TreePanel({ panelRef }: TreePanelProps) {
   const [treeData, setTreeData] = useState<TreeNode[]>([])
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
   const [dialogNode, setDialogNode] = useState<TreeNode | null>(null)
@@ -28,6 +33,8 @@ function TreePanel() {
   const configData = useAppStore(state => state.configData)
   const updateProperty = useAppStore(state => state.updateProperty)
   const selectedId = selectedNode?.id || null
+  const treeCollapsed = useAppStore(state => state.treeCollapsed)
+  const setTreeCollapsed = useAppStore(state => state.setTreeCollapsed)
 
   useEffect(() => {
     console.log('TreePanel - Current configData:', configData)
@@ -266,6 +273,31 @@ function TreePanel() {
         />
       )}
       <div className="panel-header">
+        <button 
+          className="panel-collapse-btn"
+          onClick={(e) => {
+            console.log('[TreePanel] Collapse button clicked!')
+            e.stopPropagation()
+            if (panelRef.current) {
+              console.log('[TreePanel] panelRef is available')
+              console.log('[TreePanel] isCollapsed:', panelRef.current.isCollapsed())
+              if (panelRef.current.isCollapsed()) {
+                console.log('[TreePanel] Calling expand()')
+                panelRef.current.expand()
+                setTreeCollapsed(false)
+              } else {
+                console.log('[TreePanel] Calling collapse()')
+                panelRef.current.collapse()
+                setTreeCollapsed(true)
+              }
+            } else {
+              console.log('[TreePanel] panelRef.current is null!')
+            }
+          }}
+          title={treeCollapsed ? 'Expand Configuration Tree' : 'Collapse Configuration Tree'}
+        >
+          <span className="collapse-icon">{treeCollapsed ? '▶' : '▼'}</span>
+        </button>
         <FolderTree size={16} />
         <span>Configuration Tree</span>
         <button 

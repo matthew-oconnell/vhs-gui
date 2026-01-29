@@ -55,6 +55,35 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  user-select: none;
+}
+
+/* Panel collapse button (VS Code style) */
+.panel-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #858585;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.panel-collapse-btn:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #cccccc;
+}
+
+.panel-collapse-btn .collapse-icon {
+  font-size: 10px;
+  display: inline-block;
+  transition: transform 0.1s ease;
 }
 
 .panel-content {

@@ -1,7 +1,8 @@
 import { Layers, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react'
-import { useState, useMemo } from 'react'
+import { useState, useMemo, RefObject } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { Surface } from '../../types/surface'
+import type { PanelImperativeHandle } from 'react-resizable-panels'
 import './SurfacesPanel.css'
 
 interface SurfaceGroup {
@@ -11,14 +12,20 @@ interface SurfaceGroup {
   bcName?: string
 }
 
-function SurfacesPanel() {
+interface SurfacesPanelProps {
+  panelRef: RefObject<PanelImperativeHandle>
+}
+
+function SurfacesPanel({ panelRef }: SurfacesPanelProps) {
   const { 
     availableSurfaces, 
     surfaceVisibility, 
     toggleSurfaceVisibility,
     surfaceRenderSettings,
     updateSurfaceRenderSettings,
-    configData
+    configData,
+    surfacesCollapsed,
+    setSurfacesCollapsed
   } = useAppStore()
   
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -79,6 +86,31 @@ function SurfacesPanel() {
   return (
     <div className="panel surfaces-panel">
       <div className="panel-header">
+        <button 
+          className="panel-collapse-btn"
+          onClick={(e) => {
+            console.log('[SurfacesPanel] Collapse button clicked!')
+            e.stopPropagation()
+            if (panelRef.current) {
+              console.log('[SurfacesPanel] panelRef is available')
+              console.log('[SurfacesPanel] isCollapsed:', panelRef.current.isCollapsed())
+              if (panelRef.current.isCollapsed()) {
+                console.log('[SurfacesPanel] Calling expand()')
+                panelRef.current.expand()
+                setSurfacesCollapsed(false)
+              } else {
+                console.log('[SurfacesPanel] Calling collapse()')
+                panelRef.current.collapse()
+                setSurfacesCollapsed(true)
+              }
+            } else {
+              console.log('[SurfacesPanel] panelRef.current is null!')
+            }
+          }}
+          title={surfacesCollapsed ? 'Expand Mesh Surfaces' : 'Collapse Mesh Surfaces'}
+        >
+          <span className="collapse-icon">{surfacesCollapsed ? '▶' : '▼'}</span>
+        </button>
         <Layers size={16} />
         <span>Mesh Surfaces</span>
       </div>

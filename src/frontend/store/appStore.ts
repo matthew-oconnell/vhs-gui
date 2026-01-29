@@ -157,6 +157,14 @@ interface AppState {
   addSurfacesToSelection: (surfaces: Surface[]) => void
   surfaceBounds: Record<string, SurfaceBounds>
   setSurfaceBounds: (bounds: Record<string, SurfaceBounds>) => void
+  
+  // Panel collapse states
+  treeCollapsed: boolean
+  editorCollapsed: boolean
+  surfacesCollapsed: boolean
+  setTreeCollapsed: (collapsed: boolean) => void
+  setEditorCollapsed: (collapsed: boolean) => void
+  setSurfacesCollapsed: (collapsed: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -1137,5 +1145,13 @@ export const useAppStore = create<AppState>((set) => ({
     setTimeout(() => useAppStore.getState().updateProjectStage(), 0)
     
     return newState
-  })
+  }),
+  
+  // Panel collapse state (default: all expanded)
+  treeCollapsed: false,
+  editorCollapsed: false,
+  surfacesCollapsed: false,
+  setTreeCollapsed: (collapsed) => set({ treeCollapsed: collapsed }),
+  setEditorCollapsed: (collapsed) => set({ editorCollapsed: collapsed }),
+  setSurfacesCollapsed: (collapsed) => set({ surfacesCollapsed: collapsed }),
 }))

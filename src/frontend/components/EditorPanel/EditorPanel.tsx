@@ -1,5 +1,5 @@
 import { Edit3, Save, RotateCcw, Plus, Trash2, Eye, EyeOff, Maximize2, Settings, AlertTriangle, X } from 'lucide-react'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, RefObject } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { BoundaryCondition } from '../../types/config'
 import StateWizard from './StateWizard'
@@ -14,6 +14,7 @@ import MapEditor from '../MapEditor/MapEditor'
 import { loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
 import { calculateAreaWeightedNormal } from '../../utils/surfaceUtils'
 import { validateAgainstSchema, formatValidationErrors, ValidationErrorItem } from '../../utils/schemaValidator'
+import type { PanelImperativeHandle } from 'react-resizable-panels'
 import './EditorPanel.css'
 
 interface SchemaProperty {
@@ -78,13 +79,15 @@ const BC_TYPES = [
 ]
 
 interface EditorPanelProps {
+  panelRef: RefObject<PanelImperativeHandle>
+  treePanelRef: RefObject<PanelImperativeHandle>
   openThermoWizard?: boolean
   onCloseThermoWizard?: () => void
   openTurbulenceWizard?: boolean
   onCloseTurbulenceWizard?: () => void
 }
 
-function EditorPanel({ openThermoWizard, onCloseThermoWizard, openTurbulenceWizard, onCloseTurbulenceWizard }: EditorPanelProps = {}) {
+function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWizard, openTurbulenceWizard, onCloseTurbulenceWizard }: EditorPanelProps) {
   const [showStateWizard, setShowStateWizard] = useState(false)
   const [showBCDialog, setShowBCDialog] = useState(false)
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
@@ -148,7 +151,9 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard, openTurbulenceWiza
     setSelectedBC,
     addState,
     updateState,
-    deleteState
+    deleteState,
+    editorCollapsed,
+    setEditorCollapsed
   } = useAppStore()
 
   // Helper function to get value from configData based on node path
@@ -1775,6 +1780,33 @@ function EditorPanel({ openThermoWizard, onCloseThermoWizard, openTurbulenceWiza
   return (
     <div className="panel editor-panel">
       <div className="panel-header">
+        <button 
+          className="panel-collapse-btn"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (panelRef.current && treePanelRef.current) {
+              // Store tree panel size before collapsing
+              const treePanelSize = treePanelRef.current.getSize()
+              
+              if (panelRef.current.isCollapsed()) {
+                panelRef.current.expand()
+                setEditorCollapsed(false)
+              } else {
+                panelRef.current.collapse()
+                setEditorCollapsed(true)
+                // Restore tree panel size after a brief delay to allow collapse animation
+                setTimeout(() => {
+                  if (treePanelRef.current) {
+                    treePanelRef.current.resize(treePanelSize)
+                  }
+                }, 50)
+              }
+            }
+          }}
+          title={editorCollapsed ? 'Expand Property Editor' : 'Collapse Property Editor'}
+        >
+          <span className="collapse-icon">{editorCollapsed ? '▶' : '▼'}</span>
+        </button>
         <Edit3 size={16} />
         <span>Property Editor</span>
         <div className="panel-actions">

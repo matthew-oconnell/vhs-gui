@@ -173,8 +173,8 @@ function TreePanel({ panelRef }: TreePanelProps) {
         
         return {
           ...node,
-          children: initRegionNodes.length > 0 ? initRegionNodes : node.children,
           // Preserve the node's current expanded state instead of forcing it to true
+          children: initRegionNodes.length > 0 ? initRegionNodes : node.children,
           expanded: initRegionNodes.length > 0 ? true : node.expanded
         }
       }

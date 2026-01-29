@@ -467,36 +467,58 @@ function App() {
         const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
         console.log(`[App] Auto-loading mesh "${filename}" from project folder...`)
         
-        meshLoaded = await loadMeshFromDirectory(
-          filename,
-          projectFolderHandle,
-          parseMeshFile,
-          loadMesh,
-          (parsedMesh, meshName) => {
-            // Mesh has duplicates - will show lump dialog
-            showedLumpDialog = true
-            setPendingConfig(json)
-            setPendingMesh({ parsedMesh, filename: meshName })
-            setShowLumpDialog(true)
-          }
-        )
+        // Check if this is a CSM file (needs ESP server)
+        const isCSM = filename.toLowerCase().endsWith('.csm')
         
-        if (meshLoaded) {
-          console.log(`[App] Mesh "${filename}" loaded automatically from project folder`)
+        if (isCSM) {
+          // CSM file - use ESP server
+          try {
+            const csmHandle = await projectFolderHandle.getFileHandle(filename)
+            await handleLoadCSMFromHandle(csmHandle)
+            meshLoaded = true
+            // CSM loads tags directly, transform config now
+            const currentTags = useAppStore.getState().availableTags
+            const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+            const transformedConfig = transformLoadedConfig(json, currentTags, rootKey)
+            setConfigData(transformedConfig)
+            console.log(`[App] CSM "${filename}" loaded automatically from project folder`)
+          } catch (error) {
+            console.log(`[App] CSM "${filename}" not found in project folder`)
+          }
         } else {
-          console.log(`[App] Mesh "${filename}" not found in project folder`)
+          // Regular mesh file - use mesh parser
+          meshLoaded = await loadMeshFromDirectory(
+            filename,
+            projectFolderHandle,
+            parseMeshFile,
+            loadMesh,
+            (parsedMesh, meshName) => {
+              // Mesh has duplicates - will show lump dialog
+              showedLumpDialog = true
+              setPendingConfig(json)
+              setPendingMesh({ parsedMesh, filename: meshName })
+              setShowLumpDialog(true)
+            }
+          )
+          
+          if (meshLoaded) {
+            console.log(`[App] Mesh "${filename}" loaded automatically from project folder`)
+          } else {
+            console.log(`[App] Mesh "${filename}" not found in project folder`)
+          }
         }
       }
       
       // If mesh was loaded directly (no lump dialog), transform and set config now
       // If lump dialog was shown, this will be handled in handleLumpChoice
-      if (!showedLumpDialog) {
+      // Note: CSM files handle transformation above since they load synchronously
+      if (!showedLumpDialog && !meshLoaded) {
         const currentTags = useAppStore.getState().availableTags
         const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
         const transformedConfig = transformLoadedConfig(json, currentTags, rootKey)
         setConfigData(transformedConfig)
         console.log('[App] Config loaded successfully')
-      } else {
+      } else if (showedLumpDialog) {
         console.log('[App] Config transformation deferred until after lump dialog')
       }
     } catch (error) {

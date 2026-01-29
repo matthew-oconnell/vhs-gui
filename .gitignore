@@ -31,6 +31,11 @@ src/frontend/public/schemas/
 .env.local
 .env.production.local
 
+*__pycache__*
+
+# server log files
+src/esp-server/esp_server.log
+
 # WebAssembly build artifacts
 wasm/build/
 public/wasm/*.wasm

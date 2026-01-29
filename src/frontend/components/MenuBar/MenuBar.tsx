@@ -4,6 +4,7 @@ import './MenuBar.css'
 interface MenuBarProps {
   onNewProject?: () => void
   onOpen?: () => void
+  onOpenProjectFolder?: () => void
   onSave?: () => void
   onValidate?: () => void
   onExit?: () => void
@@ -15,7 +16,7 @@ interface MenuBarProps {
   onExportCSM?: () => void
 }
 
-function MenuBar({ onNewProject, onOpen, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM }: MenuBarProps) {
+function MenuBar({ onNewProject, onOpen, onOpenProjectFolder, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -70,6 +71,12 @@ function MenuBar({ onNewProject, onOpen, onSave, onValidate, onExit, onSettings,
             >
               <span className="menu-option-label">Open</span>
               <span className="menu-option-shortcut">Ctrl+O</span>
+            </button>
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onOpenProjectFolder || (() => console.log('Open Project Folder')))}
+            >
+              <span className="menu-option-label">Open Project Folder</span>
             </button>
             <button 
               className="menu-option" 

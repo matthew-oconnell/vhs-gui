@@ -127,6 +127,27 @@ function App() {
     console.log('Config initialized, check store for updated configData')
   }
 
+  const handleOpenProjectFolder = async () => {
+    try {
+      if (!('showDirectoryPicker' in window)) {
+        alert('Directory Picker API not supported in this browser')
+        return
+      }
+
+      const handle = await window.showDirectoryPicker({
+        mode: 'readwrite'
+      })
+
+      const { openProjectFolder } = useAppStore.getState()
+      openProjectFolder(handle)
+    } catch (error) {
+      // User cancelled or error
+      if ((error as Error).name !== 'AbortError') {
+        console.error('Error opening project folder:', error)
+      }
+    }
+  }
+
   const handleOpen = async () => {
     try {
       // Open file picker and load JSON
@@ -914,6 +935,7 @@ subtract
       <MenuBar 
         onNewProject={() => setShowProjectSetup(true)}
         onOpen={handleOpen}
+        onOpenProjectFolder={handleOpenProjectFolder}
         onSave={handleSave}
         onValidate={handleValidate}
         onExit={handleExit}

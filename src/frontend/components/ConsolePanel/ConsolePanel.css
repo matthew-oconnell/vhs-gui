@@ -19,6 +19,7 @@
 
 .console-panel.collapsed {
   height: auto !important;
+  min-height: 40px;
 }
 
 .console-panel.resizing {

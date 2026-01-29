@@ -43,6 +43,13 @@
   overflow: auto;
   background-color: #252526;
   border: 1px solid #3e3e42;
+  min-height: 40px; /* Ensure panel header is visible when collapsed */
+}
+
+/* Force minimum height for collapsed panels (react-resizable-panels wrapper) */
+div[data-panel][data-panel-collapsible="true"][data-panel-size="3.0"] {
+  min-height: 40px !important;
+  overflow: visible !important;
 }
 
 .panel-header {

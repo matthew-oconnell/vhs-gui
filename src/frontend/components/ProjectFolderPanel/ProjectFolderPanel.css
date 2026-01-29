@@ -9,6 +9,7 @@
 
 .project-folder-panel.collapsed {
   overflow: visible;
+  min-height: 40px;
 }
 
 .project-folder-panel .panel-header {

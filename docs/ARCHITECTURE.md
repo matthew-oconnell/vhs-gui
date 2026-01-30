@@ -77,7 +77,7 @@ cd src/server
 **Purpose:**
 - Interface with ESP/pyOCSM for CSM file processing
 - Build geometry from CSM scripts
-- Return tessellated surfaces for visualization
+- Return tessellated tags for visualization
 - Export CSM files with updated bc_name attributes
 
 **Key Files:**
@@ -119,9 +119,9 @@ Frontend reads file
     ↓
 POST to C++ server (:8080/api/mesh/upload)
     ↓
-C++ parses mesh → surfaces
+C++ parses mesh → tags
     ↓
-Frontend receives surfaces
+Frontend receives tags
     ↓
 Render in 3D viewport
 ```
@@ -141,7 +141,7 @@ pyOCSM builds geometry
     ↓
 ESP extracts tessellation
     ↓
-Frontend receives surfaces
+Frontend receives tags
     ↓
 Render in 3D viewport
 ```
@@ -172,9 +172,9 @@ vhs-gui/
 │   │   ├── store/
 │   │   ├── utils/
 │   │   │   ├── espApi.ts             # ESP server client
-│   │   │   ├── espAdapter.ts         # ESP → Surface conversion
+│   │   │   ├── espAdapter.ts         # ESP → Tag conversion
 │   │   │   ├── backendApi.ts         # C++ server client
-│   │   │   └── meshAdapter.ts        # Mesh → Surface conversion
+│   │   │   └── meshAdapter.ts        # Mesh → Tag conversion
 │   │   └── vite.config.ts
 │   │
 │   ├── server/                       # C++ mesh server

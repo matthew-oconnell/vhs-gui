@@ -4,8 +4,8 @@ A web-based graphical user interface for setting up and configuring Computationa
 
 ## Core Objectives
 
-- **Interactive 3D Mesh Visualization**: Intuitive navigation and manipulation of CFD surface meshes
-- **Boundary Condition Configuration**: Visual selection of mesh surfaces and boundary condition assignment
+- **Interactive 3D Mesh Visualization**: Intuitive navigation and manipulation of CFD mesh tags
+- **Boundary Condition Configuration**: Visual selection of mesh tags and boundary condition assignment
 - **Comprehensive Simulation Setup**: Complete interface for configuring all aspects of CFD simulations
 - **Schema-Driven Configuration**: Auto-generated UI elements based on JSON schemas and defaults
 
@@ -33,23 +33,23 @@ A web-based graphical user interface for setting up and configuring Computationa
   - Right-click + drag to pan
   - Scroll to zoom
 - Multi-format mesh loading via backend (OBJ, STL, meshb, egads, csm)
-- Surface selection via mouse clicking
-- Visual highlighting of selected surfaces
+- Tag selection via mouse clicking
+- Visual highlighting of selected tags
 - Color-coded mesh regions based on boundary conditions
 - Camera presets and reset functionality
 
-✅ **Mesh & Surface Management**
+✅ **Mesh & Tag Management**
 - Load mesh files via C++ backend (.obj, .stl, .meshb, .egads, .csm)
-- Automatic surface detection and naming
-- Visual surface highlighting on selection
+- Automatic tag detection and naming
+- Visual tag highlighting on selection
 - Boundary condition assignment workflow
-- Surface metadata tracking
+- Tag metadata tracking
 
 ✅ **Boundary Condition Configuration**
 - Create boundary conditions with type-specific wizards
 - State-based BC configuration (Dirichlet, Riemann, etc.)
 - Wall temperature settings for viscous wall types
-- Surface selection and assignment
+- Tag selection and assignment
 - Visual feedback in 3D viewer
 
 ✅ **Additional Features**
@@ -301,16 +301,16 @@ The GUI is driven by `input.schema.json`. When the schema changes:
 ### Loading and Inspecting a Mesh
 1. Click **File → Open Mesh** and select an STL file
 2. Mesh renders in 3D viewport
-3. Surfaces detected and listed in Surfaces panel
+3. Tags detected and listed in Tags panel
 4. Explore mesh using camera controls
 
 ### Setting Boundary Conditions
-1. Select a surface in the 3D viewer or Surfaces panel
+1. Select a tag in the 3D viewer or Tags panel
 2. Click **Create Boundary Condition**
 3. Choose BC type from dropdown
 4. Configure BC-specific parameters (state, wall temperature, etc.)
-5. Assign to selected surfaces
-6. Surface updates with visual color coding
+5. Assign to selected tags
+6. Tag updates with visual color coding
 
 ### Configuring Simulation Parameters
 1. Navigate tree panel to a configuration section
@@ -393,7 +393,7 @@ vhs-gui/
 ### UI Enhancements
 - [ ] Implement JSON schema-based form generation
 - [ ] Add boundary condition assignment workflow
-- [ ] Surface selection and highlighting
+- [ ] Tag selection and highlighting
 - [ ] Color-coded mesh regions
 
 ### Data Management

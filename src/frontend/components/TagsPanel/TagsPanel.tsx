@@ -2,6 +2,7 @@ import { Layers, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react'
 import { useState, useMemo, RefObject } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { Surface } from '../../types/surface'
+import { getBCForTag } from '../../utils/surfaceColorUtils'
 import type { PanelImperativeHandle } from 'react-resizable-panels'
 import './TagsPanel.css'
 
@@ -134,20 +135,9 @@ function TagsPanel({ panelRef }: TagsPanelProps) {
               const primarySurface = group.surfaces[0]
               const isVisible = tagVisibility[primarySurface.id] ?? true
               
-              // Find associated BC for the group
-              const associatedBC = configData['boundary conditions']?.find(bc => {
-                const tags = bc['mesh boundary tags']
-                const surfaceTag = primarySurface.metadata.tag
-                
-                if (Array.isArray(tags)) {
-                  return tags.includes(surfaceTag) || tags.includes(String(surfaceTag))
-                } else if (typeof tags === 'number') {
-                  return tags === surfaceTag
-                } else if (typeof tags === 'string') {
-                  return tags.split(',').map(s => parseInt(s.trim(), 10)).includes(surfaceTag)
-                }
-                return false
-              })
+              // Find associated BC for the primary tag
+              const boundaryConditions = configData['boundary conditions'] || []
+              const associatedBC = getBCForTag(primarySurface, boundaryConditions)
               
               const handleToggleVisibility = (e: React.MouseEvent) => {
                 e.stopPropagation()

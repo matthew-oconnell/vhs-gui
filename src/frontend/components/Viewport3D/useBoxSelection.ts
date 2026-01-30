@@ -299,7 +299,7 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     endBoxSelection,
     addSurfacesToSelection,
     availableTags,
-    surfaceBounds,
+    tagBounds,
     tagVisibility,
     cameraSettings
   } = useAppStore()
@@ -331,7 +331,7 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     if (mode === 'all') {
       // Select all surfaces with geometry in the box
       selectedInBox = visibleSurfaces.filter(surface => 
-        isSurfaceInBox(surface, surfaceBounds[surface.id], boxStart, boxEnd, camera, width, height)
+        isSurfaceInBox(surface, tagBounds[surface.id], boxStart, boxEnd, camera, width, height)
       )
     } else {
       // 'visible' mode - use ID render pass for true occlusion testing
@@ -339,7 +339,7 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
       
       // First, filter to surfaces that are potentially in the box (quick rejection)
       const potentialSurfaces = visibleSurfaces.filter(surface => 
-        isSurfaceInBox(surface, surfaceBounds[surface.id], boxStart, boxEnd, camera, width, height)
+        isSurfaceInBox(surface, tagBounds[surface.id], boxStart, boxEnd, camera, width, height)
       )
       
       if (potentialSurfaces.length === 0) {
@@ -367,7 +367,7 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     }
     
     return selectedInBox
-  }, [availableTags, surfaceBounds, tagVisibility, cameraSettings.selectionMode])
+  }, [availableTags, tagBounds, tagVisibility, cameraSettings.selectionMode])
   
   /**
    * Handle pointer down - check for modifier keys and start box selection

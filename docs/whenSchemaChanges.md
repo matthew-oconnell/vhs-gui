@@ -566,6 +566,80 @@ Update tests if species lists change.
 
 ---
 
+### 8a. Thermodynamics Chemistry Model Field
+**File:** `src/frontend/store/appStore.ts` (updateThermodynamics and initializeConfig functions)
+**File:** `src/frontend/store/__tests__/appStore.thermodynamics.test.ts` (all test assertions)
+
+**Schema Change (January 2026):**
+The schema deprecated `"chemical nonequilibrium"` (boolean) and replaced it with `"chemistry model"` (enum).
+
+**Old Schema (deprecated):**
+```json
+{
+  "chemical nonequilibrium": {
+    "type": "boolean",
+    "description": "<chemical nonequilibrium> has been updated to <chemistry model : finite-rate>.",
+    "deprecated": true
+  }
+}
+```
+
+**New Schema (current):**
+```json
+{
+  "chemistry model": {
+    "type": "string",
+    "enum": ["frozen", "finite-rate"],
+    "description": "Chemical reaction modeling",
+    "default": "frozen"
+  }
+}
+```
+
+**Mapping in Code:**
+The thermodynamics wizard uses `chemicalNonequilibrium: boolean` internally for simplicity, which is mapped to the schema field:
+- `true` → `'chemistry model': 'finite-rate'` (reactions enabled)
+- `false` → `'chemistry model': 'frozen'` (no reactions)
+
+**Code Locations:**
+```typescript
+// In updateThermodynamics():
+if (thermoConfig.gasModel === 'ideal-gas') {
+  thermodynamics['chemistry model'] = 'frozen'
+} else if (thermoConfig.gasModel === 'multispecies') {
+  const enableChemistry = thermoConfig.chemicalNonequilibrium ?? true
+  thermodynamics['chemistry model'] = enableChemistry ? 'finite-rate' : 'frozen'
+}
+
+// In initializeConfig():
+if (projectConfig.reactionType === 'edl') {
+  newConfig.thermodynamics = {
+    'chemistry model': 'finite-rate'
+  }
+} else if (projectConfig.speciesType === 'non-reacting') {
+  newConfig.thermodynamics = {
+    'chemistry model': 'frozen',
+    species: []
+  }
+}
+```
+
+**How to Update if Schema Changes:**
+1. Check `thermodynamics["chemistry model"].enum` for valid values
+2. Update the mapping logic if new enum values are added (e.g., `'equilibrium'`)
+3. Update all test assertions to expect the new enum values
+4. Update UI text in `ThermodynamicsWizard.tsx` Step 7 if needed
+
+**Test After Update:**
+```bash
+cd src/frontend
+npm test -- --run appStore.thermodynamics.test.ts
+```
+
+All 23 thermodynamics tests check for `'chemistry model'` enum values.
+
+---
+
 ### 7. Schema Bug Workarounds - Arrays Missing `items` Property
 **File:** `src/frontend/components/EditorPanel/EditorPanel.tsx` (isPropertyPOD and array rendering)
 **File:** `src/frontend/components/PropertyEditorDialog/PropertyEditorDialog.tsx` (similar logic)

@@ -77,7 +77,7 @@ While this implementation updates the store functions, there are still many Reac
 
 - `src/frontend/components/EditorPanel/EditorPanel.tsx`
 - `src/frontend/components/TreePanel/TreePanel.tsx`
-- `src/frontend/components/SurfacesPanel/SurfacesPanel.tsx`
+- `src/frontend/components/TagsPanel/TagsPanel.tsx`
 - `src/frontend/components/BoundaryConditionDialog/BoundaryConditionDialog.tsx`
 - `src/frontend/components/Viewport3D/Viewport3D.tsx`
 - `src/frontend/App.tsx` (cleanConfigForSave, handleValidate)

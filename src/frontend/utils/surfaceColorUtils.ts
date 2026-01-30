@@ -9,28 +9,36 @@ export function isTagAssigned(
   surface: Surface,
   boundaryConditions: BoundaryCondition[]
 ): boolean {
-  const surfaceTag = surface.metadata.tag
+  return getBCForTag(surface, boundaryConditions) !== null
+}
+
+/**
+ * Parse a tag range string like "1:10" or "1:10,20,30:35"
+ * Returns an array of all individual tag numbers
+ */
+function parseTagRange(rangeStr: string): number[] {
+  const tags: number[] = []
+  const parts = rangeStr.split(',').map(s => s.trim())
   
-  for (const bc of boundaryConditions) {
-    const tags = bc['mesh boundary tags']
-    
-    if (Array.isArray(tags)) {
-      if ((tags as any[]).includes(surfaceTag) || (tags as any[]).includes(String(surfaceTag))) {
-        return true
+  for (const part of parts) {
+    if (part.includes(':')) {
+      // Range like "1:10"
+      const [start, end] = part.split(':').map(s => parseInt(s.trim(), 10))
+      if (!isNaN(start) && !isNaN(end)) {
+        for (let i = start; i <= end; i++) {
+          tags.push(i)
+        }
       }
-    } else if (typeof tags === 'number') {
-      if (tags === surfaceTag) {
-        return true
-      }
-    } else if (typeof tags === 'string') {
-      const tagList = tags.split(',').map(s => parseInt(s.trim(), 10))
-      if (tagList.includes(surfaceTag)) {
-        return true
+    } else {
+      // Single number
+      const num = parseInt(part, 10)
+      if (!isNaN(num)) {
+        tags.push(num)
       }
     }
   }
   
-  return false
+  return tags
 }
 
 /**
@@ -41,21 +49,47 @@ export function getBCForTag(
   boundaryConditions: BoundaryCondition[]
 ): BoundaryCondition | null {
   const surfaceTag = surface.metadata.tag
+  const surfaceBCName = surface.metadata.bcName // CFD group name (e.g., "vehicle", "farfield")
   
   for (const bc of boundaryConditions) {
     const tags = bc['mesh boundary tags']
     
+    if (tags === undefined) continue
+    
+    // Handle array of tags (can be numbers or strings)
     if (Array.isArray(tags)) {
-      if ((tags as any[]).includes(surfaceTag) || (tags as any[]).includes(String(surfaceTag))) {
-        return bc
+      for (const tag of tags) {
+        if (typeof tag === 'number' && tag === surfaceTag) {
+          return bc
+        }
+        if (typeof tag === 'string') {
+          // Could be a BC name (group name) or a range
+          if (tag === surfaceBCName) {
+            return bc
+          }
+          // Try parsing as range
+          const parsedTags = parseTagRange(tag)
+          if (parsedTags.includes(surfaceTag)) {
+            return bc
+          }
+        }
       }
-    } else if (typeof tags === 'number') {
+    } 
+    // Handle single number
+    else if (typeof tags === 'number') {
       if (tags === surfaceTag) {
         return bc
       }
-    } else if (typeof tags === 'string') {
-      const tagList = tags.split(',').map(s => parseInt(s.trim(), 10))
-      if (tagList.includes(surfaceTag)) {
+    } 
+    // Handle string (could be BC name or range like "1:10,20:30")
+    else if (typeof tags === 'string') {
+      // First check if it's the BC name (group name)
+      if (tags === surfaceBCName) {
+        return bc
+      }
+      // Try parsing as range/list
+      const parsedTags = parseTagRange(tags)
+      if (parsedTags.includes(surfaceTag)) {
         return bc
       }
     }

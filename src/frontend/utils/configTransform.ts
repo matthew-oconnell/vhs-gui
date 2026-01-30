@@ -8,18 +8,25 @@
  */
 export const transformLoadedConfig = (
   config: any, 
-  surfaces: Array<{ metadata: { tag: number; tagName: string } }>,
+  surfaces: Array<{ metadata: { tag: number; tagName?: string; bcName?: string } }>,
   rootSolverKey: string = 'HyperSolve'
 ): any => {
   const transformed = JSON.parse(JSON.stringify(config)) // Deep clone
   
-  // Create a map of tag name to tag number
-  const nameToTag = new Map<string, number>()
+  // Create a map of BC name (group name) to array of tag numbers
+  const bcNameToTags = new Map<string, number[]>()
   surfaces.forEach(surface => {
-    nameToTag.set(surface.metadata.tagName, surface.metadata.tag)
+    const bcName = surface.metadata.bcName || surface.metadata.tagName
+    if (bcName) {
+      if (!bcNameToTags.has(bcName)) {
+        bcNameToTags.set(bcName, [])
+      }
+      bcNameToTags.get(bcName)!.push(surface.metadata.tag)
+    }
   })
   
-  console.log('[transformLoadedConfig] Tag name to tag number map:', Object.fromEntries(nameToTag))
+  console.log('[transformLoadedConfig] BC name to tag numbers map:')
+  console.table(Object.fromEntries(bcNameToTags))
   
   // Determine if config is flat or nested under root solver key
   let bcArray = transformed['boundary conditions']
@@ -33,36 +40,29 @@ export const transformLoadedConfig = (
     initRegionsArray = transformed[rootSolverKey]['initialization regions']
   }
   
-  // Add 'id' and 'name' to boundary conditions
-  // Convert mesh boundary tags from tag names to numbers
+  console.log('[transformLoadedConfig] Found', bcArray?.length || 0, 'boundary conditions to transform')
+  
+  // Transform boundary conditions: add id/name and convert BC group names to tag numbers
   if (bcArray) {
     const transformedBCs = bcArray.map((bc: any, index: number) => {
-      // Generate ID for UI
       const bcWithId = {
         ...bc,
         id: `bc-${Date.now()}-${index}`,
-        name: bc.name || `BC ${index + 1}` // Add default name if missing
+        name: bc.name || `BC ${index + 1}`
       }
       
-      // Convert mesh boundary tags from tag names to tag numbers
-      if (bcWithId['mesh boundary tags'] !== undefined) {
-        const tags = bcWithId['mesh boundary tags']
-        console.log(`[transformLoadedConfig] BC "${bcWithId.name || bcWithId.type}" raw tags:`, tags)
-        if (Array.isArray(tags)) {
-          bcWithId['mesh boundary tags'] = tags.map((tag: string | number) => {
-            if (typeof tag === 'string') {
-              const tagNum = nameToTag.get(tag)
-              console.log(`  - Mapping tag name "${tag}" to tag number:`, tagNum)
-              return tagNum ?? tag
-            }
-            return tag
-          })
-        } else if (typeof tags === 'string') {
-          const tagNum = nameToTag.get(tags)
-          console.log(`  - Mapping tag name "${tags}" to tag number:`, tagNum)
-          bcWithId['mesh boundary tags'] = tagNum !== undefined ? tagNum : tags
+      // Convert mesh boundary tags from BC names (e.g., "vehicle") to tag numbers
+      if (bc['mesh boundary tags']) {
+        const tags = bc['mesh boundary tags']
+        
+        // If it's a string BC name, convert to array of tag numbers
+        if (typeof tags === 'string') {
+          const tagNumbers = bcNameToTags.get(tags) || []
+          bcWithId['mesh boundary tags'] = tagNumbers.length === 1 ? tagNumbers[0] : tagNumbers
+          console.log(`[transformLoadedConfig] BC ${index + 1}: Converted "${tags}" → ${JSON.stringify(bcWithId['mesh boundary tags'])}`)
         }
-        console.log(`[transformLoadedConfig] BC "${bcWithId.name || bcWithId.type}" transformed tags:`, bcWithId['mesh boundary tags'])
+        // If it's already a number or array, leave it as-is
+        // (This handles configs that already use tag numbers)
       }
       
       return bcWithId
@@ -74,6 +74,11 @@ export const transformLoadedConfig = (
     } else if (transformed[rootSolverKey]) {
       transformed[rootSolverKey]['boundary conditions'] = transformedBCs
     }
+    
+    console.log('[transformLoadedConfig] Transformation complete. Boundary conditions:')
+    transformedBCs.forEach((bc: any) => {
+      console.log(`  - ${bc.name || bc.type}: type="${bc.type}", tags=${JSON.stringify(bc['mesh boundary tags'])}`)
+    })
   }
   
   // Add 'id' to states

@@ -1,0 +1,217 @@
+/* Based on ThermodynamicsWizard.css with consistent modal styling */
+
+.wizard-content {
+  min-width: 600px;
+  max-width: 700px;
+}
+
+.wizard-body {
+  padding: 24px;
+  min-height: 400px;
+}
+
+.wizard-progress {
+  text-align: center;
+  color: #858585;
+  font-size: 12px;
+  margin-bottom: 24px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.wizard-step h3 {
+  color: #cccccc;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.wizard-description {
+  color: #858585;
+  font-size: 14px;
+  margin-bottom: 24px;
+}
+
+.wizard-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.wizard-option {
+  background-color: #2d2d2d;
+  border: 2px solid #3e3e42;
+  border-radius: 6px;
+  padding: 16px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.1s ease;
+}
+
+.wizard-option:hover {
+  border-color: #0e639c;
+  background-color: #333333;
+}
+
+.wizard-option.selected {
+  border-color: #0e639c;
+  background-color: #1e3a52;
+}
+
+.option-title {
+  color: #cccccc;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.option-description {
+  color: #858585;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  color: #cccccc;
+  font-size: 13px;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.form-group input[type="number"],
+.form-group input[type="text"] {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #0e639c;
+}
+
+.form-help {
+  display: block;
+  color: #858585;
+  font-size: 11px;
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  color: #cccccc;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.radio-label input[type="radio"] {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.radio-label span {
+  user-select: none;
+}
+
+.wizard-info-box {
+  background-color: #2d2d2d;
+  border: 1px solid #3e3e42;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.wizard-info-box h4 {
+  color: #cccccc;
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  font-weight: 600;
+}
+
+.wizard-info-box p {
+  color: #858585;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.wizard-info-box ul {
+  color: #858585;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.wizard-info-box ul li {
+  margin-bottom: 4px;
+}
+
+.wizard-info-box strong {
+  color: #cccccc;
+  font-weight: 600;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #3e3e42;
+  background-color: #252526;
+}
+
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.modal-button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.modal-button-primary:hover {
+  background-color: #1177bb;
+}
+
+.modal-button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+.modal-button-secondary {
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.modal-button-secondary:hover {
+  background-color: #505050;
+}

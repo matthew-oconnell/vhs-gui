@@ -1,0 +1,95 @@
+/* Based on ThermodynamicsWizard.css with consistent modal styling */
+
+.wizard-select {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.wizard-select:focus {
+  outline: none;
+  border-color: #0e639c;
+}
+
+.wizard-info-box {
+  background-color: #2d2d2d;
+  border: 1px solid #3e3e42;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.wizard-info-box h4 {
+  color: #cccccc;
+  font-size: 14px;
+  margin: 0 0 8px 0;
+  font-weight: 600;
+}
+
+.wizard-info-box p {
+  color: #858585;
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.wizard-info-box ol {
+  color: #858585;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.wizard-info-box ol li {
+  margin-bottom: 4px;
+}
+
+.wizard-info-box strong {
+  color: #cccccc;
+  font-weight: 600;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid #3e3e42;
+  background-color: #252526;
+}
+
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.modal-button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.modal-button-primary:hover {
+  background-color: #1177bb;
+}
+
+.modal-button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+.modal-button-secondary {
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.modal-button-secondary:hover {
+  background-color: #505050;
+}

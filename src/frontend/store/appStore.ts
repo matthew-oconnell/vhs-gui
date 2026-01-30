@@ -131,10 +131,19 @@ interface AppState {
   deleteState: (id: string) => void
   thermoWizardExecuted: boolean
   turbulenceWizardExecuted: boolean
+  initializationWizardExecuted: boolean
+  timeAccuracyWizardExecuted: boolean
+  visualizationWizardExecuted: boolean
   meshNeedsExport: boolean
   setMeshNeedsExport: (needsExport: boolean) => void
   updateThermodynamics: (thermoConfig: any) => void
   updateTurbulenceModel: (turbulenceConfig: any) => void
+  setInitialState: (stateName: string) => void
+  setInitializationWizardExecuted: (executed: boolean) => void
+  updateTimeAccuracy: (timeAccuracyConfig: any) => void
+  setTimeAccuracyWizardExecuted: (executed: boolean) => void
+  addVisualizationOutput: (vizConfig: any) => void
+  setVisualizationWizardExecuted: (executed: boolean) => void
   updateProperty: (path: string, key: string, value: any) => void
   initializeConfig: (projectConfig: any) => void
   loadMesh: (parsedMesh: ParsedMesh, filename: string, lump?: boolean) => void
@@ -250,6 +259,9 @@ export const useAppStore = create<AppState>((set) => ({
   csmFilename: null as string | null,
   thermoWizardExecuted: false,
   turbulenceWizardExecuted: false,
+  initializationWizardExecuted: false,
+  timeAccuracyWizardExecuted: false,
+  visualizationWizardExecuted: false,
   meshNeedsExport: false,
   setMeshNeedsExport: (needsExport) => set({ meshNeedsExport: needsExport }),
   
@@ -791,6 +803,73 @@ export const useAppStore = create<AppState>((set) => ({
       configData: updatedConfig
     }
   }),
+
+  setInitialState: (stateName) => set((s) => {
+    const updatedConfig = JSON.parse(JSON.stringify(s.configData))
+    updatedConfig['initial state'] = stateName
+    return {
+      configData: updatedConfig,
+      initializationWizardExecuted: true
+    }
+  }),
+
+  setInitializationWizardExecuted: (executed) => set({ initializationWizardExecuted: executed }),
+
+  updateTimeAccuracy: (timeAccuracyConfig) => set((s) => {
+    const updatedConfig = JSON.parse(JSON.stringify(s.configData))
+    
+    // Set time accuracy settings
+    if (!updatedConfig['time accuracy']) {
+      updatedConfig['time accuracy'] = {}
+    }
+    
+    if (timeAccuracyConfig.mode === 'steady') {
+      // Steady state: local or global timestepping
+      updatedConfig['time accuracy'].type = timeAccuracyConfig.timesteppingType || 'local timestepping'
+    } else {
+      // Unsteady: fixed timestep with BDF
+      updatedConfig['time accuracy'].type = 'fixed timestep'
+      updatedConfig['time accuracy'].timestep = timeAccuracyConfig.timestep
+      updatedConfig['time accuracy'].method = 'BDF'
+      updatedConfig['time accuracy'].order = timeAccuracyConfig.order
+      updatedConfig['time accuracy'].subiterations = timeAccuracyConfig.subiterations
+      updatedConfig['time accuracy']['subiteration tolerance'] = timeAccuracyConfig.subiterationTolerance
+    }
+    
+    // Set nonlinear solver settings
+    if (!updatedConfig['nonlinear solver']) {
+      updatedConfig['nonlinear solver'] = {}
+    }
+    updatedConfig['nonlinear solver']['starting cfl'] = timeAccuracyConfig.startingCfl
+    updatedConfig['nonlinear solver']['cfl bounds'] = [timeAccuracyConfig.cflMin, timeAccuracyConfig.cflMax]
+    
+    // Set steps
+    updatedConfig.steps = timeAccuracyConfig.steps
+    
+    return {
+      configData: updatedConfig,
+      timeAccuracyWizardExecuted: true
+    }
+  }),
+
+  setTimeAccuracyWizardExecuted: (executed) => set({ timeAccuracyWizardExecuted: executed }),
+
+  addVisualizationOutput: (vizConfig) => set((s) => {
+    const updatedConfig = JSON.parse(JSON.stringify(s.configData))
+    
+    if (!updatedConfig.visualization) {
+      updatedConfig.visualization = []
+    }
+    
+    updatedConfig.visualization.push(vizConfig)
+    
+    return {
+      configData: updatedConfig,
+      visualizationWizardExecuted: true
+    }
+  }),
+
+  setVisualizationWizardExecuted: (executed) => set({ visualizationWizardExecuted: executed }),
 
   updateProperty: (path, key, value) => set((s) => {
     // Parse the path (e.g., "root.HyperSolve.discretization" or "root.Vulcan.discretization")

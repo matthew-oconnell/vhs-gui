@@ -9,6 +9,9 @@ import VisualizationDialog from '../VisualizationDialog/VisualizationDialog'
 import InitializationRegionDialog from '../InitializationRegionDialog/InitializationRegionDialog'
 import ThermodynamicsWizard from './ThermodynamicsWizard'
 import TurbulenceWizard from './TurbulenceWizard'
+import InitializationWizard from './InitializationWizard'
+import TimeAccuracyWizard from './TimeAccuracyWizard'
+import VisualizationWizard from './VisualizationWizard'
 import ArrayEditor from '../ArrayEditor/ArrayEditor'
 import MapEditor from '../MapEditor/MapEditor'
 import { loadBCTypeInfo, isBCTypeAvailable } from '../../utils/bcTypeDescriptions'
@@ -85,9 +88,28 @@ interface EditorPanelProps {
   onCloseThermoWizard?: () => void
   openTurbulenceWizard?: boolean
   onCloseTurbulenceWizard?: () => void
+  openInitializationWizard?: boolean
+  onCloseInitializationWizard?: () => void
+  openTimeAccuracyWizard?: boolean
+  onCloseTimeAccuracyWizard?: () => void
+  openVisualizationWizard?: boolean
+  onCloseVisualizationWizard?: () => void
 }
 
-function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWizard, openTurbulenceWizard, onCloseTurbulenceWizard }: EditorPanelProps) {
+function EditorPanel({ 
+  panelRef, 
+  treePanelRef, 
+  openThermoWizard, 
+  onCloseThermoWizard, 
+  openTurbulenceWizard, 
+  onCloseTurbulenceWizard,
+  openInitializationWizard,
+  onCloseInitializationWizard,
+  openTimeAccuracyWizard,
+  onCloseTimeAccuracyWizard,
+  openVisualizationWizard,
+  onCloseVisualizationWizard
+}: EditorPanelProps) {
   const [showStateWizard, setShowStateWizard] = useState(false)
   const [showBCDialog, setShowBCDialog] = useState(false)
   const [showPropertyDialog, setShowPropertyDialog] = useState(false)
@@ -96,6 +118,9 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
   const [showInitRegionDialog, setShowInitRegionDialog] = useState(false)
   const [showThermoWizard, setShowThermoWizard] = useState(false)
   const [showTurbulenceWizard, setShowTurbulenceWizard] = useState(false)
+  const [showInitializationWizard, setShowInitializationWizard] = useState(false)
+  const [showTimeAccuracyWizard, setShowTimeAccuracyWizard] = useState(false)
+  const [showVisualizationWizardLocal, setShowVisualizationWizardLocal] = useState(false)
   const [normalPreset, setNormalPreset] = useState<string>('custom')
   const [selectedTagForNormal, setSelectedSurfaceForNormal] = useState<string>('')
   const [schema, setSchema] = useState<Schema | null>(null)
@@ -116,6 +141,30 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
       onCloseTurbulenceWizard?.()
     }
   }, [openTurbulenceWizard, onCloseTurbulenceWizard])
+  
+  // Handle external initialization wizard trigger from StatusBar
+  useEffect(() => {
+    if (openInitializationWizard) {
+      setShowInitializationWizard(true)
+      onCloseInitializationWizard?.()
+    }
+  }, [openInitializationWizard, onCloseInitializationWizard])
+  
+  // Handle external time accuracy wizard trigger from StatusBar
+  useEffect(() => {
+    if (openTimeAccuracyWizard) {
+      setShowTimeAccuracyWizard(true)
+      onCloseTimeAccuracyWizard?.()
+    }
+  }, [openTimeAccuracyWizard, onCloseTimeAccuracyWizard])
+  
+  // Handle external visualization wizard trigger from StatusBar
+  useEffect(() => {
+    if (openVisualizationWizard) {
+      setShowVisualizationWizardLocal(true)
+      onCloseVisualizationWizard?.()
+    }
+  }, [openVisualizationWizard, onCloseVisualizationWizard])
   
   useEffect(() => {
     // Load the schema
@@ -1956,6 +2005,24 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
             setDialogNode(node)
             setShowPropertyDialog(true)
           }}
+        />
+      )}
+
+      {showInitializationWizard && (
+        <InitializationWizard
+          onClose={() => setShowInitializationWizard(false)}
+        />
+      )}
+
+      {showTimeAccuracyWizard && (
+        <TimeAccuracyWizard
+          onClose={() => setShowTimeAccuracyWizard(false)}
+        />
+      )}
+
+      {showVisualizationWizardLocal && (
+        <VisualizationWizard
+          onClose={() => setShowVisualizationWizardLocal(false)}
         />
       )}
     </div>

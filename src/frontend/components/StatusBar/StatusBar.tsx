@@ -20,9 +20,18 @@ interface ChecklistItem {
 interface StatusBarProps {
   onOpenThermodynamicsWizard?: () => void
   onOpenTurbulenceWizard?: () => void
+  onOpenInitializationWizard?: () => void
+  onOpenTimeAccuracyWizard?: () => void
+  onOpenVisualizationWizard?: () => void
 }
 
-function StatusBar({ onOpenThermodynamicsWizard, onOpenTurbulenceWizard }: StatusBarProps = {}) {
+function StatusBar({ 
+  onOpenThermodynamicsWizard, 
+  onOpenTurbulenceWizard,
+  onOpenInitializationWizard,
+  onOpenTimeAccuracyWizard,
+  onOpenVisualizationWizard
+}: StatusBarProps = {}) {
   const { 
     availableTags,
     configData,
@@ -114,19 +123,45 @@ function StatusBar({ onOpenThermodynamicsWizard, onOpenTurbulenceWizard }: Statu
     })
   }
 
-  // 5. Code Control
-  const hasCodeControl = (() => {
-    // Check if code control section exists and has required fields
-    const codeControl = configData['code control']
-    return codeControl !== undefined && codeControl !== null
-  })()
+  // 5. Initialization - Check if initial state is set
+  const initialState = configData['initial state']
+  const hasInitialState = initialState !== undefined && initialState !== null && initialState !== ''
 
   if (hasMesh) {
     checklistItems.push({
-      id: 'code-control',
-      label: 'Code Control',
-      isComplete: hasCodeControl,
-      details: hasCodeControl ? 'Configured' : 'Using defaults'
+      id: 'initialization',
+      label: 'Initialization',
+      isComplete: hasInitialState,
+      details: hasInitialState ? `initial state: ${initialState}` : 'Not configured',
+      onClick: onOpenInitializationWizard
+    })
+  }
+
+  // 6. Time Accuracy - Check if time accuracy is configured
+  const timeAccuracyType = configData['time accuracy']?.type
+  const hasTimeAccuracy = timeAccuracyType !== undefined && timeAccuracyType !== null
+
+  if (hasMesh) {
+    checklistItems.push({
+      id: 'time-accuracy',
+      label: 'Time Accuracy',
+      isComplete: hasTimeAccuracy,
+      details: hasTimeAccuracy ? `${timeAccuracyType}` : 'Not configured',
+      onClick: onOpenTimeAccuracyWizard
+    })
+  }
+
+  // 7. Visualization - Check if at least one visualization output exists
+  const visualizations = configData.visualization || []
+  const hasVisualization = visualizations.length > 0
+
+  if (hasMesh) {
+    checklistItems.push({
+      id: 'visualization',
+      label: 'Visualization',
+      isComplete: hasVisualization,
+      details: hasVisualization ? `${visualizations.length} output(s)` : 'Not configured',
+      onClick: onOpenVisualizationWizard
     })
   }
 
@@ -156,7 +191,7 @@ function StatusBar({ onOpenThermodynamicsWizard, onOpenTurbulenceWizard }: Statu
                 ? 'checklist-item-complete'
                 : item.id === 'thermodynamics'
                 ? 'checklist-item-default'
-                : item.id === 'boundary-conditions' || item.id === 'turbulence-model' || item.id === 'code-control' || item.id === 'mesh'
+                : item.id === 'boundary-conditions' || item.id === 'turbulence-model' || item.id === 'mesh' || item.id === 'initialization' || item.id === 'time-accuracy' || item.id === 'visualization'
                 ? 'checklist-item-warning'
                 : 'checklist-item-incomplete'
             } ${item.onClick ? 'checklist-item-clickable' : ''}`}

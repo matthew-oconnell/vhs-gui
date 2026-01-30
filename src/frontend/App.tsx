@@ -39,6 +39,9 @@ function App() {
   const [importedGeometryFile, setImportedGeometryFile] = useState<File | null>(null)
   const [showThermoWizardFromStatusBar, setShowThermoWizardFromStatusBar] = useState(false)
   const [showTurbulenceWizardFromStatusBar, setShowTurbulenceWizardFromStatusBar] = useState(false)
+  const [showInitializationWizard, setShowInitializationWizard] = useState(false)
+  const [showTimeAccuracyWizard, setShowTimeAccuracyWizard] = useState(false)
+  const [showVisualizationWizard, setShowVisualizationWizard] = useState(false)
   const [espLoading, setEspLoading] = useState(false)
   const [espLoadingMessage, setEspLoadingMessage] = useState('')
   const [espLogLines, setEspLogLines] = useState<string[]>([])
@@ -1222,6 +1225,9 @@ subtract
       <StatusBar 
         onOpenThermodynamicsWizard={() => setShowThermoWizardFromStatusBar(true)}
         onOpenTurbulenceWizard={() => setShowTurbulenceWizardFromStatusBar(true)}
+        onOpenInitializationWizard={() => setShowInitializationWizard(true)}
+        onOpenTimeAccuracyWizard={() => setShowTimeAccuracyWizard(true)}
+        onOpenVisualizationWizard={() => setShowVisualizationWizard(true)}
       />
       <PanelGroup direction="horizontal">
         {/* Left Panel Group - contains project folder, tree, editor, and surfaces vertically stacked */}
@@ -1278,6 +1284,12 @@ subtract
                 onCloseThermoWizard={() => setShowThermoWizardFromStatusBar(false)}
                 openTurbulenceWizard={showTurbulenceWizardFromStatusBar}
                 onCloseTurbulenceWizard={() => setShowTurbulenceWizardFromStatusBar(false)}
+                openInitializationWizard={showInitializationWizard}
+                onCloseInitializationWizard={() => setShowInitializationWizard(false)}
+                openTimeAccuracyWizard={showTimeAccuracyWizard}
+                onCloseTimeAccuracyWizard={() => setShowTimeAccuracyWizard(false)}
+                openVisualizationWizard={showVisualizationWizard}
+                onCloseVisualizationWizard={() => setShowVisualizationWizard(false)}
               />
             </Panel>
             

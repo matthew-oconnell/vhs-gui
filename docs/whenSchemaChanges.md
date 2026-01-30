@@ -483,6 +483,119 @@ experimental -> visibility
 
 ---
 
+### 11. Time Accuracy Wizard
+**File:** `src/frontend/components/EditorPanel/TimeAccuracyWizard.tsx` (lines ~10-40)
+**File:** `src/frontend/store/appStore.ts` (updateTimeAccuracy action)
+
+**Hardcoded Values:**
+
+**Time Accuracy Types (Steady State):**
+```typescript
+const timesteppingType = 'local timestepping' | 'global timestepping'
+```
+
+**Unsteady Time Integration:**
+```typescript
+// Only BDF is shown to users
+timestepConfig.method = 'BDF'
+timestepConfig.order = 1 or 2  // Only orders 1 and 2 are offered
+```
+
+**Note:** "ramped timestep" is intentionally hidden from users per requirements.
+
+**Default Values:**
+- Starting CFL: 1.0
+- Min CFL: 1e-3
+- Max CFL: 1e6
+- Steps: 1000
+- Timestep (unsteady): 4e-3
+- Subiterations: 20
+- Subiteration tolerance: 1e-3
+
+**How to Update:**
+1. Check schema at: `definitions["Time Accuracy"].properties.type.enum[]`
+2. Check schema at: `definitions["Time Accuracy"].properties.method.enum[]`
+3. Check schema at: `definitions["Time Accuracy"].properties.order`
+4. If new time integration types are added (beyond local/global/fixed/ramped), decide if they should be exposed in the wizard
+5. If new schemes beyond BDF are added, decide if unsteady mode should offer them
+6. Update defaults if schema default values change
+
+**Example Schema Changes:**
+- New `type` value: Decide whether to add to steady or unsteady wizard flow
+- New `method` value: Add to unsteady wizard if appropriate
+- Changed `order` max: Update radio buttons in wizard
+
+---
+
+### 12. Initialization Wizard
+**File:** `src/frontend/components/EditorPanel/InitializationWizard.tsx`
+**File:** `src/frontend/store/appStore.ts` (setInitialState action)
+
+**Hardcoded Logic:**
+The wizard sets `configData["initial state"]` to a selected state name.
+
+**Schema Dependency:**
+- Field: `"initial state"` (string, references a key in `states` object)
+
+**How to Update:**
+1. Check if `"initial state"` field name changes in schema
+2. Check if initialization regions schema changes (future: some types may not require `state` field)
+3. Update wizard text/guidance if initialization semantics change
+
+**Note:** Per upstream team, future schema versions may include initialization region types that don't require a `state` field. The wizard currently focuses only on setting the global initial state.
+
+---
+
+### 13. Visualization Wizard
+**File:** `src/frontend/components/EditorPanel/VisualizationWizard.tsx`
+**File:** `src/frontend/store/appStore.ts` (addVisualizationOutput action)
+
+**Hardcoded Values:**
+- Default type: `'volume'`
+- Default filename: `'volume.vtk'`
+- Default iteration frequency: `-1` (use checkpoint frequency)
+
+**Schema Dependency:**
+- Visualization array: `visualization[]`
+- Volume type: From `definitions["Visualization"].anyOf[]` → `definitions["Volume Sample"]`
+
+**How to Update:**
+1. Check schema at: `definitions["Visualization"].anyOf[]` for new visualization types
+2. Check `definitions["Volume Sample"]` for required/changed fields
+3. If `iteration frequency` field changes name or default, update wizard
+4. If new output frequency modes are added, update wizard options
+
+**Example Schema Change:**
+- If `"iteration frequency"` becomes `"output frequency"`, update:
+  ```typescript
+  vizConfig['output frequency'] = iterationFrequency
+  ```
+
+---
+
+### 14. Nonlinear Solver Settings (Used by Time Accuracy Wizard)
+**File:** `src/frontend/store/appStore.ts` (updateTimeAccuracy action)
+
+**Hardcoded Configuration:**
+```typescript
+updatedConfig['nonlinear solver'] = {
+  'starting cfl': <value>,
+  'cfl bounds': [<min>, <max>]
+}
+```
+
+**Schema Dependency:**
+- Field: `"nonlinear solver"` → `definitions["Nonlinear Solver Settings"]`
+- Properties: `"starting cfl"`, `"cfl bounds"`
+
+**How to Update:**
+1. Check schema at: `definitions["Nonlinear Solver Settings"]`
+2. If `"starting cfl"` field name changes, update store action
+3. If `"cfl bounds"` changes from array to object, update logic
+4. Verify default values match schema defaults
+
+---
+
 ## 📋 Quick Checklist
 
 When you get a new `input.schema.json`:
@@ -498,6 +611,11 @@ When you get a new `input.schema.json`:
 - [ ] Check `Visualization` anyOf array for new/removed visualization types
 - [ ] Update `VISUALIZATION_TYPES` array in VisualizationDialog.tsx
 - [ ] Update visualization type-specific form fields if required fields change
+- [ ] Check `Time Accuracy.type` enum for new timestepping modes
+- [ ] Check `Time Accuracy.method` enum for new integration schemes
+- [ ] Verify `nonlinear solver` field names haven't changed (starting cfl, cfl bounds)
+- [ ] Check if `initial state` field still exists and has same semantics
+- [ ] Verify `visualization` array and volume sample structure
 - [ ] Review `State` oneOf array for new state definition modes
 - [ ] Update StateWizard options if needed
 - [ ] Check thermodynamics planetary atmosphere species lists

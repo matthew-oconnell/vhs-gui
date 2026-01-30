@@ -201,7 +201,8 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   clearTagSelection: () => set({ selectedTags: [], selectedTag: null }),
   selectedBC: null,
-  setSelectedBC: (bc) => set({ selectedBC: bc, selectedNode: null, selectedTag: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
+  // NOTE: BC selection now preserves selectedNode to enable generic rendering
+  setSelectedBC: (bc) => set({ selectedBC: bc, selectedTag: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
   selectedState: null,
   setSelectedState: (state) => set({ selectedState: state, selectedNode: null, selectedTag: null, selectedBC: null, selectedViz: null, selectedInitRegion: null }),
   selectedViz: null,

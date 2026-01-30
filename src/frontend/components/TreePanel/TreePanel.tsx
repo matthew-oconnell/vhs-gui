@@ -213,6 +213,8 @@ function TreePanel({ panelRef }: TreePanelProps) {
             style={{ paddingLeft: `${depth * 16 + 8}px` }}
             onClick={() => {
               if (isBCNode && (node as any).bcData) {
+                // Set both selectedNode (for generic rendering) and selectedBC (for viewport features)
+                setSelectedNode(node)
                 setSelectedBC((node as any).bcData)
               } else if (isStateNode && (node as any).stateData) {
                 setSelectedState((node as any).stateData)

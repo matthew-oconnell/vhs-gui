@@ -1501,7 +1501,7 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
   }
 
   const renderEditor = () => {
-    // Priority: InitRegion > Viz > State > BC > Node
+    // Priority: InitRegion > Viz > State > Node (including BC instances) > BC (legacy)
     if (selectedInitRegion) {
       return renderInitializationRegionEditor()
     }
@@ -1510,9 +1510,6 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
     }
     if (selectedState) {
       return renderStateEditor()
-    }
-    if (selectedBC) {
-      return renderBCEditor()
     }
     if (selectedNode) {
       // Check if this is the boundary conditions array node
@@ -1533,6 +1530,10 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
       }
       return renderNodeEditor()
     }
+    // Legacy BC editor (shouldn't be reached with new selection logic)
+    if (selectedBC) {
+      return renderBCEditor()
+    }
     return (
       <div className="editor-placeholder">
         <p className="placeholder-text">Select an item from the configuration tree to edit</p>
@@ -1543,6 +1544,10 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
   const renderNodeEditor = () => {
     if (!selectedNode) return null
 
+    // Check if this is a BC instance node
+    const isBCNode = selectedNode.id.includes('[BC-')
+    const bcData = isBCNode ? (selectedNode as any).bcData : null
+
     // Check if this is the thermodynamics node
     const isThermoNode = selectedNode.id === 'root.thermodynamics' || 
                         (selectedNode.id && selectedNode.id.endsWith('.thermodynamics')) ||
@@ -1551,9 +1556,28 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
     return (
       <div className="editor-content">
         <div className="property-header">
-          <h3 className="property-title">{selectedNode.label}</h3>
-          <span className="property-type-badge">{selectedNode.type}</span>
-          {selectedNode.type === 'object' && !isThermoNode && (
+          <h3 className="property-title" title={selectedNode.description}>{selectedNode.label}</h3>
+          <span className="property-type-badge">{isBCNode ? 'BC' : selectedNode.type}</span>
+          {isBCNode && (
+            <>
+              <button 
+                className="icon-button"
+                onClick={() => setSoloBC(soloBC?.id === bcData.id ? null : bcData)}
+                title={soloBC?.id === bcData.id ? "Show all surfaces" : "Solo this BC (hide others)"}
+                style={{ color: soloBC?.id === bcData.id ? '#4da6ff' : '#cccccc' }}
+              >
+                {soloBC?.id === bcData.id ? <Eye size={14} /> : <EyeOff size={14} />}
+              </button>
+              <button 
+                className="icon-button delete-button"
+                onClick={() => deleteBoundaryCondition(bcData.id)}
+                title="Delete BC"
+              >
+                <Trash2 size={14} />
+              </button>
+            </>
+          )}
+          {selectedNode.type === 'object' && !isThermoNode && !isBCNode && (
             <button 
               className="edit-properties-button"
               onClick={() => {
@@ -1565,10 +1589,6 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
             </button>
           )}
         </div>
-        
-        {selectedNode.description && (
-          <p className="property-description">{selectedNode.description}</p>
-        )}
 
         <div className="form-section">
           {isThermoNode && (
@@ -1688,9 +1708,12 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
             )
           })()}
 
-          {selectedNode.type === 'object' && !isThermoNode && (() => {
-            const objSchema = getSchemaForPath(selectedNode.id)
-            const objValue = getValueFromPath(selectedNode.id) || {}
+          {(selectedNode.type === 'object' || isBCNode) && !isThermoNode && (() => {
+            // Get schema for metadata (like checking if it's a map), but use data for properties
+            const objSchema = isBCNode 
+              ? null
+              : getSchemaForPath(selectedNode.id)
+            const objValue = isBCNode ? bcData : (getValueFromPath(selectedNode.id) || {})
             
             // Check if this is a simple map (object with arbitrary keys -> POD values)
             const mapInfo = isSimpleMap(objSchema || {})
@@ -1698,7 +1721,10 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
               return (
                 <MapEditor
                   value={objValue}
-                  onChange={(newValue) => updateValueAtPath(selectedNode.id, '', newValue)}
+                  onChange={(newValue) => isBCNode 
+                    ? updateBoundaryCondition(bcData.id, newValue)
+                    : updateValueAtPath(selectedNode.id, '', newValue)
+                  }
                   valueType={mapInfo.valueType as 'string' | 'number' | 'integer' | 'boolean'}
                   label={selectedNode.label}
                   keyPlaceholder="key"
@@ -1707,13 +1733,49 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
               )
             }
             
-            // Show read-only summary of configured values
-            const podProps = getPODProperties(objSchema)
-            const configuredProps = podProps.filter(({ key }) => objValue[key] !== undefined)
+            // Extract properties directly from the actual data object
+            // This works better than schema because schema has complex anyOf/oneOf patterns
+            let podProps: Array<{key: string, prop: SchemaProperty, required: boolean}> = []
+            
+            if (objValue && typeof objValue === 'object' && !Array.isArray(objValue)) {
+              // Generate pseudo-properties from actual data
+              podProps = Object.keys(objValue)
+                .filter(key => {
+                  const val = objValue[key]
+                  // Only include POD types (not nested objects or arrays of objects)
+                  if (val === null || val === undefined) return true
+                  if (typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean') return true
+                  if (Array.isArray(val)) {
+                    // Include if array of primitives
+                    return val.length === 0 || typeof val[0] !== 'object'
+                  }
+                  return false
+                })
+                .map(key => {
+                  const val = objValue[key]
+                  const valType = Array.isArray(val) ? 'array' : typeof val
+                  return {
+                    key,
+                    prop: { 
+                      type: valType as any,
+                      description: key
+                    },
+                    required: false  // We don't know from data alone which are required
+                  }
+                })
+            }
             
             // Format a value for display
-            const formatValue = (val: any): string => {
-              if (val === null || val === undefined) return '—'
+            const formatValue = (val: any, prop?: SchemaProperty): string => {
+              if (val === null || val === undefined) {
+                // Show default value if available
+                if (prop?.default !== undefined) {
+                  if (typeof prop.default === 'boolean') return `${prop.default} (default)`
+                  if (Array.isArray(prop.default)) return `[${prop.default.length} items] (default)`
+                  return `${prop.default} (default)`
+                }
+                return '—'
+              }
               if (typeof val === 'boolean') return val ? 'true' : 'false'
               if (Array.isArray(val)) return `[${val.length} items]`
               if (typeof val === 'object') return '{...}'
@@ -1739,34 +1801,47 @@ function EditorPanel({ panelRef, treePanelRef, openThermoWizard, onCloseThermoWi
                     </ul>
                   </div>
                 )}
-                {configuredProps.length > 0 ? (
+                {podProps.length > 0 ? (
                   <div className="property-summary">
-                    {configuredProps.slice(0, 6).map(({ key, required }) => (
-                      <div key={key} className="property-summary-row">
-                        <span className="property-summary-key">{key}</span>
-                        <span className="property-summary-value">{formatValue(objValue[key])}</span>
-                        {!required && (
-                          <button
-                            className="property-summary-remove"
-                            onClick={() => updateValueAtPath(selectedNode.id, key, undefined)}
-                            title={`Remove "${key}" (use default)`}
-                          >
-                            <X size={12} />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    {configuredProps.length > 6 && (
+                    {podProps.slice(0, 8).map(({ key, prop, required }) => {
+                      const value = objValue[key]
+                      const isConfigured = value !== undefined
+                      return (
+                        <div key={key} className={`property-summary-row ${!isConfigured ? 'property-not-configured' : ''}`}>
+                          <span className="property-summary-key">
+                            {key}
+                            {!isConfigured && <span className="property-default-marker" style={{ marginLeft: '4px' }}>default</span>}
+                          </span>
+                          <span className="property-summary-value">{formatValue(value, prop)}</span>
+                          {!required && isConfigured && (
+                            <button
+                              className="property-summary-remove"
+                              onClick={() => {
+                                if (isBCNode) {
+                                  const updated = { ...bcData }
+                                  delete updated[key]
+                                  updateBoundaryCondition(bcData.id, updated)
+                                } else {
+                                  updateValueAtPath(selectedNode.id, key, undefined)
+                                }
+                              }}
+                              title={`Remove "${key}" (use default)`}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {podProps.length > 8 && (
                       <div className="property-summary-more">
-                        +{configuredProps.length - 6} more properties
+                        +{podProps.length - 8} more properties
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="info-box">
-                    {podProps.length > 0
-                      ? `${podProps.length} property(s) available. Click "Edit" to configure.`
-                      : 'Expand in tree to edit nested objects.'}
+                    This object has no POD properties. Expand in tree to edit nested objects.
                   </div>
                 )}
               </>

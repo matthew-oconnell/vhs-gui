@@ -2,6 +2,10 @@ use std::env;
 use std::path::PathBuf;
 
 fn main() {
+  // Declare custom cfg flags for conditional ESP compilation
+  println!("cargo::rustc-check-cfg=cfg(esp_enabled)");
+  println!("cargo::rustc-check-cfg=cfg(esp_disabled)");
+  
   // Link ESP libraries
   link_esp_libraries();
   
@@ -10,12 +14,14 @@ fn main() {
 }
 
 fn link_esp_libraries() {
-    // Get project root (3 levels up from src-tauri)
+    // Get project root (go up from src/frontend/src-tauri to project root)
     let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
     let project_root = PathBuf::from(&manifest_dir)
-        .parent()
+        .parent()  // src/frontend
         .unwrap()
-        .parent()
+        .parent()  // src
+        .unwrap()
+        .parent()  // project root
         .unwrap()
         .to_path_buf();
     
@@ -29,8 +35,11 @@ fn link_esp_libraries() {
     if !esp_lib.exists() {
         println!("cargo:warning=ESP libraries not found at {:?}", esp_lib);
         println!("cargo:warning=Skipping ESP linking. Install ESP to enable geometry features.");
+        println!("cargo:rustc-cfg=esp_disabled");
         return;
     }
+    
+    println!("cargo:rustc-cfg=esp_enabled");
     
     println!("cargo:rerun-if-changed=src/esp_ffi.rs");
     println!("cargo:rerun-if-changed=src/esp_commands.rs");

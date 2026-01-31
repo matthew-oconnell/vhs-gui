@@ -1,6 +1,6 @@
 #!/bin/bash
 # Build script - builds all components and launches the desktop application
-# Components: C++ backend server, Tauri frontend, ESP server (optional)
+# Components: C++ backend server, Tauri frontend (ESP integrated via Rust FFI)
 
 set -e  # Exit on error
 
@@ -67,35 +67,9 @@ else
     BACKEND_PID=""
 fi
 
-# Step 4: Start ESP server (optional - only if ESP is installed)
-echo ""
-echo "Step 4: Starting ESP server (optional)..."
-ESP_START_SCRIPT="$PROJECT_ROOT/src/esp-server/start.sh"
-ESP_ROOT="$PROJECT_ROOT/third-party/ESP128/EngSketchPad"
-
-if [ -d "$ESP_ROOT" ] && [ -f "$ESP_START_SCRIPT" ]; then
-    echo "  Starting ESP server on port 8081..."
-    cd "$PROJECT_ROOT/src/esp-server"
-    bash start.sh > /tmp/esp-server.log 2>&1 &
-    ESP_PID=$!
-    echo "  ESP PID: $ESP_PID"
-    sleep 2
-    
-    # Check if ESP started successfully
-    if ps -p $ESP_PID > /dev/null; then
-        echo "  ✅ ESP server running (for geometry operations)"
-    else
-        echo "  ⚠️  ESP server failed to start (check /tmp/esp-server.log)"
-        ESP_PID=""
-    fi
-else
-    echo "  ⚠️  ESP not installed, skipping (Geometry features disabled)"
-    ESP_PID=""
-fi
-
 cd "$PROJECT_ROOT"
 
-# Step 5: Launch desktop application
+# Step 4: Launch desktop application
 echo ""
 echo "======================================"
 echo "Launching desktop application..."
@@ -107,15 +81,23 @@ cleanup() {
     echo ""
     echo "Shutting down servers..."
     [ -n "$BACKEND_PID" ] && kill $BACKEND_PID 2>/dev/null && echo "  Stopped backend server"
-    [ -n "$ESP_PID" ] && kill $ESP_PID 2>/dev/null && echo "  Stopped ESP server"
 }
 
 trap cleanup EXIT INT TERM
 
 if [ -f "$EXECUTABLE" ]; then
+    # Set library path for ESP/OpenCASCADE libraries (if installed)
+    ESP_LIB="$PROJECT_ROOT/third-party/ESP128/EngSketchPad/lib"
+    OCC_LIB="$PROJECT_ROOT/third-party/ESP128/OpenCASCADE-7.8.1/lib"
+    
+    if [ -d "$ESP_LIB" ] && [ -d "$OCC_LIB" ]; then
+        export LD_LIBRARY_PATH="$ESP_LIB:$OCC_LIB:$LD_LIBRARY_PATH"
+        echo "  ℹ️  ESP libraries found - geometry features enabled"
+    fi
+    
     echo ""
     echo "Running: $EXECUTABLE"
-    echo "Logs: /tmp/vhs-server.log, /tmp/esp-server.log"
+    echo "Logs: /tmp/vhs-server.log"
     echo ""
     exec "$EXECUTABLE"
 else

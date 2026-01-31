@@ -5,7 +5,6 @@ import { BoundaryCondition } from '../../types/config'
 import StateWizard from './StateWizard'
 import BoundaryConditionDialog from '../BoundaryConditionDialog/BoundaryConditionDialog'
 import PropertyEditorDialog from '../PropertyEditorDialog/PropertyEditorDialog'
-import VisualizationDialog from '../VisualizationDialog/VisualizationDialog'
 import InitializationRegionDialog from '../InitializationRegionDialog/InitializationRegionDialog'
 import ThermodynamicsWizard from './ThermodynamicsWizard'
 import TurbulenceWizard from './TurbulenceWizard'
@@ -1976,8 +1975,7 @@ function EditorPanel({
       )}
 
       {showVizDialog && (
-        <VisualizationDialog
-          isOpen={showVizDialog}
+        <VisualizationWizard
           onClose={() => setShowVizDialog(false)}
         />
       )}

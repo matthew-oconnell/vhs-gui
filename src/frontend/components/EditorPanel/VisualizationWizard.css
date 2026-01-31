@@ -70,7 +70,8 @@
 }
 
 .form-group input[type="number"],
-.form-group input[type="text"] {
+.form-group input[type="text"],
+.form-group select {
   width: 100%;
   padding: 8px 12px;
   background-color: #3c3c3c;
@@ -80,9 +81,61 @@
   font-size: 13px;
 }
 
-.form-group input:focus {
+.form-group input:focus,
+.form-group select:focus {
   outline: none;
   border-color: #0e639c;
+}
+
+.vector-input {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.vector-input input {
+  width: 100%;
+  padding: 8px 12px;
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #3e3e42;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+.vector-input input:focus {
+  outline: none;
+  border-color: #0e639c;
+}
+
+.label-hint {
+  margin-left: 8px;
+  color: #858585;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.radio-group {
+  margin-top: 8px;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  color: #cccccc;
+  font-size: 13px;
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+
+.radio-label input[type="radio"] {
+  margin-right: 8px;
+  cursor: pointer;
+}
+
+.radio-label span {
+  user-select: none;
 }
 
 .form-help {

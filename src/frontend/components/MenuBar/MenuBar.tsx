@@ -14,9 +14,10 @@ interface MenuBarProps {
   onImportGeometry?: () => void
   onCreateFarfield?: () => void
   onExportCSM?: () => void
+  onEditCSM?: () => void
 }
 
-function MenuBar({ onNewProject, onOpen, onOpenProjectFolder, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM }: MenuBarProps) {
+function MenuBar({ onNewProject, onOpen, onOpenProjectFolder, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM, onEditCSM }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -109,6 +110,12 @@ function MenuBar({ onNewProject, onOpen, onOpenProjectFolder, onSave, onValidate
               onClick={() => handleMenuItemClick(onExportCSM || (() => console.log('Export CSM')))}
             >
               <span className="menu-option-label">Export CSM</span>
+            </button>
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onEditCSM || (() => console.log('Edit CSM')))}
+            >
+              <span className="menu-option-label">Edit CSM</span>
             </button>
             <div className="menu-separator" />
             <button 

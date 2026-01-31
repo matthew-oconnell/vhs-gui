@@ -1,0 +1,92 @@
+.text-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #1e1e1e;
+  border: 1px solid #3e3e42;
+}
+
+.text-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #2d2d30;
+  border-bottom: 1px solid #3e3e42;
+  padding: 8px 12px;
+  height: 37px;
+  flex-shrink: 0;
+}
+
+.text-editor-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.text-editor-filename {
+  font-size: 13px;
+  font-weight: 500;
+  color: #cccccc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-editor-modified {
+  color: #4a9eff;
+  font-size: 20px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.text-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.text-editor-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.text-editor-button:hover {
+  background-color: #505050;
+}
+
+.text-editor-button-save {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.text-editor-button-save:hover {
+  background-color: #1177bb;
+}
+
+.text-editor-button-save:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+.text-editor-button-close {
+  padding: 4px 6px;
+}
+
+.text-editor-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

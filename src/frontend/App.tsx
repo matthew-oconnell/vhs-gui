@@ -5,6 +5,7 @@ import EditorPanel from './components/EditorPanel/EditorPanel'
 import TagsPanel from './components/TagsPanel/TagsPanel'
 import ProjectFolderPanel from './components/ProjectFolderPanel/ProjectFolderPanel'
 import Viewport3D from './components/Viewport3D/Viewport3D'
+import TextEditor from './components/TextEditor/TextEditor'
 import MenuBar from './components/MenuBar/MenuBar'
 import NewProjectWizard, { ProjectConfig } from './components/MenuBar/NewProjectWizard'
 import ProjectSetupWizard from './components/ProjectSetupWizard/ProjectSetupWizard'
@@ -45,6 +46,11 @@ function App() {
   const [espLoading, setEspLoading] = useState(false)
   const [espLoadingMessage, setEspLoadingMessage] = useState('')
   const [espLogLines, setEspLogLines] = useState<string[]>([])
+  
+  // Text Editor state
+  const [textEditorOpen, setTextEditorOpen] = useState(false)
+  const [currentCSMContent, setCurrentCSMContent] = useState<string>('')
+  const [currentCSMFilename, setCurrentCSMFilename] = useState<string>('')
   
   // Refs for imperative panel control
   const projectFolderPanelRef = useRef<PanelImperativeHandle>(null)
@@ -711,6 +717,10 @@ function App() {
       // Load into the store (pass CSM content for export)
       loadESPSurfaces(surfaces, file.name, csmContent)
       
+      // Store CSM content for text editor
+      setCurrentCSMContent(csmContent)
+      setCurrentCSMFilename(file.name)
+      
       log('Geometry', 'success', 'CSM loaded successfully!')
       
     } catch (error) {
@@ -1044,6 +1054,10 @@ import "${file.name}"
       const { loadESPSurfaces, csmBuilder } = useAppStore.getState()
       loadESPSurfaces(surfaces, file.name, csmContent)
       
+      // Store CSM content for text editor
+      setCurrentCSMContent(csmContent)
+      setCurrentCSMFilename(file.name)
+      
       // Record the initial CSM as base (just the import statement)
       csmBuilder.clear()
       csmBuilder.setBase(csmContent) // Set the import CSM as the base
@@ -1198,6 +1212,156 @@ subtract
     }
   }
 
+  // Text Editor Handlers
+  const handleOpenTextEditor = () => {
+    const { originalCSMContent, csmFilename } = useAppStore.getState()
+    
+    if (!originalCSMContent) {
+      alert('No CSM file loaded.\n\nPlease load a CSM file first using File → Open CSM.')
+      return
+    }
+    
+    setCurrentCSMContent(originalCSMContent)
+    setCurrentCSMFilename(csmFilename || 'untitled.csm')
+    setTextEditorOpen(true)
+  }
+
+  const handleTextEditorSave = async (newContent: string) => {
+    try {
+      log('TextEditor', 'info', 'Saving CSM changes and rebuilding geometry...')
+      
+      // Check ESP server is available
+      const health = await checkESPHealth()
+      if (!health.esp_available) {
+        log('ESP', 'error', `ESP server not available: ${health.message}`)
+        alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
+        return
+      }
+      
+      // Update the content
+      setCurrentCSMContent(newContent)
+      
+      // Parse for imports
+      const { parseCSMImports } = await import('./utils/csmParser')
+      const imports = parseCSMImports(newContent)
+      
+      // Get project folder handle for auto-loading dependencies
+      const { projectFolderHandle } = useAppStore.getState()
+      
+      let response
+      
+      if (imports.length > 0) {
+        log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
+        
+        // Try to auto-load dependencies from project folder
+        const dependencies = new Map<string, File>()
+        
+        for (const importPath of imports) {
+          let loaded = false
+          
+          if (projectFolderHandle) {
+            try {
+              log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
+              const depHandle = await projectFolderHandle.getFileHandle(importPath)
+              const depFile = await depHandle.getFile()
+              dependencies.set(importPath, depFile)
+              log('Geometry', 'success', `Auto-loaded: ${depFile.name}`)
+              loaded = true
+            } catch (error) {
+              log('Geometry', 'warning', `Could not auto-load ${importPath}`)
+            }
+          }
+          
+          // Fallback: prompt user if not auto-loaded
+          if (!loaded) {
+            try {
+              log('Geometry', 'info', `Waiting for: ${importPath}`)
+              
+              const [depHandle] = await window.showOpenFilePicker({
+                types: [{
+                  description: `CSM Dependency: ${importPath}`,
+                  accept: { 
+                    'application/stp': ['.stp', '.step'],
+                    'application/iges': ['.igs', '.iges'],
+                    'application/octet-stream': ['.egads'],
+                    '*/*': []
+                  }
+                }],
+                suggestedName: importPath,
+                multiple: false
+              })
+              
+              const depFile = await depHandle.getFile()
+              log('Geometry', 'success', `Loaded: ${depFile.name}`)
+              dependencies.set(importPath, depFile)
+              
+            } catch (depError) {
+              if ((depError as any).name === 'AbortError') {
+                log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
+                alert(`Missing dependency: ${importPath}\n\nCannot rebuild geometry without all dependencies.`)
+                return
+              }
+              throw depError
+            }
+          }
+        }
+        
+        // Build with dependencies
+        setEspLoading(true)
+        setEspLoadingMessage('Rebuilding CSM geometry')
+        setEspLogLines([])
+        
+        response = await buildCSMWithDepsStreaming(newContent, dependencies, (logLine) => {
+          const level = detectESPLogLevel(logLine)
+          log('ESP', level, logLine)
+          setEspLogLines(prev => [...prev, logLine])
+        })
+        
+        setEspLoading(false)
+        
+      } else {
+        // No imports - use standard build
+        setEspLoading(true)
+        setEspLoadingMessage('Rebuilding CSM geometry')
+        setEspLogLines([])
+        
+        response = await buildCSM(newContent)
+        
+        setEspLoading(false)
+      }
+      
+      if (!response.success) {
+        log('ESP', 'error', `Build failed: ${response.message}`)
+        throw new Error(response.message)
+      }
+      
+      // Add server build log
+      if (response.build_log?.length) {
+        response.build_log.forEach(line => {
+          const level = detectESPLogLevel(line)
+          log('ESP', level, line)
+        })
+      }
+      
+      log('ESP', 'success', 'Geometry rebuilt successfully')
+      
+      // Convert and reload surfaces
+      const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
+      loadESPSurfaces(surfaces, currentCSMFilename, newContent)
+      
+      log('TextEditor', 'success', 'Changes saved and geometry updated!')
+      
+    } catch (error) {
+      setEspLoading(false)
+      log('TextEditor', 'error', `Failed to save: ${(error as Error).message}`)
+      alert(`Failed to save and rebuild: ${(error as Error).message}`)
+    }
+  }
+
+  const handleTextEditorClose = () => {
+    setTextEditorOpen(false)
+  }
+
   return (
     <div className="app-container">
       <ProjectSetupWizard
@@ -1221,6 +1385,7 @@ subtract
         onImportGeometry={handleImportGeometry}
         onCreateFarfield={handleCreateFarfield}
         onExportCSM={handleExportCSM}
+        onEditCSM={handleOpenTextEditor}
       />
       <StatusBar 
         onOpenThermodynamicsWizard={() => setShowThermoWizardFromStatusBar(true)}
@@ -1314,19 +1479,40 @@ subtract
         {/* Horizontal Resize Handle */}
         <PanelResizeHandle className="resize-handle resize-handle-horizontal" />
 
-        {/* Right Panel - 3D Viewport + Console */}
+        {/* Right Panel - 3D Viewport + Console (with optional Text Editor split) */}
         <Panel defaultSize={75} minSize={40}>
-          <div style={{ display: 'flex', flexDirection: 'column', height: '100%', width: '100%' }}>
-            {/* 3D Viewport */}
-            <div style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
-              <Viewport3D />
-            </div>
+          <PanelGroup direction="vertical">
+            {/* Top: Viewport or split Viewport/Editor */}
+            <Panel defaultSize={70} minSize={30}>
+              {textEditorOpen ? (
+                <PanelGroup direction="horizontal">
+                  {/* Text Editor */}
+                  <Panel defaultSize={50} minSize={30}>
+                    <TextEditor
+                      content={currentCSMContent}
+                      filename={currentCSMFilename}
+                      onSave={handleTextEditorSave}
+                      onClose={handleTextEditorClose}
+                    />
+                  </Panel>
+                  <PanelResizeHandle className="resize-handle resize-handle-horizontal" />
+                  {/* 3D Viewport */}
+                  <Panel defaultSize={50} minSize={30}>
+                    <Viewport3D />
+                  </Panel>
+                </PanelGroup>
+              ) : (
+                <Viewport3D />
+              )}
+            </Panel>
             
-            {/* Console Panel - explicitly visible for debugging */}
-            <div style={{ flexShrink: 0 }}>
+            <PanelResizeHandle className="resize-handle resize-handle-vertical" />
+            
+            {/* Bottom: Console */}
+            <Panel defaultSize={30} minSize={15}>
               <ConsolePanel />
-            </div>
-          </div>
+            </Panel>
+          </PanelGroup>
         </Panel>
       </PanelGroup>
 

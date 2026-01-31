@@ -178,6 +178,10 @@ interface AppState {
   setSurfacesCollapsed: (collapsed: boolean) => void
   setProjectFolderCollapsed: (collapsed: boolean) => void
   
+  // CSM file content for text editor
+  originalCSMContent: string | null
+  csmFilename: string | null
+  
   // Project folder
   projectFolderHandle: FileSystemDirectoryHandle | null
   openProjectFolder: (handle: FileSystemDirectoryHandle) => void

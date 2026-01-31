@@ -11,7 +11,7 @@ import { useConsoleStore } from '../store/consoleStore'
 /**
  * Check if running in Tauri environment
  */
-const isTauri = () => {
+export const isTauri = () => {
   // Check if we're in a Tauri context by looking for the __TAURI_INTERNALS__ object
   // This is more reliable than checking window.__TAURI__
   if (typeof window === 'undefined') return false

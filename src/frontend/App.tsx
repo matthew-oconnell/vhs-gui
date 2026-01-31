@@ -57,6 +57,7 @@ function App() {
   const treePanelRef = useRef<PanelImperativeHandle>(null)
   const editorPanelRef = useRef<PanelImperativeHandle>(null)
   const meshGroupsPanelRef = useRef<PanelImperativeHandle>(null)
+  const consolePanelRef = useRef<PanelImperativeHandle>(null)
   
   const { 
     configData, 
@@ -1509,8 +1510,15 @@ subtract
             <PanelResizeHandle className="resize-handle resize-handle-vertical" />
             
             {/* Bottom: Console */}
-            <Panel defaultSize={30} minSize={15}>
-              <ConsolePanel />
+            <Panel 
+              id="console-panel"
+              ref={consolePanelRef}
+              defaultSize={30} 
+              minSize={15}
+              collapsible={true}
+              collapsedSize={3}
+            >
+              <ConsolePanel panelRef={consolePanelRef} />
             </Panel>
           </PanelGroup>
         </Panel>

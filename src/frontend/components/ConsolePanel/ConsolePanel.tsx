@@ -1,10 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { Panel, PanelGroup, PanelResizeHandle, type ImperativeHandle as PanelImperativeHandle } from 'react-resizable-panels'
 import { useConsoleStore } from '../../store/consoleStore'
 import ConsolePaneView from './ConsolePaneView'
 import './ConsolePanel.css'
 
-const ConsolePanel: React.FC = () => {
+interface ConsolePanelProps {
+  panelRef?: React.RefObject<PanelImperativeHandle>
+}
+
+const ConsolePanel: React.FC<ConsolePanelProps> = ({ panelRef: imperativePanelRef }) => {
   const {
     entries,
     isCollapsed,
@@ -34,6 +38,22 @@ const ConsolePanel: React.FC = () => {
   const contentRef = useRef<HTMLDivElement>(null)
 
   const visibleEntries = getVisibleEntries()
+
+  // Sync Panel collapse state with console store
+  useEffect(() => {
+    if (!imperativePanelRef?.current) return
+    
+    const checkInterval = setInterval(() => {
+      if (imperativePanelRef.current) {
+        const isPanelCollapsed = imperativePanelRef.current.isCollapsed()
+        if (isPanelCollapsed !== isCollapsed) {
+          setCollapsed(isPanelCollapsed)
+        }
+      }
+    }, 100)
+    
+    return () => clearInterval(checkInterval)
+  }, [imperativePanelRef, isCollapsed, setCollapsed])
 
   // Auto-scroll to bottom when new entries arrive
   useEffect(() => {
@@ -163,7 +183,15 @@ const ConsolePanel: React.FC = () => {
         <div className="console-header-left">
           <button 
             className="console-toggle-btn"
-            onClick={() => setCollapsed(!isCollapsed)}
+            onClick={() => {
+              if (imperativePanelRef?.current) {
+                if (imperativePanelRef.current.isCollapsed()) {
+                  imperativePanelRef.current.expand()
+                } else {
+                  imperativePanelRef.current.collapse()
+                }
+              }
+            }}
             title={isCollapsed ? 'Expand Console (Ctrl+`)' : 'Collapse Console (Ctrl+`)'}
           >
             <span className="console-toggle-icon">{isCollapsed ? '▲' : '▼'}</span>

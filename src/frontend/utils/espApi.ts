@@ -1,8 +1,11 @@
 /**
- * ESP Gateway API Client
+ * ESP API Client (Tauri Commands)
  * 
- * Communicates with the Python ESP server for CSM geometry operations
+ * Uses Tauri's invoke() to call Rust FFI bindings for ESP geometry operations.
+ * Replaces the old Python ESP server.
  */
+
+import { invoke } from '@tauri-apps/api/core'
 
 export interface ESPParameter {
   name: string
@@ -40,267 +43,147 @@ export interface ESPHealthResponse {
 }
 
 /**
- * Configuration for ESP Gateway API
- */
-const ESP_API_BASE_URL = (import.meta as any).env?.VITE_ESP_API_URL || 'http://127.0.0.1:8081'
-
-/**
- * Check if ESP server is available
+ * Check if ESP functionality is available (compiled with ESP libraries)
  */
 export const checkESPHealth = async (): Promise<ESPHealthResponse> => {
   try {
-    const response = await fetch(`${ESP_API_BASE_URL}/health`, {
-      method: 'GET',
-      signal: AbortSignal.timeout(3000)
-    })
+    // Try to get model info - if ESP is disabled, this will fail
+    await invoke('get_model_info')
     
-    if (!response.ok) {
-      return {
-        status: 'error',
-        esp_available: false,
-        esp_root: null,
-        message: `Server returned ${response.status}`
-      }
+    return {
+      status: 'ok',
+      esp_available: true,
+      esp_root: null, // Not needed with Tauri FFI
+      message: 'ESP libraries available'
     }
-    
-    return response.json()
   } catch (error) {
+    // If command doesn't exist, ESP is not compiled in
+    const message = error instanceof Error ? error.toString() : 'ESP not available'
+    const isNotCompiled = message.includes('No handler registered') || message.includes('not found')
+    
     return {
       status: 'error',
       esp_available: false,
       esp_root: null,
-      message: error instanceof Error ? error.message : 'Connection failed'
+      message: isNotCompiled 
+        ? 'ESP libraries not installed (rebuild with ESP support)' 
+        : message
     }
   }
 }
 
 /**
- * Build CSM content and return tessellated geometry
+ * Build CSM file and return geometry
+ * NOTE: Currently only supports file paths, not inline content
+ * TODO: Add support for temporary file creation for inline CSM content
  */
-export const buildCSM = async (csmContent: string): Promise<CSMBuildResponse> => {
-  console.log('[ESP API] Building CSM, content length:', csmContent.length)
+export const buildCSM = async (csmFilePath: string): Promise<CSMBuildResponse> => {
+  console.log('[ESP API] Loading CSM file via Tauri:', csmFilePath)
   
-  const response = await fetch(`${ESP_API_BASE_URL}/csm/build`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      csm_content: csmContent
-    })
-  })
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Build failed' }))
-    throw new Error(error.detail || `Build failed with status ${response.status}`)
+  try {
+    const result = await invoke<any>('load_csm_file', { path: csmFilePath })
+    
+    console.log('[ESP API] Build successful')
+    console.log('[ESP API] Parameters:', result.parameters?.length || 0)
+    console.log('[ESP API] Bodies:', result.bodies?.length || 0)
+    
+    // Convert Rust response to expected format
+    // TODO: Extract tessellation data from bodies for regions
+    return {
+      success: true,
+      message: 'CSM loaded successfully',
+      regions: [], // TODO: Extract from bodies
+      parameters: result.parameters?.map((p: any) => ({
+        name: p.name,
+        value: p.value,
+        type: 'scalar', // TODO: Handle arrays
+      })) || [],
+      total_vertices: 0, // TODO: Sum from bodies
+      total_faces: result.bodies?.reduce((sum: number, b: any) => sum + (b.faces || 0), 0) || 0,
+      build_log: []
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.toString() : 'Build failed'
+    throw new Error(message)
   }
-  
-  const result = await response.json()
-  console.log('[ESP API] Build successful:', result.message)
-  console.log('[ESP API] Regions:', result.regions.length, 'Parameters:', result.parameters.length)
-  
-  return result
 }
 
 /**
- * Convert ArrayBuffer to base64 string (handles large files)
- */
-const arrayBufferToBase64 = (buffer: ArrayBuffer): string => {
-  const bytes = new Uint8Array(buffer)
-  const chunkSize = 8192 // Process 8KB at a time to avoid stack overflow
-  let binary = ''
-  
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length))
-    binary += String.fromCharCode(...chunk)
-  }
-  
-  return btoa(binary)
-}
-
-/**
- * Build CSM content with dependency files and return tessellated geometry
+ * Build CSM with dependency files
  * 
- * @param csmContent The main CSM file content
+ * NOTE: With Tauri FFI, dependencies must be written to temp files first
+ * TODO: Implement temp file creation and cleanup
+ * 
+ * @param csmFilePath Path to main CSM file
  * @param dependencies Map of filename -> File object for imported files
  */
 export const buildCSMWithDeps = async (
-  csmContent: string,
+  csmFilePath: string,
   dependencies: Map<string, File>
 ): Promise<CSMBuildResponse> => {
   console.log('[ESP API] Building CSM with', dependencies.size, 'dependencies')
   
-  // Convert File objects to base64 for JSON transfer
-  const depsBase64: Record<string, string> = {}
+  // TODO: Write dependency files to temp directory
+  // For now, just call buildCSM with the main file
+  console.warn('[ESP API] Dependency handling not yet implemented in Tauri version')
   
-  for (const [filename, file] of dependencies.entries()) {
-    const arrayBuffer = await file.arrayBuffer()
-    const base64 = arrayBufferToBase64(arrayBuffer)
-    depsBase64[filename] = base64
-    console.log('[ESP API] Encoded dependency:', filename, '(', file.size, 'bytes )')
-  }
-  
-  const response = await fetch(`${ESP_API_BASE_URL}/csm/build-with-deps`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      csm_content: csmContent,
-      dependencies: depsBase64
-    })
-  })
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Build failed' }))
-    throw new Error(error.detail || `Build failed with status ${response.status}`)
-  }
-  
-  const result = await response.json()
-  console.log('[ESP API] Build with deps successful:', result.message)
-  console.log('[ESP API] Regions:', result.regions.length, 'Parameters:', result.parameters.length)
-  
-  return result
+  return buildCSM(csmFilePath)
 }
 
 /**
  * Build CSM with dependencies - STREAMING VERSION
  * Provides real-time log updates via callback as build progresses
  * 
- * @param csmContent The main CSM file content
+ * NOTE: Streaming not yet implemented in Tauri version
+ * TODO: Add event-based logging through Tauri events
+ * 
+ * @param csmFilePath Path to main CSM file
  * @param dependencies Map of filename -> File object for imported files
  * @param onLog Callback function to receive log messages as they arrive
  */
 export const buildCSMWithDepsStreaming = async (
-  csmContent: string,
+  csmFilePath: string,
   dependencies: Map<string, File>,
   onLog: (message: string) => void
 ): Promise<CSMBuildResponse> => {
-  console.log('[ESP API] Building CSM with streaming (', dependencies.size, 'dependencies )')
+  console.log('[ESP API] Building CSM (streaming not yet implemented in Tauri)')
   
-  // Convert File objects to base64
-  const depsBase64: Record<string, string> = {}
-  for (const [filename, file] of dependencies.entries()) {
-    const arrayBuffer = await file.arrayBuffer()
-    const base64 = arrayBufferToBase64(arrayBuffer)
-    depsBase64[filename] = base64
+  onLog('Loading CSM file...')
+  onLog(`Path: ${csmFilePath}`)
+  
+  if (dependencies.size > 0) {
+    onLog(`Warning: ${dependencies.size} dependencies found but not yet supported`)
   }
   
-  const response = await fetch(`${ESP_API_BASE_URL}/csm/build-with-deps-stream`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      csm_content: csmContent,
-      dependencies: depsBase64
-    })
-  })
+  const result = await buildCSM(csmFilePath)
   
-  if (!response.ok) {
-    throw new Error(`Build failed with status ${response.status}`)
-  }
+  onLog(`Build complete: ${result.parameters.length} parameters, ${result.total_faces} faces`)
   
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error('No response body')
-  }
-  
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let finalResult: CSMBuildResponse | null = null
-  
-  // Read stream and parse Server-Sent Events
-  while (true) {
-    const { done, value } = await reader.read()
-    
-    if (done) break
-    
-    buffer += decoder.decode(value, { stream: true })
-    
-    // Process complete lines
-    const lines = buffer.split('\n')
-    buffer = lines.pop() || '' // Keep incomplete line in buffer
-    
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const jsonStr = line.slice(6) // Remove "data: " prefix
-        try {
-          const event = JSON.parse(jsonStr)
-          
-          if (event.type === 'log') {
-            onLog(event.message)
-          } else if (event.type === 'complete') {
-            finalResult = event.data
-          } else if (event.type === 'error') {
-            // Log the error to console before throwing
-            onLog(`ERROR: ${event.message}`)
-            throw new Error(event.message)
-          }
-        } catch (e) {
-          // If it's an error we just threw, re-throw it
-          if (e instanceof Error && e.message !== 'Unexpected end of JSON input') {
-            throw e
-          }
-          // Otherwise log parsing errors
-          console.error('[ESP API] Failed to parse SSE:', e, 'Line:', jsonStr)
-          onLog(`Failed to parse server response: ${jsonStr}`)
-        }
-      }
-    }
-  }
-  
-  if (!finalResult) {
-    const errorMsg = 'Build completed but no result received (check ESP server logs)'
-    onLog(`ERROR: ${errorMsg}`)
-    throw new Error(errorMsg)
-  }
-  
-  console.log('[ESP API] Streaming build complete:', finalResult.message)
-  return finalResult
+  return result
 }
 
 /**
  * Load CSM file from disk and build it
+ * 
+ * NOTE: In Tauri, we need the file path, not the File object content
  */
-export const loadAndBuildCSMFile = async (file: File): Promise<CSMBuildResponse> => {
-  console.log('[ESP API] Loading CSM file:', file.name)
+export const loadAndBuildCSMFile = async (filePath: string): Promise<CSMBuildResponse> => {
+  console.log('[ESP API] Loading CSM file:', filePath)
   
-  const content = await file.text()
-  return buildCSM(content)
+  return buildCSM(filePath)
 }
 
 /**
  * Export CSM with updated bc_name attributes
+ * 
+ * TODO: Implement in Rust FFI
+ * This requires modifying ESP model attributes
  */
 export const exportCSMWithBCNames = async (
-  csmContent: string,
+  csmFilePath: string,
   bcNameUpdates: Array<{ body: number; face: number; bc_name: string }>
 ): Promise<string> => {
-  console.log('[ESP API] Exporting CSM with', bcNameUpdates.length, 'bc_name updates')
+  console.log('[ESP API] Export with bc_name updates not yet implemented')
   
-  try {
-    const response = await fetch(`${ESP_API_BASE_URL}/csm/export-with-bc-names`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        csm_content: csmContent,
-        bc_name_updates: bcNameUpdates
-      })
-    })
-    
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.detail || 'Export failed')
-    }
-    
-    const result = await response.json()
-    console.log('[ESP API] Export successful:', result.message)
-    return result.csm_content
-  } catch (error) {
-    console.error('[ESP API] Export failed:', error)
-    throw error
-  }
+  throw new Error('exportCSMWithBCNames not yet implemented in Tauri version')
 }

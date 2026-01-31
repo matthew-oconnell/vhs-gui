@@ -24,7 +24,7 @@ import { saveJsonFile, openJsonFile, promptForDirectoryAccess, openCadFile, open
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
-import { buildCSM, checkESPHealth, buildCSMWithDepsStreaming } from './utils/espApi'
+import { buildCSM, checkESPHealth } from './utils/espApi'
 import { convertESPRegionsToSurfaces } from './utils/espAdapter'
 import { calculateBoundingBox, BoundingBox } from './utils/geometryUtils'
 import './App.css'
@@ -578,144 +578,55 @@ function App() {
     console.log('[App] Loading CSM file:', file.name)
     
     try {
-      log('ESP', 'info', 'Checking ESP server health...')
+      log('ESP', 'info', 'Checking ESP availability...')
       
-      // First check if ESP server is available
+      // Check if ESP is available
       const health = await checkESPHealth()
       if (!health.esp_available) {
-        log('ESP', 'error', `ESP server not available: ${health.message}`)
-        alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
+        log('ESP', 'error', `ESP not available: ${health.message}`)
+        alert(`ESP not available: ${health.message}\n\nESP geometry features require ESP libraries to be installed.`)
         return
       }
       
-      log('ESP', 'success', 'ESP server is ready')
+      log('ESP', 'success', 'ESP libraries ready')
       log('Geometry', 'success', `Loading CSM: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
       
-      // Read file contents
-      const csmContent = await file.text()
-      log('ESP', 'info', `CSM loaded: ${csmContent.split('\n').length} lines`)
+      // Get file path for Tauri command
+      // In Tauri, we need the actual file path, not content
+      const { isTauri } = await import('./utils/fileUtils')
       
-      // Check for import/restore statements
+      let filePath: string
+      if (isTauri()) {
+        // In Tauri, use the file's path property
+        filePath = (file as any).path || file.name
+      } else {
+        // In browser, we'd need to handle this differently
+        // For now, just use the name (will fail, but shows the limitation)
+        log('ESP', 'warning', 'Browser mode: CSM loading requires file path, not available in browser')
+        alert('ESP geometry loading is only supported in the desktop app')
+        return
+      }
+      
+      log('ESP', 'info', `CSM file path: ${filePath}`)
+      
+      // Check for import/restore statements (for future dependency support)
+      const csmContent = await file.text()
       const { parseCSMImports } = await import('./utils/csmParser')
       const imports = parseCSMImports(csmContent)
       
-      // Determine directory source for auto-loading dependencies
-      // Priority: 1) passed directory context, 2) project folder from store
-      const { projectFolderHandle } = useAppStore.getState()
-      const directoryPath = directoryContext?.directoryPath || (typeof projectFolderHandle === 'string' ? projectFolderHandle : undefined)
-      const directoryHandle = directoryContext?.directoryHandle || (projectFolderHandle && typeof projectFolderHandle !== 'string' ? projectFolderHandle as FileSystemDirectoryHandle : undefined)
-      
-      let response
-      
       if (imports.length > 0) {
-        log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
-        
-        // Import utilities
-        const { isTauri, readProjectFile } = await import('./utils/fileUtils')
-        
-        // Prompt user for each dependency file
-        const dependencies = new Map<string, File>()
-        
-        for (const importPath of imports) {
-          let loaded = false
-          
-          // Try auto-loading from directory context (config dir or project folder)
-          if (directoryPath || directoryHandle) {
-            try {
-              log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
-              
-              if (isTauri() && directoryPath) {
-                // Tauri mode: construct absolute path
-                const depPath = `${directoryPath}/${importPath}`
-                log('Geometry', 'info', `Tauri mode - trying to load: ${depPath}`)
-                const depFile = await readProjectFile(depPath)
-                
-                if (depFile) {
-                  dependencies.set(importPath, depFile)
-                  log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
-                  loaded = true
-                } else {
-                  log('Geometry', 'warning', `readProjectFile returned null for ${depPath}`)
-                }
-              } else if (directoryHandle) {
-                // Browser mode: use FileSystemFileHandle API
-                log('Geometry', 'info', `Browser mode - using FileSystemFileHandle`)
-                const depHandle = await directoryHandle.getFileHandle(importPath)
-                const depFile = await depHandle.getFile()
-                dependencies.set(importPath, depFile)
-                log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
-                loaded = true
-              }
-            } catch (error) {
-              log('Geometry', 'error', `Failed to auto-load ${importPath}: ${error}`)
-            }
-          }
-          
-          // Fallback: prompt user if not auto-loaded
-          if (!loaded) {
-            try {
-              log('Geometry', 'info', `Waiting for: ${importPath}`)
-              
-              const depFile = await openCadFile(importPath)
-              
-              if (!depFile) {
-                log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
-                alert(
-                  `Missing Required File\n\n` +
-                  `The CSM file needs: ${importPath}\n\n` +
-                  `Without this file, the geometry cannot be loaded.\n` +
-                  `Cancelling CSM load.`
-                )
-                return
-              }
-              
-              log('Geometry', 'success', `Loaded: ${depFile.name} (${depFile.size} bytes)`)
-              
-              // Use the import path as the key (preserves relative path semantics)
-              dependencies.set(importPath, depFile)
-              
-            } catch (depError) {
-              if ((depError as any).name === 'AbortError') {
-                log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
-                alert(
-                  `Missing Required File\n\n` +
-                  `The CSM file needs: ${importPath}\n\n` +
-                  `Without this file, the geometry cannot be loaded.\n` +
-                  `Cancelling CSM load.`
-                )
-                return
-              }
-              throw depError
-            }
-          }
-        }
-        
-        // Build CSM with dependencies
-        log('ESP', 'info', `Building CSM with ${dependencies.size} dependencies...`)
-        setEspLoading(true)
-        setEspLoadingMessage('Building CSM geometry')
-        setEspLogLines([])
-        
-        const { buildCSMWithDepsStreaming } = await import('./utils/espApi')
-        response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
-          const level = detectESPLogLevel(logLine)
-          log('ESP', level, logLine)
-          setEspLogLines(prev => [...prev, logLine])
-        })
-        
-        setEspLoading(false)
-        
-      } else {
-        // No imports - use standard build
-        log('ESP', 'info', 'Building CSM (no dependencies)...')
-        setEspLoading(true)
-        setEspLoadingMessage('Building CSM geometry')
-        setEspLogLines([])
-        
-        response = await buildCSM(csmContent)
-        
-        setEspLoading(false)
+        log('Geometry', 'warning', `Found ${imports.length} dependencies: ${imports.join(', ')} (not yet supported)`)
       }
+      
+      // Build CSM
+      log('ESP', 'info', 'Building CSM geometry...')
+      setEspLoading(true)
+      setEspLoadingMessage('Building CSM geometry')
+      setEspLogLines([])
+      
+      const response = await buildCSM(filePath)
+      
+      setEspLoading(false)
       
       if (!response.success) {
         log('ESP', 'error', `Build failed: ${response.message}`)
@@ -768,17 +679,17 @@ function App() {
     console.log('[App] Open CSM clicked')
     
     try {
-      log('ESP', 'info', 'Checking ESP server health...')
+      log('ESP', 'info', 'Checking ESP availability...')
       
-      // First check if ESP server is available
+      // Check if ESP is available
       const health = await checkESPHealth()
       if (!health.esp_available) {
-        log('ESP', 'error', `ESP server not available: ${health.message}`)
-        alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
+        log('ESP', 'error', `ESP not available: ${health.message}`)
+        alert(`ESP not available: ${health.message}\n\nESP geometry features require ESP libraries to be installed.`)
         return
       }
       
-      log('ESP', 'success', 'ESP server is ready')
+      log('ESP', 'success', 'ESP libraries ready')
       log('Geometry', 'info', 'Opening file picker for CSM file...')
       
       // Open file picker for .csm files
@@ -790,18 +701,29 @@ function App() {
       
       log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
       
-      // Read file contents
-      const csmContent = await file.text()
-      log('ESP', 'info', `CSM loaded: ${csmContent.split('\n').length} lines`)
+      // Get file path for Tauri
+      const { isTauri } = await import('./utils/fileUtils')
+      let filePath: string
+      if (isTauri()) {
+        filePath = (file as any).path || file.name
+      } else {
+        log('ESP', 'warning', 'Browser mode: CSM loading requires file path')
+        alert('ESP geometry loading is only supported in the desktop app')
+        return
+      }
       
-      // Check for import/restore statements
-      const { parseCSMImports } = await import('./utils/csmParser')
-      const imports = parseCSMImports(csmContent)
+      // Build CSM
+      log('ESP', 'info', 'Building CSM geometry...')
+      setEspLoading(true)
+      setEspLoadingMessage('Building CSM geometry')
+      setEspLogLines([])
       
-      let response
+      const response = await buildCSM(filePath)
       
-      if (imports.length > 0) {
-        log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
+      setEspLoading(false)
+      
+      if (false) {
+        log('Geometry', 'info', `Dependencies not yet supported`)
         
         // Alert user about required dependency files
         // Use setTimeout to ensure alert shows after any pending React renders
@@ -855,33 +777,18 @@ function App() {
             throw depError
           }
         }
-        
-        // Build CSM with dependencies
-        log('ESP', 'info', `Building CSM with ${dependencies.size} dependencies...`)
-        setEspLoading(true)
-        setEspLoadingMessage('Building CSM geometry')
-        setEspLogLines([])
-        
-        const { buildCSMWithDepsStreaming } = await import('./utils/espApi')
-        response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
-          const level = detectESPLogLevel(logLine)
-          log('ESP', level, logLine)
-          setEspLogLines(prev => [...prev, logLine])
-        })
-        
-        setEspLoading(false)
-        
-      } else {
-        // No imports - use standard build
-        log('ESP', 'info', 'Building CSM (no dependencies)...')
-        setEspLoading(true)
-        setEspLoadingMessage('Building CSM geometry')
-        setEspLogLines([])
-        
-        response = await buildCSM(csmContent)
-        
-        setEspLoading(false)
       }
+      
+      // For now, dependencies not yet supported in Tauri
+      // Just build the main CSM file
+      if (false) {  // Placeholder for future dependency support
+        log('ESP', 'info', `Building CSM with ${0} dependencies...`)
+      }
+      
+      // Dependencies ignored for now
+      log('ESP', 'warning', 'Dependency files not yet supported in Tauri version')
+      
+      setEspLoading(false)
       
       if (!response.success) {
         log('ESP', 'error', `Build failed: ${response.message}`)
@@ -1003,100 +910,22 @@ function App() {
     try {
       log('Geometry', 'info', 'Starting geometry import...')
       
-      // Check ESP server is available
-      log('ESP', 'info', 'Checking ESP server health...')
+      // Check ESP is available
+      log('ESP', 'info', 'Checking ESP availability...')
       const health = await checkESPHealth()
       if (!health.esp_available) {
-        log('ESP', 'error', `ESP server not available: ${health.message}`)
-        alert(`ESP server not available: ${health.message}\n\nMake sure the ESP gateway server is running on port 8081.`)
+        log('ESP', 'error', `ESP not available: ${health.message}`)
+        alert(`ESP not available: ${health.message}\n\nESP geometry features require ESP libraries to be installed.`)
         return
       }
-      log('ESP', 'success', 'ESP server is ready')
+      log('ESP', 'success', 'ESP libraries ready')
       
-      log('Geometry', 'info', 'Opening file picker...')
-      log('Geometry', 'info', 'Opening file picker...')
-      
-      // Open file picker for STEP files
-      const file = await openCadFile()
-      if (!file) {
-        log('Geometry', 'info', 'User cancelled STEP file selection')
-        return
-      }
-      
-      log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
-      setImportedGeometryFile(file)
-      
-      log('ESP', 'info', 'Generating CSM import script...')
-      
-      // Generate CSM with just the import statement
-      // Quote filename to handle spaces and special characters
-      const csmContent = `# Imported geometry from ${file.name}
-import "${file.name}"
-`
-      
-      log('ESP', 'info', 'CSM generated', { preview: csmContent.trim() })
-      
-      // Build CSM with the STEP file as dependency
-      const dependencies = new Map<string, File>()
-      dependencies.set(file.name, file)
-      
-      log('ESP', 'info', 'Sending STEP file to ESP server...')
-      
-      const response = await buildCSMWithDepsStreaming(csmContent, dependencies, (logLine) => {
-        // Parse ESP output to detect errors, warnings, and info messages
-        if (logLine.includes('ERROR:') || logLine.includes('EGADS Error:')) {
-          log('ESP', 'error', logLine)
-        } else if (logLine.includes('WARNING:') || logLine.includes('EGADS Warning:')) {
-          log('ESP', 'warning', logLine)
-        } else if (logLine.includes('INFO:')) {
-          log('ESP', 'info', logLine)
-        } else {
-          log('ESP', 'info', logLine)  // Default to info for normal execution output
-        }
-      })
-      
-      if (!response.success) {
-        log('ESP', 'error', `Build failed: ${response.message}`)
-        throw new Error(response.message)
-      }
-      
-      log('ESP', 'success', `Build complete: ${response.message}`)
-      log('Geometry', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
-      
-      // Check if we actually got any geometry
-      if (!response.regions || response.regions.length === 0) {
-        log('Geometry', 'error', 'No geometry loaded from STEP file')
-        throw new Error('ESP build completed but no geometry was loaded. Check the ESP error log for details.')
-      }
-      
-      log('Geometry', 'info', 'Converting ESP regions to surfaces...')
-      
-      // Convert ESP regions to surfaces
-      const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
-      log('Geometry', 'success', `Converted to ${surfaces.length} surfaces`)
-      
-      // Load into store
-      const { loadESPSurfaces, csmBuilder } = useAppStore.getState()
-      loadESPSurfaces(surfaces, file.name, csmContent)
-      
-      // Store CSM content for text editor
-      setCurrentCSMContent(csmContent)
-      setCurrentCSMFilename(file.name)
-      
-      // Record the initial CSM as base (just the import statement)
-      csmBuilder.clear()
-      csmBuilder.setBase(csmContent) // Set the import CSM as the base
-      
-      log('Geometry', 'success', `Geometry imported successfully: ${surfaces.length} surfaces loaded`)
-      // Success - geometry is now visible in 3D viewer
+      log('ESP', 'info', 'STEP import not yet implemented in Tauri version')
+      alert('STEP file import is not yet implemented with Tauri ESP bindings.\n\nThis feature is coming soon.')
       
     } catch (error) {
-      if ((error as any).name === 'AbortError') {
-        log('Geometry', 'warning', 'Import cancelled by user')
-        return
-      }
       log('Geometry', 'error', `Import failed: ${(error as Error).message}`)
-      console.error('[App] Error importing geometry:', error)
+      console.error('[App] Error with import', error)
     }
   }
 

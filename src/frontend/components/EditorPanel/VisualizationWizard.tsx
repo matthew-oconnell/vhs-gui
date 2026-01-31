@@ -16,13 +16,16 @@ export default function VisualizationWizard({ onClose }: VisualizationWizardProp
   const [filename, setFilename] = useState('volume.vtk')
   const [outputMode, setOutputMode] = useState<'checkpoint' | 'iterations'>('checkpoint')
   const [iterationFrequency, setIterationFrequency] = useState(100)
-  const [availableTypes, setAvailableTypes] = useState<string[]>([])
+  const [availableTypes, setAvailableTypes] = useState<string[]>(['volume', 'boundary', 'point', 'line', 'plane', 'sphere'])
   const [typeDescriptions, setTypeDescriptions] = useState<Record<string, string>>({})
   
   // Load visualization types from schema on mount
   useEffect(() => {
     loadVizTypeInfo().then(() => {
-      setAvailableTypes(getAvailableVizTypesSync())
+      const types = getAvailableVizTypesSync()
+      if (types.length > 0) {
+        setAvailableTypes(types)
+      }
       setTypeDescriptions(getVizTypeDescriptionsSync())
     })
   }, [])

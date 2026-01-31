@@ -5,7 +5,7 @@
 import { stripJsonComments } from './jsonComments'
 import { migrateConfigToFlatStructure, isOldFormat, migrateBCTypes } from './configMigration'
 import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile, readDir, BaseDirectory } from '@tauri-apps/plugin-fs'
+import { readTextFile, writeTextFile, readFile, readDir, BaseDirectory } from '@tauri-apps/plugin-fs'
 import { useConsoleStore } from '../store/consoleStore'
 
 /**
@@ -322,68 +322,99 @@ export const promptForDirectoryAccess = async (): Promise<FileSystemDirectoryHan
  * @returns Promise that resolves with config and directory handle, or null if user cancels
  * @throws Error if JSON parsing fails or file reading fails
  */
-export const openJsonFileWithDirectory = async (): Promise<{ config: any; directoryHandle: FileSystemDirectoryHandle } | null> => {
+/**
+ * Opens JSON file and returns config with directory info (path for Tauri, handle for browser)
+ * This allows auto-loading mesh/CSM files from the same directory as the config
+ */
+export const openJsonFileWithDirectory = async (): Promise<{ 
+  config: any
+  directoryPath?: string  // Tauri mode
+  directoryHandle?: FileSystemDirectoryHandle  // Browser mode
+} | null> => {
   try {
-    // Check if the File System Access API is available
-    if (!('showOpenFilePicker' in window)) {
-      throw new Error('File System Access API is not supported in this browser');
-    }
-
-    // Open file picker dialog
-    const [fileHandle] = await window.showOpenFilePicker({
-      types: [
-        {
-          description: 'JSON Files',
-          accept: {
-            'application/json': ['.json']
-          }
+    logTauriDetection()
+    
+    if (isTauri()) {
+      // Tauri mode - get file path and extract directory
+      const filePath = await open({
+        multiple: false,
+        filters: [{
+          name: 'JSON Files',
+          extensions: ['json']
+        }]
+      })
+      
+      if (filePath && typeof filePath === 'string') {
+        const text = await readTextFile(filePath)
+        const cleanedText = stripJsonComments(text)
+        let config = JSON.parse(cleanedText)
+        
+        if (isOldFormat(config)) {
+          logToConsole('Detected old config format - auto-migrating', 'info')
+          config = migrateConfigToFlatStructure(config)
         }
-      ]
-    });
-
-    // Get the file
-    const file = await fileHandle.getFile();
-    
-    // Read the file content as text
-    const text = await file.text();
-    
-    // Strip comments from JSON text
-    const cleanedText = stripJsonComments(text);
-    
-    // Parse JSON (will throw if invalid)
-    const config = JSON.parse(cleanedText);
-    
-    // Get the directory handle (parent directory of the file)
-    // @ts-ignore - FileSystemFileHandle may have parent access in some browsers
-    let directoryHandle: FileSystemDirectoryHandle | null = null;
-    
-    // Try to get parent directory (non-standard but works in some browsers)
-    if ('getParent' in fileHandle && typeof (fileHandle as any).getParent === 'function') {
-      try {
-        directoryHandle = await (fileHandle as any).getParent();
-      } catch (e) {
-        console.warn('Could not get parent directory:', e);
+        
+        config = migrateBCTypes(config)
+        
+        // Extract directory path (e.g., "/home/user/project/" from "/home/user/project/config.json")
+        const directoryPath = filePath.substring(0, filePath.lastIndexOf('/') + 1)
+        
+        logToConsole(`File loaded from: ${filePath}`, 'info')
+        logToConsole(`Directory path: ${directoryPath}`, 'debug')
+        
+        return { config, directoryPath }
       }
+      
+      return null
+    } else {
+      // Browser mode - get file and directory handle
+      if (!('showOpenFilePicker' in window)) {
+        throw new Error('File System Access API is not supported in this browser')
+      }
+
+      const [fileHandle] = await window.showOpenFilePicker({
+        types: [{
+          description: 'JSON Files',
+          accept: { 'application/json': ['.json'] }
+        }]
+      })
+
+      const file = await fileHandle.getFile()
+      const text = await file.text()
+      const cleanedText = stripJsonComments(text)
+      const config = JSON.parse(cleanedText)
+      
+      let directoryHandle: FileSystemDirectoryHandle | null = null
+      
+      // Try to get parent directory (non-standard but works in some browsers)
+      if ('getParent' in fileHandle && typeof (fileHandle as any).getParent === 'function') {
+        try {
+          directoryHandle = await (fileHandle as any).getParent()
+        } catch (e) {
+          console.warn('Could not get parent directory:', e)
+        }
+      }
+      
+      // Fallback: use directory picker if parent access failed
+      if (!directoryHandle) {
+        logToConsole('Could not auto-detect directory. User will be prompted if needed.', 'debug')
+        // Return config without directory handle - will prompt later if needed
+        return { config, directoryHandle: undefined }
+      }
+      
+      logToConsole(`Config loaded with directory handle`, 'info')
+      return { config, directoryHandle }
     }
-    
-    // Fallback: use the directory picker API if available
-    if (!directoryHandle) {
-      // We need to store the directory handle - for now return the fileHandle
-      // The calling code can request directory access if needed
-      directoryHandle = fileHandle as any; // Will handle in calling code
-    }
-    
-    return { config, directoryHandle };
   } catch (error) {
     // If user cancels the file picker, return null instead of throwing
     if ((error as Error).name === 'AbortError') {
-      return null;
+      return null
     }
     
     // Re-throw other errors (parsing errors, file read errors, etc.)
-    throw error;
+    throw error
   }
-};
+}
 
 /**
  * Open file picker for CAD files (STEP, IGES, EGADS)
@@ -414,7 +445,8 @@ export const openCadFile = async (suggestedName?: string): Promise<File | null> 
       })
       
       if (filePath) {
-        const content = await readTextFile(filePath as string)
+        // Read as binary for STEP, IGES, EGADS files
+        const content = await readFile(filePath as string)
         // Create a File-like object for compatibility
         const fileName = (filePath as string).split('/').pop() || 'file'
         const blob = new Blob([content], { type: 'application/octet-stream' })
@@ -485,7 +517,8 @@ export const openCsmFile = async (): Promise<File | null> => {
       })
       
       if (filePath) {
-        const content = await readTextFile(filePath as string)
+        // CSM files can contain binary data, read as binary
+        const content = await readFile(filePath as string)
         const fileName = (filePath as string).split('/').pop() || 'file.csm'
         const blob = new Blob([content], { type: 'application/octet-stream' })
         const file = new File([blob], fileName, { type: 'application/octet-stream' })
@@ -546,10 +579,8 @@ export const openMeshFile = async (): Promise<File | null> => {
       })
       
       if (filePath) {
-        // For binary files like STL, OBJ, we need to read as binary
-        // But Tauri's readTextFile reads as UTF-8, so we'll create a blob with the text
-        // This is a limitation - ideally we'd use readBinaryFile but that requires additional setup
-        const content = await readTextFile(filePath as string)
+        // Read as binary for proper STL, OBJ, MESHB handling
+        const content = await readFile(filePath as string)
         const fileName = (filePath as string).split('/').pop() || 'mesh'
         const blob = new Blob([content], { type: 'application/octet-stream' })
         const file = new File([blob], fileName, { type: 'application/octet-stream' })
@@ -709,8 +740,22 @@ export const readDirectoryTauri = async (dirPath: string): Promise<FileTreeNode[
 export const readProjectFile = async (filePath: string): Promise<File | null> => {
   try {
     if (isTauri()) {
-      const content = await readTextFile(filePath)
       const fileName = filePath.split('/').pop() || 'file'
+      const ext = fileName.split('.').pop()?.toLowerCase() || ''
+      
+      // Determine if file should be read as binary or text
+      const binaryExtensions = ['stl', 'obj', 'meshb', 'step', 'stp', 'iges', 'igs', 'egads']
+      const isBinary = binaryExtensions.includes(ext)
+      
+      let content: Uint8Array | string
+      if (isBinary) {
+        // Read as binary for mesh and CAD files
+        content = await readFile(filePath)
+      } else {
+        // Read as text for JSON, CSM text files
+        content = await readTextFile(filePath)
+      }
+      
       const blob = new Blob([content], { type: 'application/octet-stream' })
       return new File([blob], fileName, { type: 'application/octet-stream' })
     } else {

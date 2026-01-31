@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle, type PanelImperativeHandle } from 'react-resizable-panels'
-import { open } from '@tauri-apps/plugin-dialog'
+import { open, save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 import TreePanel from './components/TreePanel/TreePanel'
 import EditorPanel from './components/EditorPanel/EditorPanel'
 import TagsPanel from './components/TagsPanel/TagsPanel'
@@ -167,136 +168,56 @@ function App() {
 
   const handleOpen = async () => {
     try {
-      // Open file picker and load JSON
-      const loadedConfig = await openJsonFile()
+      // Open file picker and load JSON with directory info
+      const { openJsonFileWithDirectory } = await import('./utils/fileUtils')
+      const result = await openJsonFileWithDirectory()
       
       // If user cancelled, do nothing
-      if (!loadedConfig) {
+      if (!result) {
         return
       }
       
-      // Check if config has mesh filename
-      const meshFilename = loadedConfig['mesh filename']
-      let meshLoaded = false
-      let showedLumpDialog = false
+      // Import unified config processor
+      const { processLoadedConfig } = await import('./utils/configLoader')
+      const { readProjectFile } = await import('./utils/fileUtils')
       
-      // Check if running in Tauri (directory picker not supported)
-      const isTauriEnv = '__TAURI_INTERNALS__' in window
+      const currentTags = useAppStore.getState().availableTags
+      const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
       
-      if (meshFilename && !isTauriEnv) {
-        // Browser mode: Prompt user to select the directory containing the config and mesh
-        const directoryHandle = await promptForDirectoryAccess()
+      // Use unified config processing logic with directory from loaded file
+      const { meshLoaded, showedLumpDialog } = await processLoadedConfig(result.config, {
+        isTauri: '__TAURI_INTERNALS__' in window,
+        projectFolderHandle: useAppStore.getState().projectFolderHandle,
         
-        if (directoryHandle) {
-          // Try to load mesh from the selected directory
-          meshLoaded = await loadMeshFromDirectory(
-            typeof meshFilename === 'string' ? meshFilename : meshFilename[0],
-            directoryHandle,
-            parseMeshFile,
-            loadMesh,
-            (parsedMesh, filename) => {
-              // Mesh has duplicates - will show lump dialog
-              // Store config to transform AFTER mesh actually loads
-              console.log('[App] Storing pending config to transform after lump dialog resolves')
-              showedLumpDialog = true
-              setPendingConfig(loadedConfig)
-              setPendingMesh({ parsedMesh, filename })
-              setShowLumpDialog(true)
-            }
-          )
-          
-          if (meshLoaded) {
-            console.log(`[App] Mesh "${meshFilename}" loaded automatically from selected directory`)
-          } else {
-            console.log(`[App] Mesh "${meshFilename}" not found in directory, will need to locate manually`)
-          }
-        }
+        // Pass directory info from loaded config file
+        configDirectoryPath: result.directoryPath,
+        configDirectoryHandle: result.directoryHandle,
         
-        // If user cancelled directory selection or mesh not found, they can load it later manually
-      } else if (meshFilename && isTauriEnv) {
-        // Tauri mode: Try to auto-load mesh from project folder
-        const { projectFolderHandle } = useAppStore.getState()
-        const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
+        onLoadCSM: async (file: File) => {
+          // Pass directory context to CSM loader so it can auto-load dependencies
+          await handleLoadCSMFile(file, {
+            directoryPath: result.directoryPath,
+            directoryHandle: result.directoryHandle
+          })
+        },
+        onLoadMesh: loadMesh,
+        onParseMesh: parseMeshFile,
+        onShowLumpDialog: (config, parsedMesh, filename) => {
+          setPendingConfig(config)
+          setPendingMesh({ parsedMesh, filename })
+          setShowLumpDialog(true)
+        },
+        onTransformAndSetConfig: (config) => {
+          const transformedConfig = transformLoadedConfig(config, currentTags, rootKey)
+          setConfigData(transformedConfig)
+        },
+        onLog: log,
         
-        if (projectFolderHandle && typeof projectFolderHandle === 'string') {
-          // Project folder is open in Tauri - try to auto-load mesh
-          console.log(`[App] Auto-loading mesh "${filename}" from project folder...`)
-          
-          const isCSM = filename.toLowerCase().endsWith('.csm')
-          
-          if (isCSM) {
-            // CSM file - load with ESP server
-            try {
-              const { readProjectFile } = await import('./utils/fileUtils')
-              const meshPath = `${projectFolderHandle}/${filename}`
-              const csmFile = await readProjectFile(meshPath)
-              
-              if (csmFile) {
-                await handleLoadCSM(csmFile)
-                meshLoaded = true
-                log('Config', 'success', `CSM "${filename}" loaded automatically from project folder`)
-              } else {
-                log('Config', 'warning', `CSM "${filename}" not found in project folder`)
-              }
-            } catch (error) {
-              console.log(`[App] Failed to load CSM "${filename}":`, error)
-              log('Config', 'info', `Use File → Open CSM to load "${filename}"`)
-            }
-          } else {
-            // Regular mesh file - load with mesh parser  
-            try {
-              const { readProjectFile } = await import('./utils/fileUtils')
-              const meshPath = `${projectFolderHandle}/${filename}`
-              const meshFile = await readProjectFile(meshPath)
-              
-              if (meshFile) {
-                const parsedMesh = await parseMeshFile(meshFile)
-                
-                // Check for duplicate tag names
-                const tagNames = new Set<string>()
-                const hasDuplicates = parsedMesh.regions.some(r => {
-                  if (tagNames.has(r.tagName)) return true
-                  tagNames.add(r.tagName)
-                  return false
-                })
-                
-                if (hasDuplicates) {
-                  showedLumpDialog = true
-                  setPendingConfig(loadedConfig)
-                  setPendingMesh({ parsedMesh, filename })
-                  setShowLumpDialog(true)
-                } else {
-                  loadMesh(parsedMesh, filename, false)
-                  meshLoaded = true
-                }
-                
-                log('Config', 'success', `Mesh "${filename}" loaded automatically from project folder`)
-              } else {
-                log('Config', 'warning', `Mesh "${filename}" not found in project folder`)
-              }
-            } catch (error) {
-              console.log(`[App] Failed to load mesh "${filename}":`, error)
-              log('Config', 'info', `Use File → Load Mesh to load "${filename}"`)
-            }
-          }
-        } else {
-          // No project folder open
-          log('Config', 'info', `Config references "${filename}". Open project folder or use File → Load Mesh`)
-        }
-      }
+        readProjectFile,
+        promptForDirectory: promptForDirectoryAccess
+      })
       
-      // If mesh was loaded directly (no lump dialog), transform and set config now
-      // If lump dialog was shown, this will be handled in handleLumpChoice
-      if (!showedLumpDialog) {
-        const currentTags = useAppStore.getState().availableTags
-        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-        console.log('[App] Transforming config with tags:', currentTags.length)
-        console.log('[App] Available tag numbers and names:', currentTags.map(s => `${s.metadata.tagName}=${s.metadata.tag}`))
-        const transformedConfig = transformLoadedConfig(loadedConfig, currentTags, rootKey)
-        setConfigData(transformedConfig)
-        console.log('[App] Transformed BCs:', transformedConfig['boundary conditions'])
-        console.log('Configuration loaded successfully')
-      } else {
+      if (showedLumpDialog) {
         console.log('[App] Config transformation deferred until after lump dialog')
       }
     } catch (error) {
@@ -546,69 +467,62 @@ function App() {
       const text = await file.text()
       const json = JSON.parse(text)
       
-      // Check if config has mesh filename and project folder is open
-      const meshFilename = json['mesh filename']
-      const { projectFolderHandle } = useAppStore.getState()
-      let meshLoaded = false
-      let showedLumpDialog = false
+      // Import unified config processor
+      const { processLoadedConfig } = await import('./utils/configLoader')
+      const { readProjectFile } = await import('./utils/fileUtils')
       
-      if (meshFilename && projectFolderHandle) {
-        // Try to auto-load mesh from project folder
-        const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
-        console.log(`[App] Auto-loading mesh "${filename}" from project folder...`)
-        
-        // Check if this is a CSM file (needs ESP server)
-        const isCSM = filename.toLowerCase().endsWith('.csm')
-        
-        if (isCSM) {
-          // CSM file - use ESP server
-          try {
-            const csmHandle = await projectFolderHandle.getFileHandle(filename)
-            await handleLoadCSMFromHandle(csmHandle)
-            meshLoaded = true
-            // CSM loads tags directly, transform config now
-            const currentTags = useAppStore.getState().availableTags
-            const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-            const transformedConfig = transformLoadedConfig(json, currentTags, rootKey)
-            setConfigData(transformedConfig)
-            console.log(`[App] CSM "${filename}" loaded automatically from project folder`)
-          } catch (error) {
-            console.log(`[App] CSM "${filename}" not found in project folder`)
-          }
-        } else {
-          // Regular mesh file - use mesh parser
-          meshLoaded = await loadMeshFromDirectory(
-            filename,
-            projectFolderHandle,
-            parseMeshFile,
-            loadMesh,
-            (parsedMesh, meshName) => {
-              // Mesh has duplicates - will show lump dialog
-              showedLumpDialog = true
-              setPendingConfig(json)
-              setPendingMesh({ parsedMesh, filename: meshName })
-              setShowLumpDialog(true)
-            }
-          )
-          
-          if (meshLoaded) {
-            console.log(`[App] Mesh "${filename}" loaded automatically from project folder`)
-          } else {
-            console.log(`[App] Mesh "${filename}" not found in project folder`)
-          }
-        }
+      const currentTags = useAppStore.getState().availableTags
+      const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+      const projectFolder = useAppStore.getState().projectFolderHandle
+      const isTauriMode = '__TAURI_INTERNALS__' in window
+      
+      // When loading from project folder, use project folder as config directory
+      // This ensures mesh/CSM files are auto-loaded from the same folder
+      let configDirectoryPath: string | undefined
+      let configDirectoryHandle: FileSystemDirectoryHandle | undefined
+      
+      if (isTauriMode && typeof projectFolder === 'string') {
+        // Tauri mode: project folder is a path string
+        configDirectoryPath = projectFolder
+      } else if (!isTauriMode && projectFolder && typeof projectFolder !== 'string') {
+        // Browser mode: project folder is a FileSystemDirectoryHandle
+        configDirectoryHandle = projectFolder as FileSystemDirectoryHandle
       }
       
-      // If mesh was loaded directly (no lump dialog), transform and set config now
-      // If lump dialog was shown, this will be handled in handleLumpChoice
-      // Note: CSM files handle transformation above since they load synchronously
-      if (!showedLumpDialog && !meshLoaded) {
-        const currentTags = useAppStore.getState().availableTags
-        const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
-        const transformedConfig = transformLoadedConfig(json, currentTags, rootKey)
-        setConfigData(transformedConfig)
-        console.log('[App] Config loaded successfully')
-      } else if (showedLumpDialog) {
+      // Use unified config processing logic
+      const { meshLoaded, showedLumpDialog } = await processLoadedConfig(json, {
+        isTauri: isTauriMode,
+        projectFolderHandle: projectFolder,
+        
+        // Pass config directory info (same as project folder when loading from project panel)
+        configDirectoryPath,
+        configDirectoryHandle,
+        
+        onLoadCSM: async (file: File) => {
+          // Pass directory context to CSM loader so it can auto-load dependencies
+          await handleLoadCSMFile(file, {
+            directoryPath: configDirectoryPath,
+            directoryHandle: configDirectoryHandle
+          })
+        },
+        onLoadMesh: loadMesh,
+        onParseMesh: parseMeshFile,
+        onShowLumpDialog: (config, parsedMesh, filename) => {
+          setPendingConfig(config)
+          setPendingMesh({ parsedMesh, filename })
+          setShowLumpDialog(true)
+        },
+        onTransformAndSetConfig: (config) => {
+          const transformedConfig = transformLoadedConfig(config, currentTags, rootKey)
+          setConfigData(transformedConfig)
+        },
+        onLog: log,
+        
+        readProjectFile,
+        promptForDirectory: promptForDirectoryAccess
+      })
+      
+      if (showedLumpDialog) {
         console.log('[App] Config transformation deferred until after lump dialog')
       }
     } catch (error) {
@@ -652,9 +566,16 @@ function App() {
     }
   }
 
-  // Wrapper for loading CSM from FileSystemFileHandle with auto-dependency loading
-  const handleLoadCSMFromHandle = async (handle: FileSystemFileHandle) => {
-    console.log('[App] Load CSM from handle clicked')
+  // Core CSM loading logic that accepts a File and auto-loads dependencies
+  // Accepts optional directory context for auto-loading dependencies
+  const handleLoadCSMFile = async (
+    file: File, 
+    directoryContext?: { 
+      directoryPath?: string,  // Tauri: absolute path
+      directoryHandle?: FileSystemDirectoryHandle  // Browser: directory handle
+    }
+  ) => {
+    console.log('[App] Loading CSM file:', file.name)
     
     try {
       log('ESP', 'info', 'Checking ESP server health...')
@@ -668,9 +589,7 @@ function App() {
       }
       
       log('ESP', 'success', 'ESP server is ready')
-      
-      const file = await handle.getFile()
-      log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
+      log('Geometry', 'success', `Loading CSM: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
       
       // Read file contents
       const csmContent = await file.text()
@@ -680,7 +599,12 @@ function App() {
       const { parseCSMImports } = await import('./utils/csmParser')
       const imports = parseCSMImports(csmContent)
       
+      // Determine directory source for auto-loading dependencies
+      // Priority: 1) passed directory context, 2) project folder from store
       const { projectFolderHandle } = useAppStore.getState()
+      const directoryPath = directoryContext?.directoryPath || (typeof projectFolderHandle === 'string' ? projectFolderHandle : undefined)
+      const directoryHandle = directoryContext?.directoryHandle || (projectFolderHandle && typeof projectFolderHandle !== 'string' ? projectFolderHandle as FileSystemDirectoryHandle : undefined)
+      
       let response
       
       if (imports.length > 0) {
@@ -695,14 +619,14 @@ function App() {
         for (const importPath of imports) {
           let loaded = false
           
-          // Try auto-loading from project folder first
-          if (projectFolderHandle) {
+          // Try auto-loading from directory context (config dir or project folder)
+          if (directoryPath || directoryHandle) {
             try {
               log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
               
-              if (isTauri() && typeof projectFolderHandle === 'string') {
+              if (isTauri() && directoryPath) {
                 // Tauri mode: construct absolute path
-                const depPath = `${projectFolderHandle}/${importPath}`
+                const depPath = `${directoryPath}/${importPath}`
                 log('Geometry', 'info', `Tauri mode - trying to load: ${depPath}`)
                 const depFile = await readProjectFile(depPath)
                 
@@ -713,10 +637,10 @@ function App() {
                 } else {
                   log('Geometry', 'warning', `readProjectFile returned null for ${depPath}`)
                 }
-              } else {
+              } else if (directoryHandle) {
                 // Browser mode: use FileSystemFileHandle API
                 log('Geometry', 'info', `Browser mode - using FileSystemFileHandle`)
-                const depHandle = await (projectFolderHandle as FileSystemDirectoryHandle).getFileHandle(importPath)
+                const depHandle = await directoryHandle.getFileHandle(importPath)
                 const depFile = await depHandle.getFile()
                 dependencies.set(importPath, depFile)
                 log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
@@ -832,6 +756,12 @@ function App() {
       log('Geometry', 'error', `Failed to load CSM: ${(error as Error).message}`)
       console.error('[App] Error loading CSM:', error)
     }
+  }
+
+  // Wrapper for loading CSM from FileSystemFileHandle with auto-dependency loading
+  const handleLoadCSMFromHandle = async (handle: FileSystemFileHandle) => {
+    const file = await handle.getFile()
+    await handleLoadCSMFile(file)
   }
 
   const handleLoadCSM = async () => {
@@ -1033,26 +963,30 @@ function App() {
       console.log('[App] Operations:', csmBuilder.getOperationCount())
       console.log('[App] Operation summary:\n', csmBuilder.getSummary())
       
-      // Use File System Access API to show save dialog
-      const handle = await window.showSaveFilePicker({
-        suggestedName: csmFilename || 'exported.csm',
-        types: [{
-          description: 'CSM Files',
-          accept: { 'application/octet-stream': ['.csm'] }
+      // Use Tauri native save dialog
+      const filePath = await save({
+        defaultPath: csmFilename || 'exported.csm',
+        filters: [{
+          name: 'CSM Files',
+          extensions: ['csm']
         }]
       })
       
+      if (!filePath) {
+        console.log('[App] Export cancelled by user')
+        return
+      }
+      
       // Write the generated content
-      const writable = await handle.createWritable()
-      await writable.write(generatedCSM)
-      await writable.close()
+      await writeTextFile(filePath, generatedCSM)
       
       // Mark mesh as no longer needing export
       setMeshNeedsExport(false)
       
-      console.log('[App] CSM exported successfully as:', handle.name)
+      const fileName = filePath.split('/').pop() || filePath
+      console.log('[App] CSM exported successfully to:', filePath)
       console.log('[App] Generated CSM preview:\n', generatedCSM.slice(0, 500) + '...')
-      alert(`CSM file saved successfully as ${handle.name}\n\nOperations recorded: ${csmBuilder.getOperationCount()}`)
+      alert(`CSM file saved successfully as ${fileName}\n\nOperations recorded: ${csmBuilder.getOperationCount()}`)
     } catch (error) {
       if ((error as any).name === 'AbortError') {
         console.log('[App] Export cancelled by user')

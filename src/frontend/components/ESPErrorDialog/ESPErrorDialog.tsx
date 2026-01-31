@@ -1,4 +1,6 @@
 import React from 'react'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 import './ESPErrorDialog.css'
 
 interface ESPErrorDialogProps {
@@ -19,22 +21,25 @@ const ESPErrorDialog: React.FC<ESPErrorDialogProps> = ({
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const filename = `esp-error-${timestamp}.log`
       
-      const blob = new Blob([errorLog], { type: 'text/plain' })
-      const handle = await window.showSaveFilePicker({
-        suggestedName: filename,
-        types: [
+      // Use Tauri native save dialog
+      const filePath = await save({
+        defaultPath: filename,
+        filters: [
           {
-            description: 'Log Files',
-            accept: { 'text/plain': ['.log', '.txt'] }
+            name: 'Log Files',
+            extensions: ['log', 'txt']
           }
         ]
       })
       
-      const writable = await handle.createWritable()
-      await writable.write(blob)
-      await writable.close()
+      if (!filePath) {
+        console.log('[ESPErrorDialog] Save cancelled by user')
+        return
+      }
       
-      console.log('[ESPErrorDialog] Log saved to', filename)
+      await writeTextFile(filePath, errorLog)
+      
+      console.log('[ESPErrorDialog] Log saved to', filePath)
       onClose()
     } catch (error) {
       if ((error as any).name !== 'AbortError') {

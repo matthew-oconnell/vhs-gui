@@ -54,6 +54,21 @@ int main(int argc, char* argv[]) {
     // Create HTTP server
     httplib::Server svr;
     
+    // CORS middleware - allow all origins for Tauri compatibility
+    svr.set_pre_routing_handler([](const httplib::Request& req, httplib::Response& res) {
+        res.set_header("Access-Control-Allow-Origin", "*");
+        res.set_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+        res.set_header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+        
+        // Handle OPTIONS preflight requests
+        if (req.method == "OPTIONS") {
+            res.status = 204; // No Content
+            return httplib::Server::HandlerResponse::Handled;
+        }
+        
+        return httplib::Server::HandlerResponse::Unhandled;
+    });
+    
     // Health check endpoint
     svr.Get("/api/health", [](const httplib::Request&, httplib::Response& res) {
         res.set_content(

@@ -29,6 +29,27 @@ function getNodeFileType(node: FileTreeNode): string {
   return 'file'
 }
 
+// Get file type category for context menu actions
+function getFileCategory(node: FileTreeNode): 'config' | 'mesh' | 'cad' | null {
+  if ('fileType' in node) {
+    // Browser node with explicit fileType
+    if (node.fileType === 'config') return 'config'
+    if (node.fileType === 'mesh') return 'mesh'
+    if (node.fileType === 'cad') return 'cad'
+    return null
+  }
+  
+  // Tauri node - determine from extension
+  if ('name' in node) {
+    const name = node.name.toLowerCase()
+    if (name.endsWith('.json')) return 'config'
+    if (name.endsWith('.stl') || name.endsWith('.vtk') || name.endsWith('.vtu') || name.endsWith('.meshb')) return 'mesh'
+    if (name.endsWith('.step') || name.endsWith('.stp') || name.endsWith('.iges') || name.endsWith('.igs') || name.endsWith('.csm')) return 'cad'
+  }
+  
+  return null
+}
+
 interface ProjectFolderPanelProps {
   panelRef: RefObject<PanelImperativeHandle>
   onLoadConfig?: (fileHandle: FileSystemFileHandle) => Promise<void>
@@ -274,7 +295,7 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM }: P
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          {contextMenu.node.fileType === 'config' && (
+          {getFileCategory(contextMenu.node) === 'config' && (
             <div 
               className="context-menu-item"
               onClick={() => handleContextMenuAction('load-config', contextMenu.node!)}
@@ -282,7 +303,7 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM }: P
               Load Configuration
             </div>
           )}
-          {contextMenu.node.fileType === 'mesh' && (
+          {getFileCategory(contextMenu.node) === 'mesh' && (
             <div 
               className="context-menu-item"
               onClick={() => handleContextMenuAction('load-mesh', contextMenu.node!)}
@@ -290,7 +311,7 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM }: P
               Load Mesh
             </div>
           )}
-          {contextMenu.node.fileType === 'cad' && (
+          {getFileCategory(contextMenu.node) === 'cad' && (
             <div 
               className="context-menu-item"
               onClick={() => handleContextMenuAction('load-csm', contextMenu.node!)}

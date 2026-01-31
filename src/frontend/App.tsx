@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle, type PanelImperativeHandle } from 'react-resizable-panels'
+import { open } from '@tauri-apps/plugin-dialog'
 import TreePanel from './components/TreePanel/TreePanel'
 import EditorPanel from './components/EditorPanel/EditorPanel'
 import TagsPanel from './components/TagsPanel/TagsPanel'
@@ -18,7 +19,7 @@ import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
 import { useAppStore } from './store/appStore'
 import { useConsoleStore } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
-import { saveJsonFile, openJsonFile, promptForDirectoryAccess } from './utils/fileUtils'
+import { saveJsonFile, openJsonFile, promptForDirectoryAccess, openCadFile, openCsmFile, openProjectFolder as pickProjectFolder } from './utils/fileUtils'
 import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
@@ -139,21 +140,27 @@ function App() {
 
   const handleOpenProjectFolder = async () => {
     try {
-      if (!('showDirectoryPicker' in window)) {
-        alert('Directory Picker API not supported in this browser')
-        return
-      }
-
-      const handle = await window.showDirectoryPicker({
-        mode: 'readwrite'
-      })
-
+      const { log } = useConsoleStore.getState()
       const { openProjectFolder } = useAppStore.getState()
-      openProjectFolder(handle)
+      
+      // Use the dual-mode helper from fileUtils
+      const folderHandle = await pickProjectFolder()
+      
+      if (folderHandle) {
+        // Store the handle (string path for Tauri, DirectoryHandle for browser)
+        openProjectFolder(folderHandle)
+        
+        const folderName = typeof folderHandle === 'string' 
+          ? folderHandle.split('/').pop() || folderHandle
+          : folderHandle.name
+        
+        log(`Opened project folder: ${folderName}`, 'DEBUG', 'info')
+      }
     } catch (error) {
       // User cancelled or error
       if ((error as Error).name !== 'AbortError') {
-        console.error('Error opening project folder:', error)
+        const { log } = useConsoleStore.getState()
+        log(`Error opening project folder: ${error}`, 'DEBUG', 'error')
       }
     }
   }
@@ -173,8 +180,11 @@ function App() {
       let meshLoaded = false
       let showedLumpDialog = false
       
-      if (meshFilename) {
-        // Prompt user to select the directory containing the config and mesh
+      // Check if running in Tauri (directory picker not supported)
+      const isTauriEnv = '__TAURI_INTERNALS__' in window
+      
+      if (meshFilename && !isTauriEnv) {
+        // Browser mode: Prompt user to select the directory containing the config and mesh
         const directoryHandle = await promptForDirectoryAccess()
         
         if (directoryHandle) {
@@ -203,6 +213,10 @@ function App() {
         }
         
         // If user cancelled directory selection or mesh not found, they can load it later manually
+      } else if (meshFilename && isTauriEnv) {
+        // Tauri mode: Skip directory picker (not supported), user loads mesh separately
+        console.log(`[App] Config references mesh "${meshFilename}", but Tauri mode doesn't support directory picker. Load mesh via File -> Load Mesh.`)
+        log('Config', 'info', `Config loaded. Use File → Load Mesh to load "${meshFilename}"`)
       }
       
       // If mesh was loaded directly (no lump dialog), transform and set config now
@@ -631,21 +645,19 @@ function App() {
             try {
               log('Geometry', 'info', `Waiting for: ${importPath}`)
               
-              const [depHandle] = await window.showOpenFilePicker({
-                types: [{
-                  description: `CSM Dependency: ${importPath}`,
-                  accept: { 
-                    'application/stp': ['.stp', '.step'],
-                    'application/iges': ['.igs', '.iges'],
-                    'application/octet-stream': ['.egads'],
-                    '*/*': []
-                  }
-                }],
-                suggestedName: importPath,
-                multiple: false
-              })
+              const depFile = await openCadFile(importPath)
               
-              const depFile = await depHandle.getFile()
+              if (!depFile) {
+                log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
+                alert(
+                  `Missing Required File\n\n` +
+                  `The CSM file needs: ${importPath}\n\n` +
+                  `Without this file, the geometry cannot be loaded.\n` +
+                  `Cancelling CSM load.`
+                )
+                return
+              }
+              
               log('Geometry', 'success', `Loaded: ${depFile.name} (${depFile.size} bytes)`)
               
               // Use the import path as the key (preserves relative path semantics)
@@ -753,14 +765,12 @@ function App() {
       log('Geometry', 'info', 'Opening file picker for CSM file...')
       
       // Open file picker for .csm files
-      const [fileHandle] = await window.showOpenFilePicker({
-        types: [{
-          description: 'CSM Files',
-          accept: { 'application/octet-stream': ['.csm'] }
-        }]
-      })
+      const file = await openCsmFile()
+      if (!file) {
+        log('Geometry', 'info', 'User cancelled CSM file selection')
+        return
+      }
       
-      const file = await fileHandle.getFile()
       log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
       
       // Read file contents
@@ -796,21 +806,19 @@ function App() {
           try {
             log('Geometry', 'info', `Waiting for: ${importPath}`)
             
-            const [depHandle] = await window.showOpenFilePicker({
-              types: [{
-                description: `CSM Dependency: ${importPath}`,
-                accept: { 
-                  'application/stp': ['.stp', '.step'],
-                  'application/iges': ['.igs', '.iges'],
-                  'application/octet-stream': ['.egads'],
-                  '*/*': []
-                }
-              }],
-              suggestedName: importPath,
-              multiple: false
-            })
+            const depFile = await openCadFile(importPath)
             
-            const depFile = await depHandle.getFile()
+            if (!depFile) {
+              log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
+              alert(
+                `Missing Required File\n\n` +
+                `The CSM file needs: ${importPath}\n\n` +
+                `Without this file, the geometry cannot be loaded.\n` +
+                `Cancelling CSM load.`
+              )
+              return
+            }
+            
             log('Geometry', 'success', `Loaded: ${depFile.name} (${depFile.size} bytes)`)
             
             // Use the import path as the key (preserves relative path semantics)
@@ -988,17 +996,12 @@ function App() {
       log('Geometry', 'info', 'Opening file picker...')
       
       // Open file picker for STEP files
-      const [fileHandle] = await window.showOpenFilePicker({
-        types: [{
-          description: 'STEP Files',
-          accept: { 
-            'application/step': ['.step', '.stp'],
-            'application/octet-stream': ['.step', '.stp']
-          }
-        }]
-      })
+      const file = await openCadFile()
+      if (!file) {
+        log('Geometry', 'info', 'User cancelled STEP file selection')
+        return
+      }
       
-      const file = await fileHandle.getFile()
       log('Geometry', 'success', `Selected: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`)
       setImportedGeometryFile(file)
       
@@ -1278,21 +1281,14 @@ subtract
             try {
               log('Geometry', 'info', `Waiting for: ${importPath}`)
               
-              const [depHandle] = await window.showOpenFilePicker({
-                types: [{
-                  description: `CSM Dependency: ${importPath}`,
-                  accept: { 
-                    'application/stp': ['.stp', '.step'],
-                    'application/iges': ['.igs', '.iges'],
-                    'application/octet-stream': ['.egads'],
-                    '*/*': []
-                  }
-                }],
-                suggestedName: importPath,
-                multiple: false
-              })
+              const depFile = await openCadFile(importPath)
               
-              const depFile = await depHandle.getFile()
+              if (!depFile) {
+                log('Geometry', 'warning', `User cancelled dependency selection: ${importPath}`)
+                alert(`Missing dependency: ${importPath}\n\nCannot rebuild geometry without all dependencies.`)
+                return
+              }
+              
               log('Geometry', 'success', `Loaded: ${depFile.name}`)
               dependencies.set(importPath, depFile)
               

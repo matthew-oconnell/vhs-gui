@@ -182,9 +182,9 @@ interface AppState {
   originalCSMContent: string | null
   csmFilename: string | null
   
-  // Project folder
-  projectFolderHandle: FileSystemDirectoryHandle | null
-  openProjectFolder: (handle: FileSystemDirectoryHandle) => void
+  // Project folder (supports both Tauri paths and browser handles)
+  projectFolderHandle: string | FileSystemDirectoryHandle | null
+  openProjectFolder: (handle: string | FileSystemDirectoryHandle) => void
   closeProjectFolder: () => void
 }
 

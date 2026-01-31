@@ -8,6 +8,7 @@
 
 import { uploadAndConvertMesh } from './backendApi'
 import { convertBackendMeshToInternal } from './meshAdapter'
+import { openMeshFile } from './fileUtils'
 
 export interface MeshData {
   vertices: Float32Array
@@ -55,22 +56,5 @@ export const parseMeshFile = async (file: File): Promise<ParsedMesh> => {
  */
 export const pickMeshFile = async (): Promise<File | null> => {
   console.log('[Mesh Parser] Opening file picker')
-  return new Promise((resolve) => {
-    const input = document.createElement('input')
-    input.type = 'file'
-    input.accept = '.stl,.obj,.meshb,.egads,.csm'
-    
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0]
-      console.log('[Mesh Parser] File selected:', file?.name || 'none')
-      resolve(file || null)
-    }
-    
-    input.oncancel = () => {
-      console.log('[Mesh Parser] File picker cancelled')
-      resolve(null)
-    }
-    
-    input.click()
-  })
+  return openMeshFile()
 }

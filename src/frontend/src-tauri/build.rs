@@ -1,3 +1,68 @@
+use std::env;
+use std::path::PathBuf;
+
 fn main() {
+  // Link ESP libraries
+  link_esp_libraries();
+  
+  // Standard Tauri build
   tauri_build::build()
+}
+
+fn link_esp_libraries() {
+    // Get project root (3 levels up from src-tauri)
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let project_root = PathBuf::from(&manifest_dir)
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .to_path_buf();
+    
+    let esp_root = project_root.join("third-party/ESP128/EngSketchPad");
+    let occ_root = project_root.join("third-party/ESP128/OpenCASCADE-7.8.1");
+    
+    let esp_lib = esp_root.join("lib");
+    let occ_lib = occ_root.join("lib");
+    
+    // Check if ESP is installed
+    if !esp_lib.exists() {
+        println!("cargo:warning=ESP libraries not found at {:?}", esp_lib);
+        println!("cargo:warning=Skipping ESP linking. Install ESP to enable geometry features.");
+        return;
+    }
+    
+    println!("cargo:rerun-if-changed=src/esp_ffi.rs");
+    println!("cargo:rerun-if-changed=src/esp_commands.rs");
+    
+    // Add library search paths
+    println!("cargo:rustc-link-search=native={}", esp_lib.display());
+    println!("cargo:rustc-link-search=native={}", occ_lib.display());
+    
+    // Link ESP libraries
+    println!("cargo:rustc-link-lib=dylib=ocsm");
+    println!("cargo:rustc-link-lib=dylib=egads");
+    
+    // Link OpenCASCADE libraries (required by EGADS)
+    let occ_libs = [
+        "TKernel", "TKMath", "TKG2d", "TKG3d",
+        "TKGeomBase", "TKGeomAlgo",
+        "TKBRep", "TKTopAlgo",
+        "TKPrim", "TKBool", "TKBO",
+        "TKFillet", "TKOffset", "TKShHealing",
+        "TKDESTEP", "TKDEIGES",
+    ];
+    
+    for lib in &occ_libs {
+        println!("cargo:rustc-link-lib=dylib={}", lib);
+    }
+    
+    // System libraries
+    println!("cargo:rustc-link-lib=dylib=pthread");
+    println!("cargo:rustc-link-lib=dylib=dl");
+    println!("cargo:rustc-link-lib=dylib=m");
+    
+    // Set RPATH so executable can find libraries at runtime
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", esp_lib.display());
+    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", occ_lib.display());
 }

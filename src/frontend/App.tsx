@@ -214,9 +214,75 @@ function App() {
         
         // If user cancelled directory selection or mesh not found, they can load it later manually
       } else if (meshFilename && isTauriEnv) {
-        // Tauri mode: Skip directory picker (not supported), user loads mesh separately
-        console.log(`[App] Config references mesh "${meshFilename}", but Tauri mode doesn't support directory picker. Load mesh via File -> Load Mesh.`)
-        log('Config', 'info', `Config loaded. Use File → Load Mesh to load "${meshFilename}"`)
+        // Tauri mode: Try to auto-load mesh from project folder
+        const { projectFolderHandle } = useAppStore.getState()
+        const filename = typeof meshFilename === 'string' ? meshFilename : meshFilename[0]
+        
+        if (projectFolderHandle && typeof projectFolderHandle === 'string') {
+          // Project folder is open in Tauri - try to auto-load mesh
+          console.log(`[App] Auto-loading mesh "${filename}" from project folder...`)
+          
+          const isCSM = filename.toLowerCase().endsWith('.csm')
+          
+          if (isCSM) {
+            // CSM file - load with ESP server
+            try {
+              const { readProjectFile } = await import('./utils/fileUtils')
+              const meshPath = `${projectFolderHandle}/${filename}`
+              const csmFile = await readProjectFile(meshPath)
+              
+              if (csmFile) {
+                await handleLoadCSM(csmFile)
+                meshLoaded = true
+                log('Config', 'success', `CSM "${filename}" loaded automatically from project folder`)
+              } else {
+                log('Config', 'warning', `CSM "${filename}" not found in project folder`)
+              }
+            } catch (error) {
+              console.log(`[App] Failed to load CSM "${filename}":`, error)
+              log('Config', 'info', `Use File → Open CSM to load "${filename}"`)
+            }
+          } else {
+            // Regular mesh file - load with mesh parser  
+            try {
+              const { readProjectFile } = await import('./utils/fileUtils')
+              const meshPath = `${projectFolderHandle}/${filename}`
+              const meshFile = await readProjectFile(meshPath)
+              
+              if (meshFile) {
+                const parsedMesh = await parseMeshFile(meshFile)
+                
+                // Check for duplicate tag names
+                const tagNames = new Set<string>()
+                const hasDuplicates = parsedMesh.regions.some(r => {
+                  if (tagNames.has(r.tagName)) return true
+                  tagNames.add(r.tagName)
+                  return false
+                })
+                
+                if (hasDuplicates) {
+                  showedLumpDialog = true
+                  setPendingConfig(loadedConfig)
+                  setPendingMesh({ parsedMesh, filename })
+                  setShowLumpDialog(true)
+                } else {
+                  loadMesh(parsedMesh, filename, false)
+                  meshLoaded = true
+                }
+                
+                log('Config', 'success', `Mesh "${filename}" loaded automatically from project folder`)
+              } else {
+                log('Config', 'warning', `Mesh "${filename}" not found in project folder`)
+              }
+            } catch (error) {
+              console.log(`[App] Failed to load mesh "${filename}":`, error)
+              log('Config', 'info', `Use File → Load Mesh to load "${filename}"`)
+            }
+          }
+        } else {
+          // No project folder open
+          log('Config', 'info', `Config references "${filename}". Open project folder or use File → Load Mesh`)
+        }
       }
       
       // If mesh was loaded directly (no lump dialog), transform and set config now
@@ -620,6 +686,9 @@ function App() {
       if (imports.length > 0) {
         log('Geometry', 'info', `Found ${imports.length} dependencies: ${imports.join(', ')}`)
         
+        // Import utilities
+        const { isTauri, readProjectFile } = await import('./utils/fileUtils')
+        
         // Prompt user for each dependency file
         const dependencies = new Map<string, File>()
         
@@ -630,13 +699,31 @@ function App() {
           if (projectFolderHandle) {
             try {
               log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
-              const depHandle = await projectFolderHandle.getFileHandle(importPath)
-              const depFile = await depHandle.getFile()
-              dependencies.set(importPath, depFile)
-              log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
-              loaded = true
+              
+              if (isTauri() && typeof projectFolderHandle === 'string') {
+                // Tauri mode: construct absolute path
+                const depPath = `${projectFolderHandle}/${importPath}`
+                log('Geometry', 'info', `Tauri mode - trying to load: ${depPath}`)
+                const depFile = await readProjectFile(depPath)
+                
+                if (depFile) {
+                  dependencies.set(importPath, depFile)
+                  log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
+                  loaded = true
+                } else {
+                  log('Geometry', 'warning', `readProjectFile returned null for ${depPath}`)
+                }
+              } else {
+                // Browser mode: use FileSystemFileHandle API
+                log('Geometry', 'info', `Browser mode - using FileSystemFileHandle`)
+                const depHandle = await (projectFolderHandle as FileSystemDirectoryHandle).getFileHandle(importPath)
+                const depFile = await depHandle.getFile()
+                dependencies.set(importPath, depFile)
+                log('Geometry', 'success', `Auto-loaded: ${depFile.name} (${depFile.size} bytes)`)
+                loaded = true
+              }
             } catch (error) {
-              log('Geometry', 'warning', `Could not auto-load ${importPath}`)
+              log('Geometry', 'error', `Failed to auto-load ${importPath}: ${error}`)
             }
           }
           

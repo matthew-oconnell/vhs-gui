@@ -124,6 +124,22 @@
   animation: ready-pulse 2s ease-in-out infinite;
 }
 
+.status-bar-ready-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-bar-ready-clickable:hover {
+  background-color: #2d5a2f;
+  border-color: #3d6a3f;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.status-bar-ready-clickable:active {
+  transform: translateY(0);
+}
+
 @keyframes ready-pulse {
   0%, 100% {
     opacity: 1;

@@ -23,6 +23,7 @@ interface StatusBarProps {
   onOpenInitializationWizard?: () => void
   onOpenTimeAccuracyWizard?: () => void
   onOpenVisualizationWizard?: () => void
+  onSaveConfig?: () => void
 }
 
 function StatusBar({ 
@@ -30,7 +31,8 @@ function StatusBar({
   onOpenTurbulenceWizard,
   onOpenInitializationWizard,
   onOpenTimeAccuracyWizard,
-  onOpenVisualizationWizard
+  onOpenVisualizationWizard,
+  onSaveConfig
 }: StatusBarProps = {}) {
   const { 
     availableTags,
@@ -213,7 +215,13 @@ function StatusBar({
       </div>
       
       {allComplete && (
-        <div className="status-bar-ready">
+        <div 
+          className="status-bar-ready status-bar-ready-clickable"
+          onClick={onSaveConfig}
+          role="button"
+          tabIndex={0}
+          title="Save configuration file"
+        >
           <Check size={16} />
           <span>Ready to run!</span>
         </div>

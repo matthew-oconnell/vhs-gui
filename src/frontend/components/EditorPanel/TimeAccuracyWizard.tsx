@@ -23,9 +23,9 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
   const [subiterationTolerance, setSubiterationTolerance] = useState(1e-3)
   
   // Common settings
-  const [startingCfl, setStartingCfl] = useState(1.0)
-  const [cflMin, setCflMin] = useState(1e-3)
-  const [cflMax, setCflMax] = useState(1e6)
+  const [startingCfl, setStartingCfl] = useState('1.0')
+  const [cflMin, setCflMin] = useState('1e-3')
+  const [cflMax, setCflMax] = useState('1e6')
   const [steps, setSteps] = useState(1000)
   
   // Advanced options
@@ -39,9 +39,9 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
       order,
       subiterations,
       subiterationTolerance,
-      startingCfl,
-      cflMin,
-      cflMax,
+      startingCfl: parseFloat(startingCfl) || 1.0,
+      cflMin: parseFloat(cflMin) || 1e-3,
+      cflMax: parseFloat(cflMax) || 1e6,
       steps
     }
     
@@ -133,11 +133,10 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
               <div className="form-group">
                 <label>Starting CFL</label>
                 <input
-                  type="number"
+                  type="text"
                   value={startingCfl}
-                  onChange={(e) => setStartingCfl(parseFloat(e.target.value))}
-                  step="0.1"
-                  min="0"
+                  onChange={(e) => setStartingCfl(e.target.value)}
+                  placeholder="e.g., 1.0 or 1.0e-3"
                 />
               </div>
 
@@ -145,21 +144,19 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
                 <div className="form-group">
                   <label>Min CFL</label>
                   <input
-                    type="number"
+                    type="text"
                     value={cflMin}
-                    onChange={(e) => setCflMin(parseFloat(e.target.value))}
-                    step="0.0001"
-                    min="0"
+                    onChange={(e) => setCflMin(e.target.value)}
+                    placeholder="e.g., 1e-3"
                   />
                 </div>
                 <div className="form-group">
                   <label>Max CFL</label>
                   <input
-                    type="number"
+                    type="text"
                     value={cflMax}
-                    onChange={(e) => setCflMax(parseFloat(e.target.value))}
-                    step="1000"
-                    min="0"
+                    onChange={(e) => setCflMax(e.target.value)}
+                    placeholder="e.g., 1e6"
                   />
                 </div>
               </div>
@@ -247,11 +244,10 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
               <div className="form-group">
                 <label>Starting CFL</label>
                 <input
-                  type="number"
+                  type="text"
                   value={startingCfl}
-                  onChange={(e) => setStartingCfl(parseFloat(e.target.value))}
-                  step="0.1"
-                  min="0"
+                  onChange={(e) => setStartingCfl(e.target.value)}
+                  placeholder="e.g., 1.0 or 1.0e-3"
                 />
               </div>
 
@@ -259,21 +255,19 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
                 <div className="form-group">
                   <label>Min CFL</label>
                   <input
-                    type="number"
+                    type="text"
                     value={cflMin}
-                    onChange={(e) => setCflMin(parseFloat(e.target.value))}
-                    step="0.0001"
-                    min="0"
+                    onChange={(e) => setCflMin(parseFloat(e.target.value) || 0)}
+                    placeholder="e.g., 1e-3"
                   />
                 </div>
                 <div className="form-group">
                   <label>Max CFL</label>
                   <input
-                    type="number"
+                    type="text"
                     value={cflMax}
-                    onChange={(e) => setCflMax(parseFloat(e.target.value))}
-                    step="1000"
-                    min="0"
+                    onChange={(e) => setCflMax(parseFloat(e.target.value) || 0)}
+                    placeholder="e.g., 1e6"
                   />
                 </div>
               </div>

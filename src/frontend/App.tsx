@@ -1228,6 +1228,7 @@ subtract
         onOpenInitializationWizard={() => setShowInitializationWizard(true)}
         onOpenTimeAccuracyWizard={() => setShowTimeAccuracyWizard(true)}
         onOpenVisualizationWizard={() => setShowVisualizationWizard(true)}
+        onSaveConfig={handleSave}
       />
       <PanelGroup direction="horizontal">
         {/* Left Panel Group - contains project folder, tree, editor, and surfaces vertically stacked */}

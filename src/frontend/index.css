@@ -31,3 +31,61 @@ body {
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
 }
+/* Fix dropdown/select styling for Tauri WebKit */
+select {
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #555555;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  /* Custom arrow */
+  background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><path fill="%23cccccc" d="M6 9L1 4h10z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  padding-right: 28px;
+}
+
+select:hover {
+  background-color: #454545;
+  border-color: #666666;
+}
+
+select:focus {
+  outline: none;
+  border-color: #007acc;
+  background-color: #3c3c3c;
+}
+
+select option {
+  background-color: #3c3c3c;
+  color: #cccccc;
+  padding: 4px;
+}
+
+/* Fix input styling for consistency */
+input[type="text"],
+input[type="number"],
+input[type="email"],
+input[type="password"],
+textarea {
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #555555;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 13px;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: #007acc;
+}

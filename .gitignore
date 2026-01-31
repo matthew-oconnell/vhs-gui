@@ -44,3 +44,16 @@ public/wasm/*.js
 *.bc
 dist-package/
 third-party/
+# Tauri build artifacts
+src/frontend/src-tauri/target/
+src/frontend/src-tauri/Cargo.lock
+*.deb
+*.rpm
+*.dmg
+*.msi
+*.exe
+*.AppImage
+
+# Rust/Cargo
+Cargo.lock
+target/

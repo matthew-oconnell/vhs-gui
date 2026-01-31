@@ -1431,6 +1431,7 @@ subtract
                 onLoadConfig={handleLoadConfigFromHandle}
                 onLoadMesh={handleLoadMeshFromHandle}
                 onLoadCSM={handleLoadCSMFromHandle}
+                onOpenProjectFolder={handleOpenProjectFolder}
               />
             </Panel>
             

@@ -55,6 +55,7 @@ interface ProjectFolderPanelProps {
   onLoadConfig?: (fileHandle: FileSystemFileHandle) => Promise<void>
   onLoadMesh?: (fileHandle: FileSystemFileHandle) => Promise<void>
   onLoadCSM?: (fileHandle: FileSystemFileHandle) => Promise<void>
+  onOpenProjectFolder?: () => Promise<void>
 }
 
 interface ContextMenuState {
@@ -64,7 +65,7 @@ interface ContextMenuState {
   node: FileTreeNode | null
 }
 
-function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM }: ProjectFolderPanelProps) {
+function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onOpenProjectFolder }: ProjectFolderPanelProps) {
   const {
     projectFolderHandle,
     projectFolderCollapsed,
@@ -129,22 +130,11 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM }: P
   }
 
   const handleOpenFolder = async () => {
-    try {
-      if (!('showDirectoryPicker' in window)) {
-        alert('Directory Picker API not supported in this browser')
-        return
-      }
-
-      const handle = await window.showDirectoryPicker({
-        mode: 'readwrite' // Need write access for creating folders/moving files later
-      })
-
-      openProjectFolder(handle)
-    } catch (error) {
-      // User cancelled or error
-      if ((error as Error).name !== 'AbortError') {
-        console.error('Error opening project folder:', error)
-      }
+    // Use the unified handler from App.tsx (works in both Tauri and Browser modes)
+    if (onOpenProjectFolder) {
+      await onOpenProjectFolder()
+    } else {
+      console.error('onOpenProjectFolder handler not provided')
     }
   }
 

@@ -1,0 +1,50 @@
+# Waverider CFD Domain with bc_name Attributes
+# This version uses SELECT FACE to tag faces AFTER boolean operations
+
+# Create farfield sphere
+sphere 0 0 0 1000
+
+# Import vehicle geometry
+import waverider.stp
+subtract
+
+# Create symmetry plane cutout
+set dx @xmax-@xmin
+set dy @ymax-@ymin
+set dz @zmax-@zmin
+box @xmin @ymin @zmin dx 0.5*dy dz
+subtract
+
+# Create outflow cutout
+box 200 @ymin @zmin dx dy dz
+subtract
+
+# Export for debugging
+dump waverider.egads
+
+# NOW tag specific faces of the final body
+# Note: Face numbers must be determined by inspecting the geometry
+# The exact face numbers depend on the boolean operation results
+
+# Tag the outer sphere face(s) as farfield
+# (Face 1 is typically the outer boundary after subtractions)
+select face 1
+attribute bc_name $farfield
+
+# Tag vehicle surface faces
+# (Faces from the imported STEP file, typically 2-N depending on vehicle complexity)
+# For waverider.stp with ~62 faces, these might be faces 2-42 or similar
+select face 2
+attribute bc_name $vehicle
+
+# Tag symmetry plane face
+# (Face created by the first box subtraction)
+select face @nface-1
+attribute bc_name $symmetry
+
+# Tag outflow plane face
+# (Face created by the second box subtraction)
+select face @nface
+attribute bc_name $outflow
+
+END

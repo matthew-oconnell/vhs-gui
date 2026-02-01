@@ -6,6 +6,9 @@ mod esp_commands;
 #[cfg(esp_enabled)]
 mod csm_generator;
 
+// File operations module (always available)
+mod file_commands;
+
 #[cfg(esp_enabled)]
 use esp_commands::EspState;
 use std::sync::Mutex;
@@ -30,13 +33,18 @@ pub fn run() {
         esp_commands::update_parameter,
         esp_commands::update_face_bc_names,
         esp_commands::close_model,
+        file_commands::save_project_config,
+        file_commands::save_project_config_as,
       ]);
   }
   
   #[cfg(esp_disabled)]
   {
     println!("⚠️  ESP DISABLED - No ESP commands registered");
-    builder = builder.invoke_handler(tauri::generate_handler![]);
+    builder = builder.invoke_handler(tauri::generate_handler![
+      file_commands::save_project_config,
+      file_commands::save_project_config_as,
+    ]);
   }
   
   builder

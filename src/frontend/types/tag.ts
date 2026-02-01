@@ -15,12 +15,12 @@ export interface TagMetadata {
   id: string
   tagNumber: number      // CFD solver tag number (must be unique per tag instance)
   tag: number            // Alias for tagNumber (for backward compatibility)
-  tagName: string        // CFD tag name (e.g., "wall", "farfield")
+  tagName: string        // CFD tag name (e.g., "wall", "farfield", from bc_name or user-set)
   
   // UI/grouping metadata
   isLumped?: boolean           // Tag was created by lumping multiple regions
   originalRegionCount?: number // How many regions were lumped (if isLumped=true)
-  bcName?: string              // Boundary condition name (from ESP or user-assigned)
+  bcName?: string              // Boundary condition name (from ESP bc_name attribute)
   
   // Optional ESP/CAD metadata (for CSM export and debugging)
   espInternalId?: string // ESP's internal identifier (e.g., "Body1_Face12")

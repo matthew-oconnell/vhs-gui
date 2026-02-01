@@ -83,6 +83,11 @@ interface AppState {
   projectStage: ProjectStage
   setProjectStage: (stage: ProjectStage) => void
   updateProjectStage: () => void  // Auto-compute stage based on current state
+  
+  // Project file tracking
+  currentProjectPath: string | null  // Absolute path to the current project JSON file (null if unsaved)
+  setCurrentProjectPath: (path: string | null) => void
+  
   selectedNode: TreeNode | null
   setSelectedNode: (node: TreeNode | null) => void
   selectedTag: Surface | null
@@ -197,6 +202,10 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
+  // Project file tracking
+  currentProjectPath: null,
+  setCurrentProjectPath: (path) => set({ currentProjectPath: path }),
+  
   selectedNode: null,
   setSelectedNode: (node) => set({ selectedNode: node, selectedTag: null, selectedTags: [], selectedBC: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
   selectedTag: null,
@@ -1330,8 +1339,9 @@ export const useAppStore = create<AppState>((set) => ({
     // Reset project stage
     projectStage: 'no-mesh' as ProjectStage,
     
-    // Clear project folder
+    // Clear project folder and file path
     projectFolderHandle: null,
+    currentProjectPath: null,
     
     // Mark as saved (since it's a fresh state)
     hasUnsavedChanges: false

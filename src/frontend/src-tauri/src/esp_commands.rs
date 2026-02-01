@@ -311,3 +311,92 @@ pub async fn update_face_bc_names(
     
     Ok(format!("Updated bc_names for {} faces", face_bc_names.len()))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+    use std::collections::HashSet;
+
+    #[test]
+    fn test_bc_name_extraction_from_waverider_csm() {
+        // Set ESP_ROOT environment variable for the test
+        let manifest_dir = env!("CARGO_MANIFEST_DIR");
+        let base_path = PathBuf::from(manifest_dir);
+        let project_root = base_path
+            .parent().unwrap()  // src/frontend
+            .parent().unwrap()  // src
+            .parent().unwrap(); // project root
+        
+        let esp_root = project_root.join("third-party/ESP128/EngSketchPad");
+        std::env::set_var("ESP_ROOT", esp_root.to_str().unwrap());
+        
+        let csm_path = project_root.join("examples/waverider.csm");
+        
+        assert!(
+            csm_path.exists(),
+            "waverider.csm not found at {:?}",
+            csm_path
+        );
+
+        // Load the CSM file
+        let mut model = OcsmModel::load(csm_path.to_str().unwrap())
+            .expect("Failed to load waverider.csm");
+
+        // Build the model
+        model.build().expect("Failed to build model");
+
+        // Get model info
+        let info = model.info().expect("Failed to get model info");
+        
+        println!("Model has {} bodies on stack", info.bodies);
+        assert!(info.bodies > 0, "Model should have at least 1 body");
+
+        // Get the final body (should be body 7 based on CSM script)
+        let body_index = info.bodies;
+        
+        // Get tessellation for the final body
+        let tess = model.get_body_tessellation(body_index)
+            .expect("Failed to get tessellation");
+
+        println!("Body {} has {} faces", body_index, tess.len());
+        assert!(tess.len() > 0, "Body should have at least one face");
+
+        // Extract all bc_name values
+        let mut bc_names: HashSet<String> = HashSet::new();
+        let mut faces_without_bc_name = 0;
+        
+        for (face_idx, face) in tess.iter().enumerate() {
+            if let Some(bc_name) = &face.bc_name {
+                println!("Face {}: bc_name = '{}'", face_idx + 1, bc_name);
+                bc_names.insert(bc_name.clone());
+            } else {
+                faces_without_bc_name += 1;
+                println!("Face {}: no bc_name attribute", face_idx + 1);
+            }
+        }
+
+        println!("\nUnique bc_names found: {:?}", bc_names);
+        println!("Faces without bc_name: {}", faces_without_bc_name);
+
+        // Verify we have exactly 4 unique bc_name groups
+        assert_eq!(
+            bc_names.len(),
+            4,
+            "Expected 4 unique bc_name groups, found {}",
+            bc_names.len()
+        );
+
+        // Verify the specific bc_name values from waverider.csm
+        let expected_names = vec!["farfield", "vehicle", "symmetry", "outflow"];
+        for expected in &expected_names {
+            assert!(
+                bc_names.contains(*expected),
+                "Expected bc_name '{}' not found in tessellation",
+                expected
+            );
+        }
+
+        println!("\n✅ Test passed: All 4 expected bc_name groups found");
+    }
+}

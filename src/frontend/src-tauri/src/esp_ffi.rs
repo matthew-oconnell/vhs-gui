@@ -109,6 +109,15 @@ extern "C" {
     ) -> c_int;
     
     // EGADS topology and attribute functions
+    fn EG_getInfo(
+        object: *mut c_void,
+        oclass: *mut c_int,  // Object class (BODY, FACE, etc.)
+        mtype: *mut c_int,   // Object type
+        topref: *mut *mut c_void,  // Top reference (parent object)
+        prev: *mut *mut c_void,    // Previous sibling
+        next: *mut *mut c_void     // Next sibling
+    ) -> c_int;
+    
     fn EG_getBodyTopos(
         body: *mut c_void,
         src: *mut c_void,  // Can be null
@@ -409,29 +418,6 @@ impl OcsmModel {
                 return Err(format!("Failed to get tessellation for body {}: status {}", body_index, status));
             }
             
-            // Also get the body object to extract face attributes
-            let mut body: *mut c_void = ptr::null_mut();
-            let status = ocsmGetEgo(
-                self.ptr,
-                body_index,
-                OCSM_BODY,
-                0,  // iselect=0 means the body object itself
-                &mut body
-            );
-            
-            if status != SUCCESS || body.is_null() {
-                return Err(format!("Failed to get body object for body {}: status {}", body_index, status));
-            }
-            
-            // Get all face objects from the body to extract bc_name attributes
-            let mut nfaces: c_int = 0;
-            let mut faces: *mut *mut c_void = ptr::null_mut();
-            let status = EG_getBodyTopos(body, ptr::null_mut(), FACE, &mut nfaces, &mut faces);
-            
-            if status != SUCCESS {
-                eprintln!("⚠️  Failed to get face topology for body {}: status {}", body_index, status);
-            }
-            
             // Get body info to know how many faces there are
             let body_info = self.get_body(body_index)?;
             let nfaces_from_body = body_info.faces;
@@ -486,9 +472,19 @@ impl OcsmModel {
                     triangles.push([v1, v2, v3]);
                 }
                 
-                // Try to extract bc_name attribute from this face
-                let bc_name = if !faces.is_null() && (iface as usize) <= nfaces as usize {
-                    self.get_face_bc_name(*faces.offset((iface - 1) as isize))
+                // Get the EGADS face object to extract bc_name attribute
+                // Use ocsmGetEgo with seltype=OCSM_FACE
+                let mut face_ego: *mut c_void = ptr::null_mut();
+                let status = ocsmGetEgo(
+                    self.ptr,
+                    body_index,
+                    OCSM_FACE,  // Requesting a face object
+                    iface,      // Face index (iselect is the face number for OCSM_FACE)
+                    &mut face_ego
+                );
+                
+                let bc_name = if status == SUCCESS && !face_ego.is_null() {
+                    self.get_face_bc_name(face_ego)
                 } else {
                     None
                 };
@@ -503,11 +499,6 @@ impl OcsmModel {
             }
             let face_extract_end = std::time::Instant::now();
             eprintln!("    ⏱️  [Tess Detail] Face extraction loop ({} faces): {:?}", nfaces_from_body, face_extract_end.duration_since(face_extract_start));
-            
-            // Free the faces array allocated by EG_getBodyTopos
-            if !faces.is_null() {
-                EG_free(faces as *mut c_void);
-            }
             
             let total_end = std::time::Instant::now();
             eprintln!("    ⏱️  [Tess Detail] Total get_body_tessellation: {:?}", total_end.duration_since(total_start));

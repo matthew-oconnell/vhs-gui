@@ -74,14 +74,19 @@ export const convertESPRegionsToSurfaces = (
   const surfaces: Surface[] = regions.map((region, index) => {
     const geometry = convertRegionToGeometry(region, globalCenter, globalScale)
     
+    // Use bc_name from CSM attribute as the primary tag name
+    // Fall back to ESP internal name if no bc_name attribute exists
+    const tagName = region.bc_name || region.name
+    
     return {
       id: `esp-${region.body}-${region.face}`,
-      name: region.name,
+      name: tagName,  // Display name = bc_name if available, else internal name
       metadata: {
         id: `esp-${region.body}-${region.face}`,
         tag: region.tag,
-        tagName: region.name,   // ESP internal ID (e.g., "Body1_Face12")
-        bcName: region.bc_name, // CRITICAL: ESP bc_name attribute = CFD tag name
+        tagName,                // CRITICAL: Use bc_name if available, else ESP internal ID
+        bcName: region.bc_name, // Store bc_name separately for reference
+        espInternalId: region.name,  // Store ESP's auto-generated name for debugging
         bodyId: region.body,    // Store body ID for CSM export
         faceId: region.face     // Store face ID for CSM export
       },

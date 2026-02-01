@@ -182,6 +182,11 @@ function App() {
         return
       }
       
+      // Track the project file path for future saves (Tauri only)
+      if (result.filePath) {
+        useAppStore.getState().setCurrentProjectPath(result.filePath)
+      }
+      
       // Import unified config processor
       const { processLoadedConfig } = await import('./utils/configLoader')
       const { readProjectFile } = await import('./utils/fileUtils')
@@ -330,12 +335,50 @@ function App() {
         return
       }
       
-      // Validation passed, save the file
-      await saveJsonFile(configToSave, 'config.json')
-      console.log('File saved successfully')
-      useAppStore.getState().setHasUnsavedChanges(false)
+      // Validation passed - check if we have a current project path
+      const currentPath = useAppStore.getState().currentProjectPath
+      
+      if (currentPath) {
+        // Save to existing path using Rust backend
+        const { invoke } = await import('@tauri-apps/api/core')
+        await invoke('save_project_config', {
+          configData: configToSave,
+          filePath: currentPath
+        })
+        console.log('File saved successfully to:', currentPath)
+        useAppStore.getState().setHasUnsavedChanges(false)
+      } else {
+        // No path yet - trigger "Save As" dialog
+        await handleSaveAs(configToSave)
+      }
     } catch (error) {
       console.error('Error saving file:', error)
+      alert(`Failed to save file: ${(error as Error).message}`)
+    }
+  }
+
+  const handleSaveAs = async (configToSave?: any) => {
+    try {
+      const dataToSave = configToSave || cleanConfigForSave(configData)
+      
+      // Use Rust backend to show save dialog and save file
+      const { invoke } = await import('@tauri-apps/api/core')
+      const savedPath = await invoke<string | null>('save_project_config_as', {
+        configData: dataToSave,
+        defaultFilename: 'config.json'
+      })
+      
+      if (savedPath) {
+        // User saved the file - update current project path
+        useAppStore.getState().setCurrentProjectPath(savedPath)
+        useAppStore.getState().setHasUnsavedChanges(false)
+        console.log('File saved as:', savedPath)
+      } else {
+        console.log('Save cancelled by user')
+      }
+    } catch (error) {
+      console.error('Error in Save As:', error)
+      alert(`Failed to save file: ${(error as Error).message}`)
     }
   }
 

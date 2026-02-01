@@ -330,6 +330,7 @@ export const openJsonFileWithDirectory = async (): Promise<{
   config: any
   directoryPath?: string  // Tauri mode
   directoryHandle?: FileSystemDirectoryHandle  // Browser mode
+  filePath?: string  // Full path to the opened file (Tauri only)
 } | null> => {
   try {
     logTauriDetection()
@@ -362,7 +363,7 @@ export const openJsonFileWithDirectory = async (): Promise<{
         logToConsole(`File loaded from: ${filePath}`, 'info')
         logToConsole(`Directory path: ${directoryPath}`, 'debug')
         
-        return { config, directoryPath }
+        return { config, directoryPath, filePath }
       }
       
       return null

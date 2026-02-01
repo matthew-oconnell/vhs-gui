@@ -1,0 +1,19 @@
+# Test CSM file to verify bc_name attribute propagation
+
+# Create outer sphere
+sphere 0 0 0 1000
+attribute bc_name $farfield
+
+# Import vehicle
+import examples/waverider.stp
+attribute bc_name $vehicle
+subtract
+
+# Select face and apply attribute
+select face 1
+attribute bc_name $test_face_1
+
+select face 5
+attribute bc_name $test_face_5
+
+end

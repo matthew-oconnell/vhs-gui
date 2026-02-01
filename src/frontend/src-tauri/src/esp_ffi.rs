@@ -523,7 +523,19 @@ impl OcsmModel {
                 return None;
             }
             
-            let attr_name = CString::new("bc_name").ok()?;
+            // Try "bc_name" first (user-defined attribute)
+            if let Some(name) = self.try_get_attribute(face, "bc_name") {
+                return Some(name);
+            }
+            
+            // Fall back to "_name" (ESP internal attribute)
+            self.try_get_attribute(face, "_name")
+        }
+    }
+    
+    fn try_get_attribute(&self, obj: *mut c_void, attr_name: &str) -> Option<String> {
+        unsafe {
+            let attr_cstr = CString::new(attr_name).ok()?;
             let mut atype: c_int = 0;
             let mut len: c_int = 0;
             let mut ints: *const c_int = ptr::null();
@@ -531,8 +543,8 @@ impl OcsmModel {
             let mut str_ptr: *const c_char = ptr::null();
             
             let status = EG_attributeRet(
-                face,
-                attr_name.as_ptr(),
+                obj,
+                attr_cstr.as_ptr(),
                 &mut atype,
                 &mut len,
                 &mut ints,
@@ -543,10 +555,7 @@ impl OcsmModel {
             // EGADS attribute types: 1=int, 2=double, 3=string
             if status == SUCCESS && atype == 3 && !str_ptr.is_null() {
                 let c_str = CStr::from_ptr(str_ptr);
-                match c_str.to_str() {
-                    Ok(s) => Some(s.to_string()),
-                    Err(_) => None
-                }
+                c_str.to_str().ok().map(|s| s.to_string())
             } else {
                 None
             }

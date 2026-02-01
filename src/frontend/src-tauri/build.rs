@@ -31,6 +31,10 @@ fn link_esp_libraries() {
     let esp_lib = esp_root.join("lib");
     let occ_lib = occ_root.join("lib");
     
+    // Debug output
+    println!("cargo:warning=Checking for ESP at: {:?}", esp_lib);
+    println!("cargo:warning=ESP lib exists: {}", esp_lib.exists());
+    
     // Check if ESP is installed
     if !esp_lib.exists() {
         println!("cargo:warning=ESP libraries not found at {:?}", esp_lib);
@@ -39,6 +43,7 @@ fn link_esp_libraries() {
         return;
     }
     
+    println!("cargo:warning=✅ ESP ENABLED - Linking ESP libraries");
     println!("cargo:rustc-cfg=esp_enabled");
     
     println!("cargo:rerun-if-changed=src/esp_ffi.rs");
@@ -72,6 +77,12 @@ fn link_esp_libraries() {
     println!("cargo:rustc-link-lib=dylib=m");
     
     // Set RPATH so executable can find libraries at runtime
+    // Use $ORIGIN to make it relative to the executable location
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}", esp_lib.display());
     println!("cargo:rustc-link-arg=-Wl,-rpath,{}", occ_lib.display());
+    
+    // IMPORTANT: Don't use --enable-new-dtags
+    // RUNPATH (created by --enable-new-dtags) doesn't propagate to dlopen() calls
+    // ESP uses dlopen() to load UDP libraries, so we need RPATH, not RUNPATH
+    println!("cargo:rustc-link-arg=-Wl,--disable-new-dtags");  // Force RPATH instead of RUNPATH
 }

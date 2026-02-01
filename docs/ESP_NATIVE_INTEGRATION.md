@@ -101,6 +101,47 @@ The build script will automatically:
 
 ### ESP Installation
 
+ESP must be installed at `third-party/ESP128/EngSketchPad/`. The build script will verify this path exists.
+
+### Environment Variables (Runtime)
+
+ESP requires specific environment variables to locate its User-Defined Primitive (UDP) libraries at runtime:
+
+- **`ESP_ROOT`** - Path to ESP installation directory  
+  - Example: `/home/user/Projects/vulcan-gui/third-party/ESP128/EngSketchPad`
+  - Set automatically by `src-tauri/src/lib.rs` during app initialization
+  - ESP uses this to locate headers and resources
+
+- **`ESP_UDC_PATH`** - Path to ESP's UDP library directory  
+  - Example: `/home/user/Projects/vulcan-gui/third-party/ESP128/EngSketchPad/lib`
+  - Set automatically by `src-tauri/src/lib.rs`
+  - **Critical:** ESP loads UDP plugins (.so files) from this directory via `dlopen()`
+  - If not set correctly, you'll see: `ERROR:: Dynamic Loader could not open /wrong/path`
+
+- **`LD_LIBRARY_PATH`** - System library search path  
+  - Includes ESP lib and OpenCASCADE lib directories
+  - Set automatically by `src-tauri/src/lib.rs` as a safety measure
+  - RPATH in the executable should handle this, but ESP may dynamically load additional libraries
+
+### Environment Setup (Automatic)
+
+The Tauri app automatically configures these variables during startup in [src-tauri/src/lib.rs](../src/frontend/src-tauri/src/lib.rs):
+
+```rust
+// Automatically sets:
+// ESP_ROOT = /path/to/project/third-party/ESP128/EngSketchPad
+// ESP_UDC_PATH = /path/to/project/third-party/ESP128/EngSketchPad/lib
+// LD_LIBRARY_PATH = <ESP_lib>:<OCC_lib>:<existing>
+```
+
+If ESP fails to load, check console output for:
+- `⚠️  WARNING: ESP_ROOT does not exist`
+- `⚠️  WARNING: ESP lib directory does not exist`
+
+## Prerequisites (Build-time)
+
+### ESP Installation
+
 ESP must be installed at:
 ```
 third-party/ESP128/EngSketchPad/
@@ -200,6 +241,21 @@ Frontend → Tauri invoke → Rust FFI → ESP C libraries
 
 **Error:** `error while loading shared libraries: libocsm.so`
 - **Fix:** Set `LD_LIBRARY_PATH` or verify RPATH is set correctly
+
+**Error:** `Dynamic Loader could not open /wrong/path/EngSketchPad/lib`
+```
+ERROR:: BAD STATUS = -2 from udp_initialize
+ERROR:: build terminated early due to BAD STATUS = -2 (egads_nullobj)
+```
+- **Cause:** ESP cannot find User-Defined Primitive (UDP) libraries
+- **Fix:** Verify `ESP_UDC_PATH` environment variable is set correctly
+  - Check console output on app startup for ESP environment warnings
+  - Should show: `🔧 ESP_UDC_PATH = /path/to/ESP128/EngSketchPad/lib`
+  - Path must be **absolute**, not relative
+- **Related:** This happens when:
+  - `ESP_ROOT` or `ESP_UDC_PATH` not set
+  - Path computed incorrectly (e.g., includes wrong `src/` prefix)
+  - ESP lib directory doesn't exist or has wrong permissions
 
 **Error:** `No model loaded`
 - **Fix:** Call `load_csm_file()` before `get_model_info()`

@@ -86,20 +86,28 @@ export const buildCSM = async (csmFilePath: string): Promise<CSMBuildResponse> =
     console.log('[ESP API] Build successful')
     console.log('[ESP API] Parameters:', result.parameters?.length || 0)
     console.log('[ESP API] Bodies:', result.bodies?.length || 0)
+    console.log('[ESP API] Regions:', result.regions?.length || 0)
     
     // Convert Rust response to expected format
-    // TODO: Extract tessellation data from bodies for regions
     return {
       success: true,
       message: 'CSM loaded successfully',
-      regions: [], // TODO: Extract from bodies
+      regions: result.regions?.map((r: any) => ({
+        name: r.name,
+        tag: r.tag,
+        body: r.body,
+        face: r.face,
+        vertices: r.vertices,
+        cells: r.cells,
+        bc_name: r.bc_name,
+      })) || [],
       parameters: result.parameters?.map((p: any) => ({
         name: p.name,
         value: p.value,
         type: 'scalar', // TODO: Handle arrays
       })) || [],
-      total_vertices: 0, // TODO: Sum from bodies
-      total_faces: result.bodies?.reduce((sum: number, b: any) => sum + (b.faces || 0), 0) || 0,
+      total_vertices: result.regions?.reduce((sum: number, r: any) => sum + r.vertices.length, 0) || 0,
+      total_faces: result.regions?.reduce((sum: number, r: any) => sum + r.cells.length, 0) || 0,
       build_log: []
     }
   } catch (error) {

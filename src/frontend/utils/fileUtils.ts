@@ -452,7 +452,10 @@ export const openCadFile = async (suggestedName?: string): Promise<File | null> 
         const blob = new Blob([content], { type: 'application/octet-stream' })
         const file = new File([blob], fileName, { type: 'application/octet-stream' })
         
-        logToConsole(`CAD file loaded: ${fileName}`, 'info')
+        // Attach the file path as a custom property for Tauri commands
+        ;(file as any).path = filePath as string
+        
+        logToConsole(`CAD file loaded: ${fileName} (path: ${filePath})`, 'info')
         return file
       }
       
@@ -523,7 +526,10 @@ export const openCsmFile = async (): Promise<File | null> => {
         const blob = new Blob([content], { type: 'application/octet-stream' })
         const file = new File([blob], fileName, { type: 'application/octet-stream' })
         
-        logToConsole(`CSM file loaded: ${fileName}`, 'info')
+        // Attach the file path as a custom property for ESP API
+        ;(file as any).path = filePath as string
+        
+        logToConsole(`CSM file loaded: ${fileName} (path: ${filePath})`, 'info')
         return file
       }
       
@@ -585,7 +591,10 @@ export const openMeshFile = async (): Promise<File | null> => {
         const blob = new Blob([content], { type: 'application/octet-stream' })
         const file = new File([blob], fileName, { type: 'application/octet-stream' })
         
-        logToConsole(`Mesh file loaded: ${fileName}`, 'info')
+        // Attach the file path as a custom property for Tauri commands
+        ;(file as any).path = filePath as string
+        
+        logToConsole(`Mesh file loaded: ${fileName} (path: ${filePath})`, 'info')
         return file
       }
       
@@ -757,7 +766,12 @@ export const readProjectFile = async (filePath: string): Promise<File | null> =>
       }
       
       const blob = new Blob([content], { type: 'application/octet-stream' })
-      return new File([blob], fileName, { type: 'application/octet-stream' })
+      const file = new File([blob], fileName, { type: 'application/octet-stream' })
+      
+      // Attach the absolute file path for ESP commands
+      ;(file as any).path = filePath
+      
+      return file
     } else {
       // Browser mode would use FileSystemFileHandle
       throw new Error('readProjectFile only works in Tauri mode')

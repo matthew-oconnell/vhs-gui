@@ -10,6 +10,12 @@ use std::ffi::{CString, CStr};
 use std::os::raw::{c_char, c_int, c_double, c_void};
 use std::ptr;
 
+// Libc for chdir
+extern "C" {
+    fn chdir(path: *const c_char) -> c_int;
+    fn getcwd(buf: *mut c_char, size: usize) -> *mut c_char;
+}
+
 // ESP installation path (adjust as needed)
 const ESP_ROOT: &str = "../../third-party/ESP128/EngSketchPad";
 
@@ -30,8 +36,14 @@ extern "C" {
         modl: *mut c_void,
         buildTo: c_int,
         builtTo: *mut c_int,
-        buildStatus: *mut c_int,
-        numWarn: *mut c_int
+        nbody: *mut c_int,         // (in) allocated size, (out) actual count on stack
+        body: *mut c_int           // (out) array of body indices on stack (LIFO)
+    ) -> c_int;
+    
+    // Tessellation
+    fn ocsmTessellate(
+        modl: *mut c_void,
+        ibody: c_int  // Body index (1:nbody) or 0 for all on stack
     ) -> c_int;
     
     // Parameter access
@@ -65,7 +77,42 @@ extern "C" {
         nedge: *mut c_int,
         nface: *mut c_int
     ) -> c_int;
+    
+    // Get EGADS objects (body, tessellation, etc.)
+    fn ocsmGetEgo(
+        modl: *mut c_void,
+        ibody: c_int,
+        seltype: c_int,  // OCSM_BODY, OCSM_NODE, OCSM_EDGE, or OCSM_FACE
+        iselect: c_int,  // 0=body, 1=tessellation, 2=context, 3=ebody, 4=etess for ebody
+        the_ego: *mut *mut c_void
+    ) -> c_int;
+    
+    // EGADS tessellation functions
+    fn EG_makeTessBody(
+        object: *mut c_void,      // EGADS body object
+        params: *const c_double,  // Tessellation parameters [angle, relSide, relSag]
+        tess: *mut *mut c_void    // Output: tessellation object
+    ) -> c_int;
+    
+    fn EG_getTessFace(
+        tess: *mut c_void,
+        face_index: c_int,
+        plen: *mut c_int,
+        xyz: *mut *const c_double,
+        uv: *mut *const c_double,
+        ptype: *mut *const c_int,
+        pindex: *mut *const c_int,
+        tlen: *mut c_int,
+        tris: *mut *const c_int,
+        tric: *mut *const c_int
+    ) -> c_int;
 }
+
+// OCSM constants for ocsmGetEgo seltype parameter
+const OCSM_NODE: c_int = 600;
+const OCSM_EDGE: c_int = 601;
+const OCSM_FACE: c_int = 602;
+const OCSM_BODY: c_int = 603;
 
 // Success/error codes
 pub const SUCCESS: c_int = 0;
@@ -73,24 +120,54 @@ pub const SUCCESS: c_int = 0;
 /// Wrapper for an OCSM model
 pub struct OcsmModel {
     ptr: *mut c_void,
+    working_dir: String,  // Store the directory where CSM file is located
 }
 
 impl OcsmModel {
     /// Load a CSM file
+    /// 
+    /// IMPORTANT: ESP loads imported files (like .stp) during build(), not during load().
+    /// We must keep the working directory set to the CSM file's directory for the
+    /// entire lifetime of the model, not just during ocsmLoad().
     pub fn load(filename: &str) -> Result<Self, String> {
-        let c_filename = CString::new(filename)
+        use std::path::Path;
+        
+        let path = Path::new(filename);
+        let parent_dir = path.parent()
+            .ok_or_else(|| "Invalid file path".to_string())?;
+        let file_name = path.file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| "Invalid filename".to_string())?;
+        
+        // Store the CSM file's directory as the working directory
+        let working_dir = parent_dir.to_str()
+            .ok_or_else(|| "Invalid directory path encoding".to_string())?
+            .to_string();
+        
+        // Change to CSM file's directory so ESP can find dependency files
+        let c_parent_dir = CString::new(working_dir.as_str())
+            .map_err(|e| format!("Invalid directory path: {}", e))?;
+        
+        unsafe {
+            if chdir(c_parent_dir.as_ptr()) != 0 {
+                return Err("Failed to change directory".to_string());
+            }
+        }
+        
+        // Load CSM using just the filename (we're in the right directory now)
+        let c_filename = CString::new(file_name)
             .map_err(|e| format!("Invalid filename: {}", e))?;
         
         let mut modl: *mut c_void = ptr::null_mut();
         
-        unsafe {
-            let status = ocsmLoad(c_filename.as_ptr(), &mut modl);
-            if status != SUCCESS {
-                return Err(format!("ocsmLoad failed with status {}", status));
-            }
-        }
+        let status = unsafe { ocsmLoad(c_filename.as_ptr(), &mut modl) };
         
-        Ok(OcsmModel { ptr: modl })
+        if status != SUCCESS {
+            Err(format!("ocsmLoad failed with status {}", status))
+        } else {
+            // Keep working directory set - build() will need it!
+            Ok(OcsmModel { ptr: modl, working_dir })
+        }
     }
     
     /// Get model information
@@ -114,13 +191,32 @@ impl OcsmModel {
     }
     
     /// Build the geometry model
+    /// 
+    /// IMPORTANT: ESP loads imported files (like .stp) during this call.
+    /// We must be in the CSM file's directory when this runs.
     pub fn build(&mut self) -> Result<BuildResult, String> {
-        let mut builtTo: c_int = 0;
-        let mut buildStatus: c_int = 0;
-        let mut numWarn: c_int = 0;
+        // Ensure we're in the correct directory for ESP to find imported files
+        let c_working_dir = CString::new(self.working_dir.as_str())
+            .map_err(|e| format!("Invalid working directory: {}", e))?;
         
         unsafe {
-            let status = ocsmBuild(self.ptr, 0, &mut builtTo, &mut buildStatus, &mut numWarn);
+            if chdir(c_working_dir.as_ptr()) != 0 {
+                return Err("Failed to change to working directory for build".to_string());
+            }
+        }
+        
+        let mut builtTo: c_int = 0;
+        let mut nbody: c_int = 100;  // Allocate space for up to 100 bodies
+        let mut bodies = vec![0i32; 100];
+        
+        unsafe {
+            let status = ocsmBuild(
+                self.ptr, 
+                0,  // buildTo: 0 = build all
+                &mut builtTo, 
+                &mut nbody, 
+                bodies.as_mut_ptr()
+            );
             
             // Error -216 is benign (TOO_MANY_BODYS_ON_STACK)
             if status != SUCCESS && status != -216 && builtTo == 0 {
@@ -128,10 +224,14 @@ impl OcsmModel {
             }
         }
         
+        // Truncate to actual number of bodies
+        bodies.truncate(nbody as usize);
+        
+        eprintln!("🔍 ocsmBuild returned nbody={}, body array={:?}", nbody, bodies);
+        
         Ok(BuildResult {
             built_to: builtTo,
-            build_status: buildStatus,
-            num_warnings: numWarn,
+            bodies_on_stack: bodies,
         })
     }
     
@@ -222,6 +322,121 @@ impl OcsmModel {
             faces: nface,
         })
     }
+    
+    /// Tessellate the model bodies
+    /// 
+    /// Must be called after ocsmBuild() and before extracting tessellation data.
+    /// Pass 0 to tessellate all bodies on the stack, or specific body index.
+    pub fn tessellate(&self, body_index: i32) -> Result<(), String> {
+        unsafe {
+            let status = ocsmTessellate(self.ptr, body_index);
+            if status != SUCCESS {
+                return Err(format!("ocsmTessellate failed with status {}", status));
+            }
+        }
+        Ok(())
+    }
+    
+    /// Extract tessellation mesh from a body using EGADS API
+    pub fn get_body_tessellation(&self, body_index: i32) -> Result<Vec<FaceTessellation>, String> {
+        unsafe {
+            // Step 1: Get the EGADS body object
+            let mut body: *mut c_void = ptr::null_mut();
+            
+            eprintln!("🔍 Calling ocsmGetEgo(modl={:?}, ibody={}, seltype={}, iselect=0)", 
+                      self.ptr, body_index, OCSM_BODY);
+            
+            let mut status = ocsmGetEgo(
+                self.ptr,
+                body_index,
+                OCSM_BODY,  // Requesting body-level object
+                0,          // iselect=0 means the body itself
+                &mut body
+            );
+            
+            eprintln!("🔍 ocsmGetEgo returned status={}, body ptr={:?}", status, body);
+            
+            if status != SUCCESS || body.is_null() {
+                return Err(format!("Failed to get body ego for body {}: status {}", body_index, status));
+            }
+            
+            // Step 2: Create EGADS tessellation object
+            // Tessellation parameters: [maxAngle, maxSideLength, maxSag]
+            // Default reasonable values for visualization
+            let params = [15.0, 0.1, 0.01];  // 15 degrees, 10% relative side length, 1% relative sag
+            let mut tess: *mut c_void = ptr::null_mut();
+            
+            status = EG_makeTessBody(body, params.as_ptr(), &mut tess);
+            
+            if status != SUCCESS || tess.is_null() {
+                return Err(format!("EG_makeTessBody failed for body {}: status {}", body_index, status));
+            }
+            
+            // Get body info to know how many faces there are
+            let body_info = self.get_body(body_index)?;
+            let nfaces = body_info.faces;
+            
+            let mut face_meshes = Vec::new();
+            
+            // Extract tessellation for each face (1-indexed in EGADS)
+            for iface in 1..=nfaces {
+                let mut plen: c_int = 0;  // Number of points
+                let mut xyz: *const c_double = ptr::null();  // Point coordinates
+                let mut uv: *const c_double = ptr::null();   // UV parameters
+                let mut ptype: *const c_int = ptr::null();   // Point types
+                let mut pindex: *const c_int = ptr::null();  // Point indices
+                let mut tlen: c_int = 0;  // Number of triangles
+                let mut tris: *const c_int = ptr::null();    // Triangle indices
+                let mut tric: *const c_int = ptr::null();    // Triangle neighbors
+                
+                let status = EG_getTessFace(
+                    tess,
+                    iface,
+                    &mut plen,
+                    &mut xyz,
+                    &mut uv,
+                    &mut ptype,
+                    &mut pindex,
+                    &mut tlen,
+                    &mut tris,
+                    &mut tric
+                );
+                
+                if status != SUCCESS {
+                    // Skip faces with no tessellation
+                    continue;
+                }
+                
+                // Extract vertices (xyz has plen*3 doubles: x1,y1,z1, x2,y2,z2, ...)
+                let mut vertices = Vec::new();
+                for i in 0..plen as usize {
+                    let x = *xyz.offset((i * 3) as isize);
+                    let y = *xyz.offset((i * 3 + 1) as isize);
+                    let z = *xyz.offset((i * 3 + 2) as isize);
+                    vertices.push([x, y, z]);
+                }
+                
+                // Extract triangles (tris has tlen*3 ints, 1-indexed)
+                let mut triangles = Vec::new();
+                for i in 0..tlen as usize {
+                    let v1 = (*tris.offset((i * 3) as isize) - 1) as i32;  // Convert to 0-based
+                    let v2 = (*tris.offset((i * 3 + 1) as isize) - 1) as i32;
+                    let v3 = (*tris.offset((i * 3 + 2) as isize) - 1) as i32;
+                    triangles.push([v1, v2, v3]);
+                }
+                
+                face_meshes.push(FaceTessellation {
+                    body_index,
+                    face_index: iface,
+                    vertices,
+                    triangles,
+                    bc_name: None,  // TODO: Extract bc_name attribute from face if needed
+                });
+            }
+            
+            Ok(face_meshes)
+        }
+    }
 }
 
 impl Drop for OcsmModel {
@@ -249,8 +464,7 @@ pub struct ModelInfo {
 #[derive(Debug, Clone)]
 pub struct BuildResult {
     pub built_to: i32,
-    pub build_status: i32,
-    pub num_warnings: i32,
+    pub bodies_on_stack: Vec<i32>,  // Actual body indices on the stack (LIFO)
 }
 
 /// Parameter metadata
@@ -269,6 +483,16 @@ pub struct BodyInfo {
     pub nodes: i32,
     pub edges: i32,
     pub faces: i32,
+}
+
+/// Face tessellation mesh data
+#[derive(Debug, Clone)]
+pub struct FaceTessellation {
+    pub body_index: i32,
+    pub face_index: i32,
+    pub vertices: Vec<[f64; 3]>,  // [[x,y,z], ...]
+    pub triangles: Vec<[i32; 3]>,  // [[v1,v2,v3], ...] (0-based indices)
+    pub bc_name: Option<String>,   // Boundary condition name from ESP attribute
 }
 
 #[cfg(test)]

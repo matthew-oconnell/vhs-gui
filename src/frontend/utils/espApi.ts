@@ -194,14 +194,31 @@ export const loadAndBuildCSMFile = async (filePath: string): Promise<CSMBuildRes
 /**
  * Export CSM with updated bc_name attributes
  * 
- * TODO: Implement in Rust FFI
- * This requires modifying ESP model attributes
+ * Generates SELECT FACE + ATTRIBUTE commands and inserts them into the CSM file.
+ * The modified CSM is saved and the model is reloaded.
+ * 
+ * @param csmFilePath - Path to the CSM file
+ * @param bcNameUpdates - Array of face bc_name updates { body, face, bc_name }
+ * @returns Success message
  */
 export const exportCSMWithBCNames = async (
   csmFilePath: string,
   bcNameUpdates: Array<{ body: number; face: number; bc_name: string }>
 ): Promise<string> => {
-  console.log('[ESP API] Export with bc_name updates not yet implemented')
+  console.log('[ESP API] Updating bc_names for', bcNameUpdates.length, 'faces')
   
-  throw new Error('exportCSMWithBCNames not yet implemented in Tauri version')
+  // Convert updates array to face index -> bc_name map
+  // For now, assume single body (body index not used in generator yet)
+  const faceBcNames: Record<number, string> = {}
+  for (const update of bcNameUpdates) {
+    faceBcNames[update.face] = update.bc_name
+  }
+  
+  const result = await invoke('update_face_bc_names', {
+    csmPath: csmFilePath,
+    faceBcNames
+  })
+  
+  console.log('[ESP API] Update result:', result)
+  return result as string
 }

@@ -3,6 +3,8 @@
 mod esp_ffi;
 #[cfg(esp_enabled)]
 mod esp_commands;
+#[cfg(esp_enabled)]
+mod csm_generator;
 
 #[cfg(esp_enabled)]
 use esp_commands::EspState;
@@ -26,6 +28,7 @@ pub fn run() {
         esp_commands::load_csm_file,
         esp_commands::get_model_info,
         esp_commands::update_parameter,
+        esp_commands::update_face_bc_names,
         esp_commands::close_model,
       ]);
   }

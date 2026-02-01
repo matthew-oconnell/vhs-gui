@@ -2,8 +2,10 @@
 // Replaces Python ESP server functionality
 
 use crate::esp_ffi::{OcsmModel, FaceTessellation};
+use crate::csm_generator::{generate_face_attribute_commands, insert_face_attributes};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use std::collections::HashMap;
 use tauri::State;
 
 /// Shared state for the loaded model
@@ -271,4 +273,41 @@ pub async fn get_model_info(
 pub async fn close_model(state: State<'_, EspState>) -> Result<(), String> {
     *state.model.lock().unwrap() = None;
     Ok(())
+}
+
+/// Update bc_name attributes for selected faces in the CSM file
+///
+/// Generates SELECT FACE + ATTRIBUTE commands and inserts them into the CSM file.
+/// The modified CSM is saved back to disk and the model is reloaded to apply changes.
+///
+/// # Arguments
+/// * `csm_path` - Path to the CSM file
+/// * `face_bc_names` - Map of face indices (1-based) to bc_name strings
+///
+/// # Returns
+/// Success or error message
+#[tauri::command]
+pub async fn update_face_bc_names(
+    csm_path: String,
+    face_bc_names: HashMap<usize, String>,
+    state: State<'_, EspState>,
+) -> Result<String, String> {
+    // Read current CSM file
+    let csm_content = std::fs::read_to_string(&csm_path)
+        .map_err(|e| format!("Failed to read CSM file: {}", e))?;
+    
+    // Generate face attribute commands (body_index not used yet, pass 1)
+    let commands = generate_face_attribute_commands(&face_bc_names, 1);
+    
+    // Insert commands into CSM
+    let modified_csm = insert_face_attributes(&csm_content, &commands);
+    
+    // Write modified CSM back to file
+    std::fs::write(&csm_path, modified_csm)
+        .map_err(|e| format!("Failed to write CSM file: {}", e))?;
+    
+    // Reload the model to apply changes
+    let _geometry = load_csm_file(csm_path.clone(), state).await?;
+    
+    Ok(format!("Updated bc_names for {} faces", face_bc_names.len()))
 }

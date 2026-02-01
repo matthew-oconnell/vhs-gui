@@ -195,6 +195,7 @@
   overflow-x: hidden;
   padding: 8px 12px;
   background-color: #1e1e1e;
+  min-height: 0; /* Critical: allows flex child to shrink */
 }
 
 .console-content::-webkit-scrollbar {
@@ -293,13 +294,14 @@
 /* Split View */
 .console-content-wrapper {
   flex: 1;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
+  min-height: 0; /* Allow flex child to shrink */
 }
 
 .console-split-container {
   height: 100%;
+  flex: 1;
 }
 
 .console-split-handle {
@@ -376,6 +378,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  min-height: 0; /* Critical: allows flex child to shrink */
   padding: 8px;
 }
 

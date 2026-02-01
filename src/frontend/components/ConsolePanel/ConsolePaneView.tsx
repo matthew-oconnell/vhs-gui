@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react'
-import { ConsoleLogEntry, LogCategory } from '../../store/consoleStore'
+import { ConsoleLogEntry, getCategoryColor } from '../../store/consoleStore'
 import './ConsolePanel.css'
 
 interface ConsolePaneViewProps {
   entries: ConsoleLogEntry[]
-  visibleCategories: Set<LogCategory>
-  onToggleCategory: (category: LogCategory) => void
+  visibleCategories: Set<string>
+  onToggleCategory: (category: string) => void
   onClear: () => void
   title?: string
   showCategoryFilters?: boolean
@@ -48,22 +48,10 @@ const ConsolePaneView: React.FC<ConsolePaneViewProps> = ({
     }
   }
 
-  const getCategoryColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      'ESP': '#4ec9b0',
-      'DEBUG': '#858585',
-      'Validation': '#ce9178',
-      'Geometry': '#dcdcaa',
-      'Config': '#9cdcfe',
-      'Network': '#c586c0',
-      'UI': '#4fc1ff',
-      'Performance': '#b5cea8'
-    }
-    return colors[category] || '#cccccc'
-  }
-
-  const allCategories: LogCategory[] = 
-    ['ESP', 'DEBUG', 'Validation', 'Geometry', 'Config', 'Network', 'UI', 'Performance']
+  // Extract unique categories from all entries dynamically
+  const availableCategories = Array.from(
+    new Set(entries.map(e => e.category))
+  ).sort()
 
   // Filter entries by visible categories
   const filteredEntries = entries.filter(e => visibleCategories.has(e.category))
@@ -77,7 +65,7 @@ const ConsolePaneView: React.FC<ConsolePaneViewProps> = ({
           
           {showCategoryFilters && (
             <div className="console-pane-categories">
-              {allCategories.map(category => {
+              {availableCategories.map(category => {
                 const isActive = visibleCategories.has(category)
                 return (
                   <button

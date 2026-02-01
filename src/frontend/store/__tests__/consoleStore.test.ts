@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useConsoleStore } from '../consoleStore'
+import { useConsoleStore, getCategoryColor } from '../consoleStore'
 
 describe('consoleStore', () => {
   beforeEach(() => {
@@ -453,6 +453,110 @@ describe('consoleStore', () => {
         expect(getLeftPaneEntries()).toHaveLength(1)
         expect(getRightPaneEntries()).toHaveLength(1)
       })
+    })
+  })
+
+  describe('Dynamic Categories', () => {
+    it('should accept any string as a category', () => {
+      const { log } = useConsoleStore.getState()
+      
+      // Use completely new category names
+      log('MyCustomCategory', 'info', 'Custom message 1')
+      log('AnotherCategory', 'success', 'Custom message 2')
+      log('YetAnotherOne', 'debug', 'Custom message 3')
+      
+      const { entries } = useConsoleStore.getState()
+      expect(entries).toHaveLength(3)
+      expect(entries[0].category).toBe('MyCustomCategory')
+      expect(entries[1].category).toBe('AnotherCategory')
+      expect(entries[2].category).toBe('YetAnotherOne')
+    })
+
+    it('getAvailableCategories() should extract unique categories from entries', () => {
+      const { log, getAvailableCategories } = useConsoleStore.getState()
+      
+      log('ESP', 'info', 'Message 1')
+      log('DEBUG', 'info', 'Message 2')
+      log('ESP', 'info', 'Message 3')  // Duplicate category
+      log('CustomCategory', 'info', 'Message 4')
+      log('DEBUG', 'info', 'Message 5')  // Duplicate category
+      
+      const categories = getAvailableCategories()
+      expect(categories).toHaveLength(3)
+      expect(categories).toContain('ESP')
+      expect(categories).toContain('DEBUG')
+      expect(categories).toContain('CustomCategory')
+    })
+
+    it('getAvailableCategories() should return sorted categories', () => {
+      const { log, getAvailableCategories } = useConsoleStore.getState()
+      
+      log('Zebra', 'info', 'Message 1')
+      log('Alpha', 'info', 'Message 2')
+      log('Mike', 'info', 'Message 3')
+      
+      const categories = getAvailableCategories()
+      expect(categories).toEqual(['Alpha', 'Mike', 'Zebra'])
+    })
+
+    it('should return empty array when no entries exist', () => {
+      const { getAvailableCategories } = useConsoleStore.getState()
+      
+      const categories = getAvailableCategories()
+      expect(categories).toEqual([])
+    })
+
+    it('should work with category filtering for custom categories', () => {
+      const { log, toggleCategory, getVisibleEntries } = useConsoleStore.getState()
+      
+      // Add custom category
+      log('MyCategory', 'info', 'Custom message')
+      log('ESP', 'info', 'ESP message')
+      
+      // Initially visible based on default settings
+      let visible = getVisibleEntries()
+      expect(visible.some(e => e.category === 'ESP')).toBe(true)
+      
+      // Toggle custom category on
+      toggleCategory('MyCategory')
+      visible = getVisibleEntries()
+      expect(visible.some(e => e.category === 'MyCategory')).toBe(true)
+      
+      // Toggle custom category off
+      toggleCategory('MyCategory')
+      visible = getVisibleEntries()
+      expect(visible.some(e => e.category === 'MyCategory')).toBe(false)
+    })
+  })
+
+  describe('getCategoryColor()', () => {
+    it('should return predefined colors for known categories', () => {
+      expect(getCategoryColor('ESP')).toBe('#4ec9b0')
+      expect(getCategoryColor('DEBUG')).toBe('#858585')
+      expect(getCategoryColor('Validation')).toBe('#ce9178')
+      expect(getCategoryColor('Geometry')).toBe('#dcdcaa')
+      expect(getCategoryColor('Config')).toBe('#9cdcfe')
+      expect(getCategoryColor('Network')).toBe('#c586c0')
+      expect(getCategoryColor('UI')).toBe('#4fc1ff')
+      expect(getCategoryColor('Performance')).toBe('#b5cea8')
+    })
+
+    it('should generate HSL color for unknown categories', () => {
+      const color = getCategoryColor('UnknownCategory')
+      expect(color).toMatch(/^hsl\(\d+,\s*\d+%,\s*\d+%\)$/)
+    })
+
+    it('should generate consistent color for same category', () => {
+      const color1 = getCategoryColor('CustomCategory')
+      const color2 = getCategoryColor('CustomCategory')
+      expect(color1).toBe(color2)
+    })
+
+    it('should generate different colors for different categories', () => {
+      const color1 = getCategoryColor('Category1')
+      const color2 = getCategoryColor('Category2')
+      // Colors should be different (hash collision is extremely rare)
+      expect(color1).not.toBe(color2)
     })
   })
 })

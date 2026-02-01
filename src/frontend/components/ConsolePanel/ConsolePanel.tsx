@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle, type ImperativeHandle as PanelImperativeHandle } from 'react-resizable-panels'
-import { useConsoleStore } from '../../store/consoleStore'
+import { useConsoleStore, getCategoryColor } from '../../store/consoleStore'
 import ConsolePaneView from './ConsolePaneView'
 import './ConsolePanel.css'
 
@@ -29,7 +29,8 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({ panelRef: imperativePanelRe
     getLeftPaneEntries,
     getRightPaneEntries,
     copyLogsToClipboard,
-    exportLogsToFile
+    exportLogsToFile,
+    getAvailableCategories
   } = useConsoleStore()
 
   const [isResizing, setIsResizing] = useState(false)
@@ -145,28 +146,14 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({ panelRef: imperativePanelRe
     }
   }
 
-  const getCategoryColor = (category: string): string => {
-    const colors: Record<string, string> = {
-      'ESP': '#4ec9b0',
-      'DEBUG': '#858585',
-      'Validation': '#ce9178',
-      'Geometry': '#dcdcaa',
-      'Config': '#9cdcfe',
-      'Network': '#c586c0',
-      'UI': '#4fc1ff',
-      'Performance': '#b5cea8'
-    }
-    return colors[category] || '#cccccc'
-  }
-
-  const allCategories: Array<'ESP' | 'DEBUG' | 'Validation' | 'Geometry' | 'Config' | 'Network' | 'UI' | 'Performance'> = 
-    ['ESP', 'DEBUG', 'Validation', 'Geometry', 'Config', 'Network', 'UI', 'Performance']
+  // Extract available categories from log entries dynamically
+  const availableCategories = getAvailableCategories()
 
   return (
     <div 
       ref={panelRef}
       className={`console-panel ${isCollapsed ? 'collapsed' : 'expanded'} ${isResizing ? 'resizing' : ''}`}
-      style={{ height: isCollapsed ? 'auto' : `${consoleHeight}px` }}
+      style={{ height: isCollapsed ? 'auto' : '100%' }}
     >
       {/* Resize Handle */}
       {!isCollapsed && (
@@ -205,7 +192,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({ panelRef: imperativePanelRe
         {!isCollapsed && (
           <>
             <div className="console-header-center">
-              {!isSplitView && allCategories.map(category => {
+              {!isSplitView && availableCategories.map(category => {
                 const isActive = visibleCategories.has(category)
                 return (
                   <button

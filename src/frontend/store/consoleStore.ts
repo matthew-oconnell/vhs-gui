@@ -16,15 +16,12 @@ const DEFAULT_MAX_ENTRIES = 1000
 // Type Definitions
 // ============================================================================
 
-export type LogCategory = 
-  | 'ESP'          // ESP server operations
-  | 'DEBUG'        // General debugging
-  | 'Validation'   // Schema validation
-  | 'Geometry'     // Mesh/surface operations
-  | 'Config'       // JSON config operations
-  | 'Network'      // API/fetch calls
-  | 'UI'           // User interactions
-  | 'Performance'  // Timing/profiling
+/**
+ * LogCategory is now fully dynamic - any string can be used as a category.
+ * Common categories include: 'ESP', 'DEBUG', 'Validation', 'Geometry', 
+ * 'Config', 'Network', 'UI', 'Performance'
+ */
+export type LogCategory = string
 
 export type LogLevel = 
   | 'debug'    // Gray - verbose details
@@ -48,13 +45,13 @@ export interface ConsoleSettings {
   timestampFormat: 'time' | 'datetime' | 'relative'
   autoScroll: boolean           // Default: true
   autoExpandOnError: boolean    // Default: true
-  defaultCategories: Set<LogCategory>
+  defaultCategories: Set<string> // Initial categories shown (can be any strings)
   theme: 'dark' | 'light'       // Default: 'dark'
 }
 
 interface ConsoleState {
   entries: ConsoleLogEntry[]
-  visibleCategories: Set<LogCategory>
+  visibleCategories: Set<string>
   isCollapsed: boolean
   consoleHeight: number         // In pixels
   settings: ConsoleSettings
@@ -62,14 +59,14 @@ interface ConsoleState {
   
   // Split view state
   isSplitView: boolean
-  leftPaneCategories: Set<LogCategory>
-  rightPaneCategories: Set<LogCategory>
+  leftPaneCategories: Set<string>
+  rightPaneCategories: Set<string>
 }
 
 interface ConsoleActions {
-  log: (category: LogCategory, level: LogLevel, message: string, metadata?: Record<string, any>) => void
-  clear: (category?: LogCategory) => void
-  toggleCategory: (category: LogCategory) => void
+  log: (category: string, level: LogLevel, message: string, metadata?: Record<string, any>) => void
+  clear: (category?: string) => void
+  toggleCategory: (category: string) => void
   setCollapsed: (collapsed: boolean) => void
   setHeight: (height: number) => void
   getVisibleEntries: () => ConsoleLogEntry[]
@@ -77,10 +74,13 @@ interface ConsoleActions {
   
   // Split view actions
   toggleSplitView: () => void
-  toggleLeftCategory: (category: LogCategory) => void
-  toggleRightCategory: (category: LogCategory) => void
+  toggleLeftCategory: (category: string) => void
+  toggleRightCategory: (category: string) => void
   getLeftPaneEntries: () => ConsoleLogEntry[]
   getRightPaneEntries: () => ConsoleLogEntry[]
+  
+  // Dynamic category extraction
+  getAvailableCategories: () => string[]
   
   // Export actions
   formatLogsAsText: (entries: ConsoleLogEntry[]) => string
@@ -135,11 +135,11 @@ const loadSplitViewFromStorage = (): boolean => {
   }
 }
 
-const loadPaneCategoriesFromStorage = (pane: 'left' | 'right'): Set<LogCategory> => {
+const loadPaneCategoriesFromStorage = (pane: 'left' | 'right'): Set<string> => {
   try {
     const saved = localStorage.getItem(`console-${pane}-pane-categories`)
     if (saved) {
-      return new Set(JSON.parse(saved) as LogCategory[])
+      return new Set(JSON.parse(saved) as string[])
     }
   } catch {
     // Fall through to defaults
@@ -375,5 +375,51 @@ export const useConsoleStore = create<ConsoleState & ConsoleActions>((set, get) 
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
+  },
+
+  getAvailableCategories: () => {
+    const state = get()
+    const categoriesSet = new Set<string>()
+    state.entries.forEach(entry => categoriesSet.add(entry.category))
+    return Array.from(categoriesSet).sort()
   }
 }))
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+/**
+ * Generate a consistent color for any category using a hash function.
+ * Falls back to predefined colors for common categories.
+ */
+export const getCategoryColor = (category: string): string => {
+  // Predefined colors for common categories
+  const knownColors: Record<string, string> = {
+    'ESP': '#4ec9b0',
+    'DEBUG': '#858585',
+    'Validation': '#ce9178',
+    'Geometry': '#dcdcaa',
+    'Config': '#9cdcfe',
+    'Network': '#c586c0',
+    'UI': '#4fc1ff',
+    'Performance': '#b5cea8'
+  }
+  
+  if (knownColors[category]) {
+    return knownColors[category]
+  }
+  
+  // Hash function to generate consistent color from string
+  let hash = 0
+  for (let i = 0; i < category.length; i++) {
+    hash = category.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  
+  // Generate HSL color with good saturation and lightness for visibility
+  const hue = Math.abs(hash % 360)
+  const saturation = 60 + (Math.abs(hash >> 8) % 20) // 60-80%
+  const lightness = 55 + (Math.abs(hash >> 16) % 15) // 55-70%
+  
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+}

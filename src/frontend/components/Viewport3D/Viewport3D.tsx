@@ -72,11 +72,14 @@ function ClickableSurface({
   const geometry = useMemo(() => {
     if (!surface.geometry) return null
     
+    const perfStart = performance.now()
     const geom = new THREE.BufferGeometry()
     geom.setAttribute('position', new THREE.BufferAttribute(surface.geometry.vertices, 3))
     geom.setAttribute('normal', new THREE.BufferAttribute(surface.geometry.normals, 3))
+    const perfEnd = performance.now()
     
     console.log('[Viewport3D] Created BufferGeometry for', surface.name, ':', surface.geometry.vertices.length / 3, 'vertices')
+    console.log(`[Performance] BufferGeometry creation for ${surface.name}: ${(perfEnd - perfStart).toFixed(2)}ms`)
     return geom
   }, [surface.geometry, surface.name])
   

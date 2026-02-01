@@ -1159,9 +1159,11 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   
   loadESPSurfaces: (tags, filename, csmContent) => set((s) => {
+    const perfStart = performance.now()
     console.log('[App Store] Loading ESP tags from:', filename, 'with', tags.length, 'tags')
     
     // Calculate totals
+    const statsStart = performance.now()
     let totalVertices = 0
     let totalFaces = 0
     tags.forEach(surf => {
@@ -1171,9 +1173,12 @@ export const useAppStore = create<AppState>((set) => ({
       }
     })
     
+    const statsEnd = performance.now()
     console.log('[App Store] ESP mesh totals:', totalVertices, 'vertices,', totalFaces, 'faces')
+    console.log(`[Performance] Stats calculation: ${(statsEnd - statsStart).toFixed(2)}ms`)
     
     // Compute bounding spheres for box selection performance
+    const boundsStart = performance.now()
     const bounds: Record<string, SurfaceBounds> = {}
     tags.forEach(tag => {
       if (tag.geometry) {
@@ -1208,7 +1213,9 @@ export const useAppStore = create<AppState>((set) => ({
         }
       }
     })
+    const boundsEnd = performance.now()
     console.log('[App Store] Computed bounding spheres for', Object.keys(bounds).length, 'ESP tags')
+    console.log(`[Performance] Bounds computation: ${(boundsEnd - boundsStart).toFixed(2)}ms`)
     
     // Set the base CSM content in CSMBuilder
     if (csmContent) {
@@ -1222,6 +1229,7 @@ export const useAppStore = create<AppState>((set) => ({
       'mesh filename': filename
     }
     
+    const stateUpdateStart = performance.now()
     const newState = {
       ...s,
       configData: updatedConfigData,
@@ -1234,6 +1242,10 @@ export const useAppStore = create<AppState>((set) => ({
       csmFilename: filename,
       meshNeedsExport: false
     }
+    const stateUpdateEnd = performance.now()
+    const totalEnd = performance.now()
+    console.log(`[Performance] State update: ${(stateUpdateEnd - stateUpdateStart).toFixed(2)}ms`)
+    console.log(`[Performance] Total loadESPSurfaces: ${(totalEnd - perfStart).toFixed(2)}ms`)
     
     // Update project stage after mesh loaded
     setTimeout(() => useAppStore.getState().updateProjectStage(), 0)

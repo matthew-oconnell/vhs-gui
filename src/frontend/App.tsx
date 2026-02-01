@@ -646,11 +646,17 @@ function App() {
       log('Geometry', 'info', `Received ${response.regions?.length || 0} faces, ${response.total_vertices} vertices`)
       
       // Convert ESP regions to our Surface format (individual faces)
+      const convertStart = performance.now()
       const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
+      const convertEnd = performance.now()
       log('Geometry', 'success', `Converted to ${surfaces?.length || 0} surfaces`)
+      log('Performance', 'info', `Adapter conversion took ${(convertEnd - convertStart).toFixed(2)}ms`)
       
       // Load into the store (pass CSM content for export)
+      const storeStart = performance.now()
       loadESPSurfaces(surfaces, file.name, csmContent)
+      const storeEnd = performance.now()
+      log('Performance', 'info', `Store loading took ${(storeEnd - storeStart).toFixed(2)}ms`)
       
       // Store CSM content for text editor
       setCurrentCSMContent(csmContent)

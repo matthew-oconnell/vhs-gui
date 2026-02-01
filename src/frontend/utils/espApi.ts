@@ -79,17 +79,22 @@ export const checkESPHealth = async (): Promise<ESPHealthResponse> => {
  */
 export const buildCSM = async (csmFilePath: string): Promise<CSMBuildResponse> => {
   console.log('[ESP API] Loading CSM file via Tauri:', csmFilePath)
+  const perfStart = performance.now()
   
   try {
+    const invokeStart = performance.now()
     const result = await invoke<any>('load_csm_file', { path: csmFilePath })
+    const invokeEnd = performance.now()
+    console.log(`[Performance] Tauri invoke (load_csm_file): ${(invokeEnd - invokeStart).toFixed(2)}ms`)
     
     console.log('[ESP API] Build successful')
     console.log('[ESP API] Parameters:', result.parameters?.length || 0)
     console.log('[ESP API] Bodies:', result.bodies?.length || 0)
     console.log('[ESP API] Regions:', result.regions?.length || 0)
     
+    const conversionStart = performance.now()
     // Convert Rust response to expected format
-    return {
+    const response = {
       success: true,
       message: 'CSM loaded successfully',
       regions: result.regions?.map((r: any) => ({
@@ -110,6 +115,11 @@ export const buildCSM = async (csmFilePath: string): Promise<CSMBuildResponse> =
       total_faces: result.regions?.reduce((sum: number, r: any) => sum + r.cells.length, 0) || 0,
       build_log: []
     }
+    const conversionEnd = performance.now()
+    const totalEnd = performance.now()
+    console.log(`[Performance] Response conversion: ${(conversionEnd - conversionStart).toFixed(2)}ms`)
+    console.log(`[Performance] Total buildCSM: ${(totalEnd - perfStart).toFixed(2)}ms`)
+    return response
   } catch (error) {
     const message = error instanceof Error ? error.toString() : 'Build failed'
     throw new Error(message)

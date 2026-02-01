@@ -53,14 +53,23 @@ pub async fn load_csm_file(
     path: String,
     state: State<'_, EspState>
 ) -> Result<GeometryData, String> {
+    let total_start = std::time::Instant::now();
+    
     // Load CSM file with absolute path - ESP should resolve dependencies relative to CSM location
+    let load_start = std::time::Instant::now();
     let mut model = OcsmModel::load(&path)?;
+    let load_end = std::time::Instant::now();
+    println!("⏱️  [Performance] CSM load (ocsmLoad): {:?}", load_end.duration_since(load_start));
     
     // Get model info before building
     let info = model.info()?;
     
     // Build geometry
+    let build_start = std::time::Instant::now();
     let build_result = model.build()?;
+    let build_end = std::time::Instant::now();
+    println!("⏱️  [Performance] Geometry build (ocsmBuild): {:?}", build_end.duration_since(build_start));
+    
     if build_result.built_to == 0 {
         return Err("Build failed - no geometry created".to_string());
     }
@@ -72,6 +81,7 @@ pub async fn load_csm_file(
     let info_after = model.info()?;
     
     // Extract all parameters
+    let param_start = std::time::Instant::now();
     let mut parameters = Vec::new();
     for i in 1..=info.parameters {
         let param_info = model.get_parameter(i)?;
@@ -85,12 +95,19 @@ pub async fn load_csm_file(
             type_: param_info.type_,
         });
     }
+    let param_end = std::time::Instant::now();
+    println!("⏱️  [Performance] Parameter extraction: {:?}", param_end.duration_since(param_start));
     
     // Note: ocsmTessellate() is optional - EG_makeTessBody will create tessellation
     // But calling it may set up internal state needed by OCSM
+    let tess_start = std::time::Instant::now();
     println!("🔧 Preparing model tessellation...");
     match model.tessellate(0) {  // 0 = all bodies
-        Ok(_) => println!("✅ ocsmTessellate completed"),
+        Ok(_) => {
+            let tess_end = std::time::Instant::now();
+            println!("✅ ocsmTessellate completed in {:?}", tess_end.duration_since(tess_start));
+            println!("⏱️  [Performance] ocsmTessellate: {:?}", tess_end.duration_since(tess_start));
+        },
         Err(e) => {
             eprintln!("⚠️  ocsmTessellate failed: {} (will try EG_makeTessBody anyway)", e);
         }
@@ -98,6 +115,7 @@ pub async fn load_csm_file(
     
     // Extract tessellations for bodies actually on the stack
     // Use the body indices returned by ocsmBuild, not all created bodies
+    let extraction_start = std::time::Instant::now();
     let mut bodies = Vec::new();
     let mut regions = Vec::new();
     let mut global_tag = 1;  // Unique tag for each face
@@ -105,6 +123,7 @@ pub async fn load_csm_file(
     eprintln!("🔧 Extracting {} bodies from stack", build_result.bodies_on_stack.len());
     
     for &ibody in &build_result.bodies_on_stack {
+        let body_start = std::time::Instant::now();
         eprintln!("   Processing body index {}", ibody);
         
         // Try to get body info - skip if it fails (intermediate construction geometry)
@@ -125,9 +144,12 @@ pub async fn load_csm_file(
         });
         
         // Extract tessellation mesh for rendering
+        let tess_extract_start = std::time::Instant::now();
         match model.get_body_tessellation(ibody) {
             Ok(face_meshes) => {
-                eprintln!("   ✅ Extracted {} faces from body {}", face_meshes.len(), ibody);
+                let tess_extract_end = std::time::Instant::now();
+                eprintln!("   ✅ Extracted {} faces from body {} in {:?}", face_meshes.len(), ibody, tess_extract_end.duration_since(tess_extract_start));
+                eprintln!("   ⏱️  [Performance] get_body_tessellation({}): {:?}", ibody, tess_extract_end.duration_since(tess_extract_start));
                 for face_mesh in face_meshes {
                     let region_name = face_mesh.bc_name.clone()
                         .unwrap_or_else(|| format!("Body{}_Face{}", ibody, face_mesh.face_index));
@@ -150,11 +172,16 @@ pub async fn load_csm_file(
             }
         }
     }
+    let extraction_end = std::time::Instant::now();
     
     println!("🎉 Extraction complete: {} regions from {} bodies", regions.len(), bodies.len());
+    println!("⏱️  [Performance] Total body extraction: {:?}", extraction_end.duration_since(extraction_start));
     
     // Store model in state for future operations
     *state.model.lock().unwrap() = Some(model);
+    
+    let total_end = std::time::Instant::now();
+    println!("⏱️  [Performance] TOTAL load_csm_file: {:?}", total_end.duration_since(total_start));
     
     Ok(GeometryData {
         branches: info_after.branches,

@@ -195,7 +195,10 @@ impl OcsmModel {
     /// IMPORTANT: ESP loads imported files (like .stp) during this call.
     /// We must be in the CSM file's directory when this runs.
     pub fn build(&mut self) -> Result<BuildResult, String> {
+        let total_build_start = std::time::Instant::now();
+        
         // Ensure we're in the correct directory for ESP to find imported files
+        let chdir_start = std::time::Instant::now();
         let c_working_dir = CString::new(self.working_dir.as_str())
             .map_err(|e| format!("Invalid working directory: {}", e))?;
         
@@ -204,11 +207,15 @@ impl OcsmModel {
                 return Err("Failed to change to working directory for build".to_string());
             }
         }
+        let chdir_end = std::time::Instant::now();
+        eprintln!("  ⏱️  [Build Detail] chdir setup: {:?}", chdir_end.duration_since(chdir_start));
         
         let mut builtTo: c_int = 0;
         let mut nbody: c_int = 100;  // Allocate space for up to 100 bodies
         let mut bodies = vec![0i32; 100];
         
+        eprintln!("  🔨 Calling ESP ocsmBuild (this executes CSM script + imports STEP files)...");
+        let ocsm_start = std::time::Instant::now();
         unsafe {
             let status = ocsmBuild(
                 self.ptr, 
@@ -218,6 +225,9 @@ impl OcsmModel {
                 bodies.as_mut_ptr()
             );
             
+            let ocsm_end = std::time::Instant::now();
+            eprintln!("  ⏱️  [Build Detail] ocsmBuild C call: {:?}", ocsm_end.duration_since(ocsm_start));
+            
             // Error -216 is benign (TOO_MANY_BODYS_ON_STACK)
             if status != SUCCESS && status != -216 && builtTo == 0 {
                 return Err(format!("ocsmBuild failed with status {}", status));
@@ -225,9 +235,14 @@ impl OcsmModel {
         }
         
         // Truncate to actual number of bodies
+        let cleanup_start = std::time::Instant::now();
         bodies.truncate(nbody as usize);
         
         eprintln!("🔍 ocsmBuild returned nbody={}, body array={:?}", nbody, bodies);
+        
+        let total_build_end = std::time::Instant::now();
+        eprintln!("  ⏱️  [Build Detail] Post-processing: {:?}", total_build_end.duration_since(cleanup_start));
+        eprintln!("  ⏱️  [Build Detail] Total build() wrapper: {:?}", total_build_end.duration_since(total_build_start));
         
         Ok(BuildResult {
             built_to: builtTo,
@@ -338,38 +353,35 @@ impl OcsmModel {
     }
     
     /// Extract tessellation mesh from a body using EGADS API
+    /// 
+    /// IMPORTANT: ocsmBuild() already creates tessellation automatically.
+    /// We retrieve the existing tessellation (iselect=1), not create a new one!
     pub fn get_body_tessellation(&self, body_index: i32) -> Result<Vec<FaceTessellation>, String> {
+        let total_start = std::time::Instant::now();
+        
         unsafe {
-            // Step 1: Get the EGADS body object
-            let mut body: *mut c_void = ptr::null_mut();
+            // Get the pre-existing tessellation created by ocsmBuild()
+            // Python version does: tess_ego = modl.GetEgo(ibody, ocsm.BODY, 1)
+            let tess_start = std::time::Instant::now();
+            let mut tess: *mut c_void = ptr::null_mut();
             
-            eprintln!("🔍 Calling ocsmGetEgo(modl={:?}, ibody={}, seltype={}, iselect=0)", 
+            eprintln!("🔍 Calling ocsmGetEgo(modl={:?}, ibody={}, seltype={}, iselect=1)", 
                       self.ptr, body_index, OCSM_BODY);
             
-            let mut status = ocsmGetEgo(
+            let status = ocsmGetEgo(
                 self.ptr,
                 body_index,
                 OCSM_BODY,  // Requesting body-level object
-                0,          // iselect=0 means the body itself
-                &mut body
+                1,          // iselect=1 means the tessellation object (already created by ocsmBuild!)
+                &mut tess
             );
             
-            eprintln!("🔍 ocsmGetEgo returned status={}, body ptr={:?}", status, body);
-            
-            if status != SUCCESS || body.is_null() {
-                return Err(format!("Failed to get body ego for body {}: status {}", body_index, status));
-            }
-            
-            // Step 2: Create EGADS tessellation object
-            // Tessellation parameters: [maxAngle, maxSideLength, maxSag]
-            // Default reasonable values for visualization
-            let params = [15.0, 0.1, 0.01];  // 15 degrees, 10% relative side length, 1% relative sag
-            let mut tess: *mut c_void = ptr::null_mut();
-            
-            status = EG_makeTessBody(body, params.as_ptr(), &mut tess);
+            let tess_end = std::time::Instant::now();
+            eprintln!("🔍 ocsmGetEgo(iselect=1) returned status={}, tess ptr={:?}", status, tess);
+            eprintln!("    ⏱️  [Tess Detail] Get existing tessellation: {:?}", tess_end.duration_since(tess_start));
             
             if status != SUCCESS || tess.is_null() {
-                return Err(format!("EG_makeTessBody failed for body {}: status {}", body_index, status));
+                return Err(format!("Failed to get tessellation for body {}: status {}", body_index, status));
             }
             
             // Get body info to know how many faces there are
@@ -379,6 +391,7 @@ impl OcsmModel {
             let mut face_meshes = Vec::new();
             
             // Extract tessellation for each face (1-indexed in EGADS)
+            let face_extract_start = std::time::Instant::now();
             for iface in 1..=nfaces {
                 let mut plen: c_int = 0;  // Number of points
                 let mut xyz: *const c_double = ptr::null();  // Point coordinates
@@ -433,6 +446,11 @@ impl OcsmModel {
                     bc_name: None,  // TODO: Extract bc_name attribute from face if needed
                 });
             }
+            let face_extract_end = std::time::Instant::now();
+            eprintln!("    ⏱️  [Tess Detail] Face extraction loop ({} faces): {:?}", nfaces, face_extract_end.duration_since(face_extract_start));
+            
+            let total_end = std::time::Instant::now();
+            eprintln!("    ⏱️  [Tess Detail] Total get_body_tessellation: {:?}", total_end.duration_since(total_start));
             
             Ok(face_meshes)
         }

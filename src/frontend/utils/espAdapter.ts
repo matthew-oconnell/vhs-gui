@@ -28,10 +28,14 @@ export const convertESPRegionsToSurfaces = (
     centerAndScale?: boolean
   }
 ): Surface[] => {
+  const perfStart = performance.now()
   const { regions } = response
   const centerAndScale = options?.centerAndScale ?? true
   
+  console.log(`[Performance] convertESPRegionsToSurfaces: Processing ${regions.length} regions`)
+  
   // First pass: compute global bounding box if centering
+  const boundsStart = performance.now()
   let globalCenter = [0, 0, 0]
   let globalScale = 1
   
@@ -59,11 +63,14 @@ export const convertESPRegionsToSurfaces = (
     const extent = Math.max(maxX - minX, maxY - minY, maxZ - minZ)
     globalScale = extent > 0 ? 10 / extent : 1  // Normalize to ~10 units
     
+    const boundsEnd = performance.now()
     console.log('[ESP Adapter] Global center:', globalCenter)
     console.log('[ESP Adapter] Global scale:', globalScale)
+    console.log(`[Performance] Bounds calculation: ${(boundsEnd - boundsStart).toFixed(2)}ms`)
   }
   
   // Convert each region to a Tag (Surface during migration)
+  const geometryStart = performance.now()
   const surfaces: Surface[] = regions.map((region, index) => {
     const geometry = convertRegionToGeometry(region, globalCenter, globalScale)
     
@@ -81,8 +88,12 @@ export const convertESPRegionsToSurfaces = (
       geometry
     }
   })
+  const geometryEnd = performance.now()
+  const totalEnd = performance.now()
   
   console.log('[ESP Adapter] Converted', surfaces.length, 'surfaces')
+  console.log(`[Performance] Geometry conversion (all regions): ${(geometryEnd - geometryStart).toFixed(2)}ms`)
+  console.log(`[Performance] Total convertESPRegionsToSurfaces: ${(totalEnd - perfStart).toFixed(2)}ms`)
   return surfaces
 }
 

@@ -186,6 +186,14 @@ interface AppState {
   projectFolderHandle: string | FileSystemDirectoryHandle | null
   openProjectFolder: (handle: string | FileSystemDirectoryHandle) => void
   closeProjectFolder: () => void
+  
+  // Unsaved changes tracking
+  hasUnsavedChanges: boolean
+  setHasUnsavedChanges: (hasChanges: boolean) => void
+  markAsModified: () => void
+  
+  // Reset to blank project
+  resetToBlankProject: () => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -588,7 +596,8 @@ export const useAppStore = create<AppState>((set) => ({
       tagVisibility: newVisibility,
       selectedBC: bc,
       selectedNode: null,
-      selectedTag: null
+      selectedTag: null,
+      hasUnsavedChanges: true
     }
   }),
   
@@ -633,7 +642,8 @@ export const useAppStore = create<AppState>((set) => ({
       // Update selectedBC if it's the one being modified
       selectedBC: state.selectedBC?.id === id 
         ? { ...state.selectedBC, ...updates }
-        : state.selectedBC
+        : state.selectedBC,
+      hasUnsavedChanges: true
     }
   }),
   
@@ -648,7 +658,8 @@ export const useAppStore = create<AppState>((set) => ({
         ...state.configData,
         'boundary conditions': bcs.filter((bc: any) => bc.id !== id)
       },
-      selectedBC: state.selectedBC?.id === id ? null : state.selectedBC
+      selectedBC: state.selectedBC?.id === id ? null : state.selectedBC,
+      hasUnsavedChanges: true
     }
   }),
   
@@ -670,7 +681,8 @@ export const useAppStore = create<AppState>((set) => ({
       selectedState: state,
       selectedNode: null,
       selectedTag: null,
-      selectedBC: null
+      selectedBC: null,
+      hasUnsavedChanges: true
     }
     console.log('[addState] New states:', Object.keys(newConfig.configData.states || {}))
     return newConfig
@@ -698,7 +710,8 @@ export const useAppStore = create<AppState>((set) => ({
         ...s.configData,
         states: newStates
       },
-      selectedState: s.selectedState?.id === id ? updatedState : s.selectedState
+      selectedState: s.selectedState?.id === id ? updatedState : s.selectedState,
+      hasUnsavedChanges: true
     }
   }),
   
@@ -718,7 +731,8 @@ export const useAppStore = create<AppState>((set) => ({
         ...s.configData,
         states: newStates
       },
-      selectedState: s.selectedState?.id === id ? null : s.selectedState
+      selectedState: s.selectedState?.id === id ? null : s.selectedState,
+      hasUnsavedChanges: true
     }
   }),
 
@@ -1267,4 +1281,59 @@ export const useAppStore = create<AppState>((set) => ({
   projectFolderHandle: null,
   openProjectFolder: (handle) => set({ projectFolderHandle: handle }),
   closeProjectFolder: () => set({ projectFolderHandle: null }),
+  
+  // Unsaved changes tracking
+  hasUnsavedChanges: false,
+  setHasUnsavedChanges: (hasChanges) => set({ hasUnsavedChanges: hasChanges }),
+  markAsModified: () => set({ hasUnsavedChanges: true }),
+  
+  // Reset to blank project
+  resetToBlankProject: () => set({
+    // Clear all selections
+    selectedNode: null,
+    selectedTag: null,
+    selectedTags: [],
+    selectedBC: null,
+    selectedState: null,
+    selectedViz: null,
+    selectedInitRegion: null,
+    soloBC: null,
+    
+    // Reset configuration
+    configData: {
+      'boundary conditions': [],
+      states: {}
+    },
+    
+    // Clear mesh data
+    availableTags: [],
+    totalVertices: 0,
+    totalFaces: 0,
+    tagBounds: {},
+    tagVisibility: {},
+    tagWireframe: {},
+    tagRenderSettings: {},
+    
+    // Reset CSM data
+    originalCSMContent: null,
+    csmFilename: null,
+    csmBuilder: new CSMBuilder(),
+    
+    // Reset wizard flags
+    thermoWizardExecuted: false,
+    turbulenceWizardExecuted: false,
+    initializationWizardExecuted: false,
+    timeAccuracyWizardExecuted: false,
+    visualizationWizardExecuted: false,
+    meshNeedsExport: false,
+    
+    // Reset project stage
+    projectStage: 'no-mesh' as ProjectStage,
+    
+    // Clear project folder
+    projectFolderHandle: null,
+    
+    // Mark as saved (since it's a fresh state)
+    hasUnsavedChanges: false
+  })
 }))

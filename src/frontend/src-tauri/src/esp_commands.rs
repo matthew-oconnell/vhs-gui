@@ -151,15 +151,16 @@ pub async fn load_csm_file(
                 eprintln!("   ✅ Extracted {} faces from body {} in {:?}", face_meshes.len(), ibody, tess_extract_end.duration_since(tess_extract_start));
                 eprintln!("   ⏱️  [Performance] get_body_tessellation({}): {:?}", ibody, tess_extract_end.duration_since(tess_extract_start));
                 for face_mesh in face_meshes {
+                    // Use bc_name if available, otherwise generate default name
                     let region_name = face_mesh.bc_name.clone()
                         .unwrap_or_else(|| format!("Body{}_Face{}", ibody, face_mesh.face_index));
                     
+                    eprintln!("      Face {}: bc_name = {:?}", face_mesh.face_index, face_mesh.bc_name);                    
                     regions.push(Region {
                         name: region_name.clone(),
                         tag: global_tag,
                         body: ibody,
-                        face: face_mesh.face_index,
-                        vertices: face_mesh.vertices,
+                        face: face_mesh.face_index,                        vertices: face_mesh.vertices,
                         cells: face_mesh.triangles,
                         bc_name: face_mesh.bc_name,
                     });

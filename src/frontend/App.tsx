@@ -13,6 +13,7 @@ import NewProjectWizard, { ProjectConfig } from './components/MenuBar/NewProject
 import ProjectSetupWizard from './components/ProjectSetupWizard/ProjectSetupWizard'
 import SettingsDialog from './components/SettingsDialog/SettingsDialog'
 import ValidationErrorDialog from './components/ValidationErrorDialog/ValidationErrorDialog'
+import UnsavedChangesDialog from './components/UnsavedChangesDialog/UnsavedChangesDialog'
 import FarfieldWizard from './components/FarfieldWizard/FarfieldWizard'
 import ConsolePanel from './components/ConsolePanel/ConsolePanel'
 import StatusBar from './components/StatusBar/StatusBar'
@@ -48,11 +49,15 @@ function App() {
   const [espLoading, setEspLoading] = useState(false)
   const [espLoadingMessage, setEspLoadingMessage] = useState('')
   const [espLogLines, setEspLogLines] = useState<string[]>([])
+  const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false)
   
   // Text Editor state
   const [textEditorOpen, setTextEditorOpen] = useState(false)
   const [currentCSMContent, setCurrentCSMContent] = useState<string>('')
   const [currentCSMFilename, setCurrentCSMFilename] = useState<string>('')
+  
+  // Generic text file editor state
+  const [currentTextFile, setCurrentTextFile] = useState<{ content: string; filename: string; path?: string } | null>(null)
   
   // Refs for imperative panel control
   const projectFolderPanelRef = useRef<PanelImperativeHandle>(null)
@@ -328,9 +333,38 @@ function App() {
       // Validation passed, save the file
       await saveJsonFile(configToSave, 'config.json')
       console.log('File saved successfully')
+      useAppStore.getState().setHasUnsavedChanges(false)
     } catch (error) {
       console.error('Error saving file:', error)
     }
+  }
+
+  const handleNewBlankProject = () => {
+    const hasUnsaved = useAppStore.getState().hasUnsavedChanges
+    
+    if (hasUnsaved) {
+      // Show confirmation dialog
+      setShowUnsavedChangesDialog(true)
+    } else {
+      // No unsaved changes, just reset
+      useAppStore.getState().resetToBlankProject()
+    }
+  }
+
+  const handleUnsavedChangesSave = async () => {
+    setShowUnsavedChangesDialog(false)
+    await handleSave()
+    // After save completes, reset to blank project
+    useAppStore.getState().resetToBlankProject()
+  }
+
+  const handleUnsavedChangesDiscard = () => {
+    setShowUnsavedChangesDialog(false)
+    useAppStore.getState().resetToBlankProject()
+  }
+
+  const handleUnsavedChangesCancel = () => {
+    setShowUnsavedChangesDialog(false)
   }
 
   const handleValidate = async () => {
@@ -1213,6 +1247,56 @@ subtract
 
   const handleTextEditorClose = () => {
     setTextEditorOpen(false)
+    setCurrentTextFile(null)
+  }
+
+  // Handler for opening any text file in the editor
+  const handleOpenTextFile = async (fileHandle: FileSystemFileHandle) => {
+    try {
+      const file = await fileHandle.getFile()
+      const content = await file.text()
+      
+      setCurrentTextFile({
+        content,
+        filename: file.name,
+        path: (fileHandle as any).path // Store path for Tauri mode
+      })
+      setTextEditorOpen(true)
+      
+      log('TextEditor', 'info', `Opened ${file.name} in text editor`)
+    } catch (error) {
+      console.error('Error opening text file:', error)
+      log('TextEditor', 'error', `Failed to open file: ${(error as Error).message}`)
+      alert(`Failed to open file: ${(error as Error).message}`)
+    }
+  }
+
+  // Handler for saving generic text files
+  const handleTextFileSave = async (newContent: string) => {
+    if (!currentTextFile) return
+    
+    try {
+      log('TextEditor', 'info', `Saving ${currentTextFile.filename}...`)
+      
+      const isTauriMode = '__TAURI_INTERNALS__' in window
+      if (isTauriMode && currentTextFile.path) {
+        // Tauri mode - use Tauri APIs to write file
+        const { writeTextFile } = await import('@tauri-apps/plugin-fs')
+        await writeTextFile(currentTextFile.path, newContent)
+        log('TextEditor', 'success', `Saved ${currentTextFile.filename}!`)
+      } else {
+        // Browser mode - use File System Access API
+        alert('File saving in browser mode is not yet implemented. Please use Tauri desktop version.')
+      }
+      
+      // Update current content to reflect saved state
+      setCurrentTextFile({ ...currentTextFile, content: newContent })
+      
+    } catch (error) {
+      console.error('Error saving text file:', error)
+      log('TextEditor', 'error', `Failed to save: ${(error as Error).message}`)
+      alert(`Failed to save file: ${(error as Error).message}`)
+    }
   }
 
   return (
@@ -1227,6 +1311,7 @@ subtract
       
       <MenuBar 
         onNewProject={() => setShowProjectSetup(true)}
+        onNewBlankProject={handleNewBlankProject}
         onOpen={handleOpen}
         onOpenProjectFolder={handleOpenProjectFolder}
         onSave={handleSave}
@@ -1266,6 +1351,7 @@ subtract
                 onLoadConfig={handleLoadConfigFromHandle}
                 onLoadMesh={handleLoadMeshFromHandle}
                 onLoadCSM={handleLoadCSMFromHandle}
+                onOpenTextFile={handleOpenTextFile}
                 onOpenProjectFolder={handleOpenProjectFolder}
               />
             </Panel>
@@ -1343,9 +1429,9 @@ subtract
                   {/* Text Editor */}
                   <Panel defaultSize={50} minSize={30}>
                     <TextEditor
-                      content={currentCSMContent}
-                      filename={currentCSMFilename}
-                      onSave={handleTextEditorSave}
+                      content={currentTextFile ? currentTextFile.content : currentCSMContent}
+                      filename={currentTextFile ? currentTextFile.filename : currentCSMFilename}
+                      onSave={currentTextFile ? handleTextFileSave : handleTextEditorSave}
                       onClose={handleTextEditorClose}
                     />
                   </Panel>
@@ -1487,6 +1573,14 @@ subtract
           logLines={espLogLines}
         />
       )}
+      
+      {/* Unsaved Changes Dialog */}
+      <UnsavedChangesDialog
+        isOpen={showUnsavedChangesDialog}
+        onSave={handleUnsavedChangesSave}
+        onDiscard={handleUnsavedChangesDiscard}
+        onCancel={handleUnsavedChangesCancel}
+      />
     </div>
   )
 }

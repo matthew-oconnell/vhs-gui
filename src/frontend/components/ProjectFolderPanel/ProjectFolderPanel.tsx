@@ -55,6 +55,7 @@ interface ProjectFolderPanelProps {
   onLoadConfig?: (fileHandle: FileSystemFileHandle) => Promise<void>
   onLoadMesh?: (fileHandle: FileSystemFileHandle) => Promise<void>
   onLoadCSM?: (fileHandle: FileSystemFileHandle) => Promise<void>
+  onOpenTextFile?: (fileHandle: FileSystemFileHandle) => Promise<void>
   onOpenProjectFolder?: () => Promise<void>
 }
 
@@ -65,7 +66,7 @@ interface ContextMenuState {
   node: FileTreeNode | null
 }
 
-function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onOpenProjectFolder }: ProjectFolderPanelProps) {
+function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onOpenTextFile, onOpenProjectFolder }: ProjectFolderPanelProps) {
   const {
     projectFolderHandle,
     projectFolderCollapsed,
@@ -183,7 +184,8 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
         const fileHandle = {
           getFile: () => Promise.resolve(file),
           kind: 'file' as const,
-          name: node.name
+          name: node.name,
+          path: node.path // Preserve path for text editor
         } as any as FileSystemFileHandle
         
         switch (action) {
@@ -196,10 +198,13 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
           case 'load-csm':
             if (onLoadCSM) await onLoadCSM(fileHandle)
             break
+          case 'open-text-editor':
+            if (onOpenTextFile) await onOpenTextFile(fileHandle)
+            break
         }
       } else if ('handle' in node) {
         // Browser mode - use FileSystemHandle
-        if (node.handle.kind !== 'file') return
+        if (!node.handle || node.handle.kind !== 'file') return
         const fileHandle = node.handle as FileSystemFileHandle
         
         switch (action) {
@@ -211,6 +216,9 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
             break
           case 'load-csm':
             if (onLoadCSM) await onLoadCSM(fileHandle)
+            break
+          case 'open-text-editor':
+            if (onOpenTextFile) await onOpenTextFile(fileHandle)
             break
         }
       }
@@ -309,6 +317,13 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
               Load Mesh via ESP
             </div>
           )}
+          {/* Show 'Open in Text Editor' for all file types */}
+          <div 
+            className="context-menu-item"
+            onClick={() => handleContextMenuAction('open-text-editor', contextMenu.node!)}
+          >
+            Open in Text Editor
+          </div>
         </div>
       )}
       

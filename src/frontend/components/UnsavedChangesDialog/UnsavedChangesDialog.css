@@ -1,0 +1,88 @@
+.unsaved-changes-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.unsaved-changes-dialog {
+  background-color: #2d2d30;
+  border: 1px solid #3e3e42;
+  border-radius: 4px;
+  width: 500px;
+  max-width: 90vw;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.unsaved-changes-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #3e3e42;
+}
+
+.unsaved-changes-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #cccccc;
+}
+
+.unsaved-changes-content {
+  padding: 20px;
+  color: #cccccc;
+  line-height: 1.5;
+}
+
+.unsaved-changes-content p {
+  margin: 0 0 12px 0;
+}
+
+.unsaved-changes-content p:last-child {
+  margin-bottom: 0;
+}
+
+.unsaved-changes-footer {
+  padding: 16px 20px;
+  border-top: 1px solid #3e3e42;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.modal-button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.modal-button-primary:hover {
+  background-color: #1177bb;
+}
+
+.modal-button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+.modal-button-secondary {
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.modal-button-secondary:hover {
+  background-color: #505050;
+}

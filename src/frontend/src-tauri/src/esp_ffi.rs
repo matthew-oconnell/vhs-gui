@@ -23,6 +23,7 @@ const ESP_ROOT: &str = "../../third-party/ESP128/EngSketchPad";
 #[link(name = "ocsm")]
 #[link(name = "egads")]
 extern "C" {
+
     // Core OCSM functions
     fn ocsmLoad(filename: *const c_char, modl: *mut *mut c_void) -> c_int;
     fn ocsmFree(modl: *mut c_void) -> c_int;
@@ -106,6 +107,27 @@ extern "C" {
         tris: *mut *const c_int,
         tric: *mut *const c_int
     ) -> c_int;
+    
+    // EGADS topology and attribute functions
+    fn EG_getBodyTopos(
+        body: *mut c_void,
+        src: *mut c_void,  // Can be null
+        oclass: c_int,     // Object class (FACE = 5)
+        ntopo: *mut c_int, // Output: number of topology objects
+        topos: *mut *mut *mut c_void  // Output: array of topology objects
+    ) -> c_int;
+    
+    fn EG_attributeRet(
+        obj: *mut c_void,
+        name: *const c_char,
+        atype: *mut c_int,
+        len: *mut c_int,
+        ints: *mut *const c_int,
+        reals: *mut *const c_double,
+        str: *mut *const c_char
+    ) -> c_int;
+    
+    fn EG_free(ptr: *mut c_void);
 }
 
 // OCSM constants for ocsmGetEgo seltype parameter
@@ -113,6 +135,9 @@ const OCSM_NODE: c_int = 600;
 const OCSM_EDGE: c_int = 601;
 const OCSM_FACE: c_int = 602;
 const OCSM_BODY: c_int = 603;
+
+// EGADS constants for topology classes
+const FACE: c_int = 5;  // Face topology class (from egads.h)
 
 // Success/error codes
 pub const SUCCESS: c_int = 0;
@@ -384,15 +409,38 @@ impl OcsmModel {
                 return Err(format!("Failed to get tessellation for body {}: status {}", body_index, status));
             }
             
+            // Also get the body object to extract face attributes
+            let mut body: *mut c_void = ptr::null_mut();
+            let status = ocsmGetEgo(
+                self.ptr,
+                body_index,
+                OCSM_BODY,
+                0,  // iselect=0 means the body object itself
+                &mut body
+            );
+            
+            if status != SUCCESS || body.is_null() {
+                return Err(format!("Failed to get body object for body {}: status {}", body_index, status));
+            }
+            
+            // Get all face objects from the body to extract bc_name attributes
+            let mut nfaces: c_int = 0;
+            let mut faces: *mut *mut c_void = ptr::null_mut();
+            let status = EG_getBodyTopos(body, ptr::null_mut(), FACE, &mut nfaces, &mut faces);
+            
+            if status != SUCCESS {
+                eprintln!("⚠️  Failed to get face topology for body {}: status {}", body_index, status);
+            }
+            
             // Get body info to know how many faces there are
             let body_info = self.get_body(body_index)?;
-            let nfaces = body_info.faces;
+            let nfaces_from_body = body_info.faces;
             
             let mut face_meshes = Vec::new();
             
             // Extract tessellation for each face (1-indexed in EGADS)
             let face_extract_start = std::time::Instant::now();
-            for iface in 1..=nfaces {
+            for iface in 1..=nfaces_from_body {
                 let mut plen: c_int = 0;  // Number of points
                 let mut xyz: *const c_double = ptr::null();  // Point coordinates
                 let mut uv: *const c_double = ptr::null();   // UV parameters
@@ -438,21 +486,70 @@ impl OcsmModel {
                     triangles.push([v1, v2, v3]);
                 }
                 
+                // Try to extract bc_name attribute from this face
+                let bc_name = if !faces.is_null() && (iface as usize) <= nfaces as usize {
+                    self.get_face_bc_name(*faces.offset((iface - 1) as isize))
+                } else {
+                    None
+                };
+                
                 face_meshes.push(FaceTessellation {
                     body_index,
                     face_index: iface,
                     vertices,
                     triangles,
-                    bc_name: None,  // TODO: Extract bc_name attribute from face if needed
+                    bc_name,
                 });
             }
             let face_extract_end = std::time::Instant::now();
-            eprintln!("    ⏱️  [Tess Detail] Face extraction loop ({} faces): {:?}", nfaces, face_extract_end.duration_since(face_extract_start));
+            eprintln!("    ⏱️  [Tess Detail] Face extraction loop ({} faces): {:?}", nfaces_from_body, face_extract_end.duration_since(face_extract_start));
+            
+            // Free the faces array allocated by EG_getBodyTopos
+            if !faces.is_null() {
+                EG_free(faces as *mut c_void);
+            }
             
             let total_end = std::time::Instant::now();
             eprintln!("    ⏱️  [Tess Detail] Total get_body_tessellation: {:?}", total_end.duration_since(total_start));
             
             Ok(face_meshes)
+        }
+    }
+    
+    /// Extract bc_name attribute from a face object
+    fn get_face_bc_name(&self, face: *mut c_void) -> Option<String> {
+        unsafe {
+            if face.is_null() {
+                return None;
+            }
+            
+            let attr_name = CString::new("bc_name").ok()?;
+            let mut atype: c_int = 0;
+            let mut len: c_int = 0;
+            let mut ints: *const c_int = ptr::null();
+            let mut reals: *const c_double = ptr::null();
+            let mut str_ptr: *const c_char = ptr::null();
+            
+            let status = EG_attributeRet(
+                face,
+                attr_name.as_ptr(),
+                &mut atype,
+                &mut len,
+                &mut ints,
+                &mut reals,
+                &mut str_ptr
+            );
+            
+            // EGADS attribute types: 1=int, 2=double, 3=string
+            if status == SUCCESS && atype == 3 && !str_ptr.is_null() {
+                let c_str = CStr::from_ptr(str_ptr);
+                match c_str.to_str() {
+                    Ok(s) => Some(s.to_string()),
+                    Err(_) => None
+                }
+            } else {
+                None
+            }
         }
     }
 }

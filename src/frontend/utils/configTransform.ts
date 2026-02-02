@@ -13,6 +13,8 @@ export const transformLoadedConfig = (
 ): any => {
   const transformed = JSON.parse(JSON.stringify(config)) // Deep clone
   
+  console.log('[transformLoadedConfig] Called with', surfaces.length, 'surfaces')
+  
   // Create a map of BC name (group name) to array of tag numbers
   const bcNameToTags = new Map<string, number[]>()
   surfaces.forEach(surface => {
@@ -25,8 +27,9 @@ export const transformLoadedConfig = (
     }
   })
   
-  console.log('[transformLoadedConfig] BC name to tag numbers map:')
+  console.log('[transformLoadedConfig] BC name to tag numbers map (from', surfaces.length, 'surfaces):')
   console.table(Object.fromEntries(bcNameToTags))
+  console.log('[transformLoadedConfig] Total unique BC names:', bcNameToTags.size)
   
   // Determine if config is flat or nested under root solver key
   let bcArray = transformed['boundary conditions']
@@ -57,11 +60,55 @@ export const transformLoadedConfig = (
         
         // If it's a string BC name, convert to array of tag numbers
         if (typeof tags === 'string') {
-          const tagNumbers = bcNameToTags.get(tags) || []
-          bcWithId['mesh boundary tags'] = tagNumbers.length === 1 ? tagNumbers[0] : tagNumbers
-          console.log(`[transformLoadedConfig] BC ${index + 1}: Converted "${tags}" → ${JSON.stringify(bcWithId['mesh boundary tags'])}`)
+          const tagNumbers = bcNameToTags.get(tags)
+          
+          if (tagNumbers && tagNumbers.length > 0) {
+            // Found matching surfaces - convert to tag numbers
+            bcWithId['mesh boundary tags'] = tagNumbers.length === 1 ? tagNumbers[0] : tagNumbers
+            console.log(`[transformLoadedConfig] BC ${index + 1}: Converted "${tags}" → ${JSON.stringify(bcWithId['mesh boundary tags'])} (${tagNumbers.length} tags)`)
+          } else {
+            // No matching surfaces found - preserve original string value
+            console.warn(`[transformLoadedConfig] BC ${index + 1}: No surfaces found with name "${tags}". Available surface names:`, Array.from(bcNameToTags.keys()))
+            console.warn(`[transformLoadedConfig] Preserving original value "${tags}" - tags will need to be assigned manually`)
+            // Keep the original string value unchanged
+          }
         }
-        // If it's already a number or array, leave it as-is
+        // If it's an array, check if it contains strings that need conversion
+        else if (Array.isArray(tags)) {
+          // Check if array contains any strings (BC names)
+          const hasStrings = tags.some(t => typeof t === 'string')
+          
+          if (hasStrings) {
+            // Convert each string BC name to its tag numbers
+            const allTagNumbers: number[] = []
+            let anyNotFound = false
+            
+            tags.forEach((tag: any) => {
+              if (typeof tag === 'string') {
+                const tagNumbers = bcNameToTags.get(tag)
+                if (tagNumbers && tagNumbers.length > 0) {
+                  allTagNumbers.push(...tagNumbers)
+                } else {
+                  console.warn(`[transformLoadedConfig] BC ${index + 1}: No surfaces found with name "${tag}"`)
+                  anyNotFound = true
+                }
+              } else if (typeof tag === 'number') {
+                // Already a number, keep it
+                allTagNumbers.push(tag)
+              }
+            })
+            
+            if (allTagNumbers.length > 0) {
+              bcWithId['mesh boundary tags'] = allTagNumbers.length === 1 ? allTagNumbers[0] : allTagNumbers
+              console.log(`[transformLoadedConfig] BC ${index + 1}: Converted array ${JSON.stringify(tags)} → ${JSON.stringify(bcWithId['mesh boundary tags'])} (${allTagNumbers.length} tags)`)
+            } else if (anyNotFound) {
+              console.warn(`[transformLoadedConfig] BC ${index + 1}: No surfaces found for array. Available surface names:`, Array.from(bcNameToTags.keys()))
+              // Keep original array if no tags were found
+            }
+          }
+          // If array contains only numbers, leave it as-is (already handled)
+        }
+        // If it's already a number, leave it as-is
         // (This handles configs that already use tag numbers)
       }
       

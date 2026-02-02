@@ -21,7 +21,12 @@ cmake ..
 
 # Build
 echo "Building..."
-make -j$(nproc)
+# Use sysctl for macOS (nproc is Linux-only)
+if command -v nproc > /dev/null 2>&1; then
+    make -j$(nproc)
+else
+    make -j$(sysctl -n hw.ncpu)
+fi
 
 echo ""
 echo "==================================================="

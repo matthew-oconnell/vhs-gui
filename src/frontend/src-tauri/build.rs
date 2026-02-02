@@ -71,18 +71,37 @@ fn link_esp_libraries() {
         println!("cargo:rustc-link-lib=dylib={}", lib);
     }
     
-    // System libraries
-    println!("cargo:rustc-link-lib=dylib=pthread");
-    println!("cargo:rustc-link-lib=dylib=dl");
-    println!("cargo:rustc-link-lib=dylib=m");
+    // System libraries (platform-specific)
+    #[cfg(target_os = "linux")]
+    {
+        println!("cargo:rustc-link-lib=dylib=pthread");
+        println!("cargo:rustc-link-lib=dylib=dl");
+        println!("cargo:rustc-link-lib=dylib=m");
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        // macOS has pthread and dl built into libSystem
+        println!("cargo:rustc-link-lib=dylib=System");
+    }
     
     // Set RPATH so executable can find libraries at runtime
-    // Use $ORIGIN to make it relative to the executable location
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", esp_lib.display());
-    println!("cargo:rustc-link-arg=-Wl,-rpath,{}", occ_lib.display());
+    #[cfg(target_os = "linux")]
+    {
+        // Use $ORIGIN to make it relative to the executable location
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", esp_lib.display());
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", occ_lib.display());
+        
+        // IMPORTANT: Don't use --enable-new-dtags on Linux
+        // RUNPATH (created by --enable-new-dtags) doesn't propagate to dlopen() calls
+        // ESP uses dlopen() to load UDP libraries, so we need RPATH, not RUNPATH
+        println!("cargo:rustc-link-arg=-Wl,--disable-new-dtags");  // Force RPATH instead of RUNPATH
+    }
     
-    // IMPORTANT: Don't use --enable-new-dtags
-    // RUNPATH (created by --enable-new-dtags) doesn't propagate to dlopen() calls
-    // ESP uses dlopen() to load UDP libraries, so we need RPATH, not RUNPATH
-    println!("cargo:rustc-link-arg=-Wl,--disable-new-dtags");  // Force RPATH instead of RUNPATH
+    #[cfg(target_os = "macos")]
+    {
+        // macOS uses @rpath differently - just set the rpath
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", esp_lib.display());
+        println!("cargo:rustc-link-arg=-Wl,-rpath,{}", occ_lib.display());
+    }
 }

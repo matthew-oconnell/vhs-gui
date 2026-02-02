@@ -24,7 +24,12 @@ cd build
 echo "  Configuring with CMake..."
 cmake .. > /dev/null 2>&1
 echo "  Building with make..."
-make -j$(nproc) > /dev/null 2>&1
+# Use sysctl for macOS (nproc is Linux-only)
+if command -v nproc > /dev/null 2>&1; then
+    make -j$(nproc) > /dev/null 2>&1
+else
+    make -j$(sysctl -n hw.ncpu) > /dev/null 2>&1
+fi
 echo "  ✅ Backend server built: src/server/build/vhs_server"
 
 # Step 2: Build Tauri desktop application
@@ -32,10 +37,38 @@ echo ""
 echo "Step 2: Building Tauri desktop application..."
 cd "$PROJECT_ROOT/src/frontend"
 
-echo "  Running: npx tauri build"
-npx tauri build
+# Install dependencies if node_modules is missing or incomplete
+if [ ! -d "node_modules" ] || [ ! -d "node_modules/@tauri-apps/cli" ]; then
+    echo "  Installing npm dependencies..."
+    npm install > /dev/null 2>&1
+fi
 
-echo "  ✅ Desktop app built: src/frontend/src-tauri/target/release/app"
+# Check if we need to rebuild
+EXECUTABLE="$PROJECT_ROOT/src/frontend/src-tauri/target/release/app"
+NEEDS_REBUILD=false
+
+if [ ! -f "$EXECUTABLE" ]; then
+    echo "  No existing build found - full build required"
+    NEEDS_REBUILD=true
+else
+    # Check if source files are newer than executable
+    if [ -n "$(find src -newer "$EXECUTABLE" 2>/dev/null | head -1)" ] || \
+       [ -n "$(find components -newer "$EXECUTABLE" 2>/dev/null | head -1)" ] || \
+       [ -n "$(find src-tauri/src -newer "$EXECUTABLE" 2>/dev/null | head -1)" ]; then
+        echo "  Source files changed - incremental build required"
+        NEEDS_REBUILD=true
+    else
+        echo "  No changes detected - using existing build"
+    fi
+fi
+
+if [ "$NEEDS_REBUILD" = true ]; then
+    echo "  Running: npx tauri build"
+    npx tauri build
+    echo "  ✅ Desktop app built: src/frontend/src-tauri/target/release/app"
+else
+    echo "  ✅ Using cached build: src/frontend/src-tauri/target/release/app"
+fi
 
 cd "$PROJECT_ROOT"
 
@@ -72,7 +105,7 @@ cd "$PROJECT_ROOT"
 # Step 4: Launch desktop application
 echo ""
 echo "======================================"
-echo "Launching desktop application..."
+echo "Launching Tauri Desktop Application"
 echo "======================================"
 EXECUTABLE="$PROJECT_ROOT/src/frontend/src-tauri/target/release/app"
 
@@ -96,8 +129,9 @@ if [ -f "$EXECUTABLE" ]; then
     fi
     
     echo ""
+    echo "🚀 Launching standalone desktop app (NOT in browser)"
     echo "Running: $EXECUTABLE"
-    echo "Logs: /tmp/vhs-server.log"
+    echo "Backend logs: /tmp/vhs-server.log"
     echo ""
     exec "$EXECUTABLE"
 else

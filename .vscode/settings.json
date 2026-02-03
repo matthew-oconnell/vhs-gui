@@ -1,0 +1,209 @@
+{
+  "workbench.colorTheme": "Default Dark+",
+  "workbench.colorCustomizations": {
+    // Editor colors - BSG CIC tactical display
+    "editor.background": "#1c1e26",
+    "editor.foreground": "#e8e8e8",
+    "editor.lineHighlightBackground": "#252833",
+    "editor.selectionBackground": "#ff8c00aa",
+    "editor.selectionHighlightBackground": "#ff8c0055",
+    "editor.wordHighlightBackground": "#ff8c0033",
+    "editor.findMatchBackground": "#ffa500aa",
+    "editor.findMatchHighlightBackground": "#ff8c0055",
+    
+    // Activity Bar - Military gray with orange CIC glow
+    "activityBar.background": "#13151c",
+    "activityBar.foreground": "#e8e8e8",
+    "activityBar.activeBorder": "#ff8c00",
+    "activityBar.activeBackground": "#2a1f0d",
+    "activityBar.inactiveForeground": "#7a8899",
+    
+    // Sidebar - Dark military blue-gray
+    "sideBar.background": "#1a1d26",
+    "sideBar.foreground": "#c8d0e0",
+    "sideBar.border": "#2d3443",
+    "sideBarSectionHeader.background": "#252a36",
+    "sideBarSectionHeader.foreground": "#ff8c00",
+    "sideBarTitle.foreground": "#e8e8e8",
+    
+    // Status Bar - Orange alert/tactical
+    "statusBar.background": "#1f2430",
+    "statusBar.foreground": "#ff8c00",
+    "statusBar.border": "#ff8c00",
+    "statusBar.debuggingBackground": "#cc3333",
+    "statusBar.debuggingForeground": "#ffffff",
+    "statusBar.noFolderBackground": "#1c1e26",
+    
+    // Title Bar - Dark military gray
+    "titleBar.activeBackground": "#13151c",
+    "titleBar.activeForeground": "#e8e8e8",
+    "titleBar.inactiveBackground": "#0f1117",
+    "titleBar.border": "#2d3443",
+    
+    // Tabs - Tactical console style
+    "tab.activeBackground": "#1c1e26",
+    "tab.activeForeground": "#ffffff",
+    "tab.activeBorder": "#ff8c00",
+    "tab.activeBorderTop": "#ff8c00",
+    "tab.inactiveBackground": "#15171f",
+    "tab.inactiveForeground": "#7a8899",
+    "tab.border": "#2d3443",
+    
+    // Terminal - CIC terminal orange glow
+    "terminal.background": "#1c1e26",
+    "terminal.foreground": "#d4d4d4",
+    "terminal.ansiBlack": "#000000",
+    "terminal.ansiRed": "#cc3333",
+    "terminal.ansiWhite": "#e8e8e8",
+    "terminal.ansiYellow": "#ff8c00",
+    "terminal.ansiBrightYellow": "#ffa500",
+    "terminal.ansiBrightRed": "#ff4444",
+    "terminal.ansiBrightWhite": "#ffffff",
+    "terminal.ansiBlue": "#4488ff",
+    "terminal.ansiBrightBlue": "#6699ff",
+    
+    // Panel (console, terminal, etc)
+    "panel.background": "#1c1e26",
+    "panel.border": "#ff8c00",
+    "panelTitle.activeBorder": "#ff8c00",
+    "panelTitle.activeForeground": "#ff8c00",
+    "panelTitle.inactiveForeground": "#7a8899",
+    
+    // Button - Orange CIC alert
+    "button.background": "#cc6600",
+    "button.foreground": "#ffffff",
+    "button.hoverBackground": "#ff8c00",
+    
+    // Input fields - Military console
+    "input.background": "#252833",
+    "input.foreground": "#e8e8e8",
+    "input.border": "#3d4556",
+    "inputOption.activeBorder": "#ff8c00",
+    "inputOption.activeBackground": "#ff8c0033",
+    
+    // Lists (file explorer, etc)
+    "list.activeSelectionBackground": "#ff8c0055",
+    "list.activeSelectionForeground": "#ffffff",
+    "list.hoverBackground": "#252833",
+    "list.inactiveSelectionBackground": "#2d3443",
+    "list.focusOutline": "#ff8c00",
+    "list.highlightForeground": "#ff8c00",
+    
+    // Scrollbar - Orange tactical
+    "scrollbarSlider.background": "#ff8c0044",
+    "scrollbarSlider.hoverBackground": "#ff8c0088",
+    "scrollbarSlider.activeBackground": "#ff8c00aa",
+    
+    // Breadcrumbs
+    "breadcrumb.background": "#1c1e26",
+    "breadcrumb.foreground": "#7a8899",
+    "breadcrumb.focusForeground": "#e8e8e8",
+    "breadcrumb.activeSelectionForeground": "#ff8c00",
+    
+    // Notifications - Alert orange
+    "notificationCenter.border": "#ff8c00",
+    "notifications.background": "#252833",
+    "notifications.foreground": "#e8e8e8",
+    "notifications.border": "#ff8c00",
+    
+    // Badge - Orange highlight
+    "badge.background": "#5c6773",
+          "fontStyle": "italic"
+        }
+      },
+      {
+        "scope": "keyword",
+        "settings": {
+          "foreground": "#ff8c00",
+          "fontStyle": "bold"
+        }
+      },
+      {
+        "scope": "keyword.control",
+        "settings": {
+          "foreground": "#ffa500"
+        }
+      },
+      {
+        "scope": "string",
+        "settings": {
+          "foreground": "#88cc88"
+        }
+      },
+      {
+        "scope": "variable",
+        "settings": {
+          "foreground": "#e8e8e8"
+        }
+      },
+      {
+        "scope": "variable.parameter",
+        "settings": {
+          "foreground": "#c8d0e0"
+        }
+      },
+      {
+        "scope": "constant.numeric",
+        "settings": {
+          "foreground": "#ffaa44"
+        }
+      },
+      {
+        "scope": "constant.language",
+        "settings": {
+          "foreground": "#cc6600"
+        }
+      },
+      {
+        "scope": "entity.name.function",
+        "settings": {
+          "foreground": "#4488ff",
+          "fontStyle": "bold"
+        }
+      },
+      {
+        "scope": "entity.name.type",
+        "settings": {
+          "foreground": "#6699ff"
+        }
+      },
+      {
+        "scope": "support.type",
+        "settings": {
+          "foreground": "#8899aa"
+        }
+      },
+      {
+        "scope": "storage.type",
+        "settings": {
+          "foreground": "#ff8c00"
+        }
+      },
+      {
+        "scope": "meta.tag",
+        "settings": {
+          "foreground": "#cc6600"
+        }
+      },
+      {
+        "scope": "constant.numeric",
+        "settings": {
+          "foreground": "#ff8888"
+        }
+      },
+      {
+        "scope": "entity.name.function",
+        "settings": {
+          "foreground": "#ffffff",
+          "fontStyle": "bold"
+        }
+      },
+      {
+        "scope": "entity.name.type",
+        "settings": {
+          "foreground": "#ff6666"
+        }
+      }
+    ]
+  }
+}

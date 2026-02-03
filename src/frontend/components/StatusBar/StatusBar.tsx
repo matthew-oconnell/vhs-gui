@@ -176,7 +176,7 @@ function StatusBar({
       <div className="status-bar status-bar-empty">
         <div className="status-bar-message">
           <AlertCircle size={16} />
-          <span>No mesh loaded. Use File → New Project to get started.</span>
+          <span>No mesh loaded. Use File → Open Project Folder and import a CSM file to get started.</span>
         </div>
       </div>
     )
@@ -243,6 +243,11 @@ function StatusBar({
           <span>Ready to run!</span>
         </div>
       )}
+      
+      <div className="status-bar-version">
+        <span className="status-bar-beta-label">BETA</span>
+        <span className="status-bar-version-info">v1.0.0-beta.1 • 2026-02-03 • 72782d0</span>
+      </div>
     </div>
   )
 }

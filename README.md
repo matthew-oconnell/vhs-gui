@@ -196,6 +196,53 @@ cd server/build
 ./rebuild-frontend.sh && pkill vulcan_server && ./vulcan_server
 ```
 
+## Distribution
+
+### Creating End-User Packages
+
+To create a standalone distribution for end users:
+
+```bash
+# Create distribution packages
+npm run dist
+# OR
+./create-distribution.sh
+```
+
+This creates platform-specific packages in `dist-package/`:
+
+**Linux (Standalone - RECOMMENDED):**
+- `vhs-gui-v1.0.0.tar.gz` - Portable app, extract and run anywhere
+- Users can extract to any location (no installation required)
+- Also includes .deb and .rpm packages for optional system installation
+
+**macOS:**
+- `vhs-gui-v1.0.0.tgz` - Contains .app bundle and helper scripts
+
+### Linux Distribution (Standalone)
+
+The Linux distribution is now a **fully portable application**:
+
+```bash
+# Users simply extract and run:
+tar -xzf vhs-gui-v1.0.0.tar.gz
+cd vhs-gui-v1.0.0
+./vhs-gui
+```
+
+**Benefits:**
+- ✅ No sudo/installation required
+- ✅ Extract anywhere (home directory, /opt, USB drive, etc.)
+- ✅ Multiple versions side-by-side
+- ✅ Clean uninstall (just delete the directory)
+- ✅ Portable across Linux distributions
+
+**System installation packages** (.deb/.rpm) are also available for users who prefer traditional package management.
+
+**See:** 
+- [DISTRIBUTION_GUIDE.md](DISTRIBUTION_GUIDE.md) - Complete distribution guide for administrators
+- [QUICK_START_LINUX.md](QUICK_START_LINUX.md) - Simple instructions for end users
+
 ### Backend Server Features
 
 The C++ backend provides:

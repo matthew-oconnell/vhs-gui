@@ -117,17 +117,51 @@ EOF
     
     PLATFORM="macOS"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    # Linux: Copy .deb and .rpm packages
-    BUNDLE_DIR="$PROJECT_ROOT/src/frontend/src-tauri/target/release/bundle"
+    # Linux: Create standalone portable app
+    BUNDLE_DIR="$PROJECT_ROOT/src/frontend/src-tauri/target/release"
     
-    if [ -d "$BUNDLE_DIR/deb" ]; then
-        echo "  Copying Debian package (.deb)..."
-        cp "$BUNDLE_DIR/deb/"*.deb "dist-package/" 2>/dev/null || true
-    fi
-    
-    if [ -d "$BUNDLE_DIR/rpm" ]; then
-        echo "  Copying RPM package (.rpm)..."
-        cp "$BUNDLE_DIR/rpm/"*.rpm "dist-package/" 2>/dev/null || true
+    if [ -f "$BUNDLE_DIR/app" ]; then
+        echo "  Copying standalone binary..."
+        cp "$BUNDLE_DIR/app" "dist-package/$DIST_NAME/vhs-gui"
+        chmod +x "dist-package/$DIST_NAME/vhs-gui"
+        
+        # Create run.sh helper script
+        cat > "dist-package/$DIST_NAME/run.sh" << 'EOF'
+#!/bin/bash
+# Helper script to launch VHS CFD GUI
+
+APP_NAME="vhs-gui"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+echo "========================================"
+echo "VHS CFD GUI - Beta Launcher"
+echo "========================================"
+echo ""
+
+cd "$SCRIPT_DIR"
+
+# Check if binary exists
+if [ -f "$APP_NAME" ]; then
+    echo "Launching VHS CFD GUI..."
+    ./"$APP_NAME"
+else
+    echo "❌ Error: Cannot find $APP_NAME in current directory"
+    echo "Please run this script from the extracted archive directory."
+    exit 1
+fi
+EOF
+        chmod +x "dist-package/$DIST_NAME/run.sh"
+        
+        # Also copy installer packages to dist-package root (for users who prefer system installation)
+        if [ -d "$PROJECT_ROOT/src/frontend/src-tauri/target/release/bundle/deb" ]; then
+            echo "  Also copying .deb package (optional system install)..."
+            cp "$PROJECT_ROOT/src/frontend/src-tauri/target/release/bundle/deb/"*.deb "dist-package/" 2>/dev/null || true
+        fi
+        
+        if [ -d "$PROJECT_ROOT/src/frontend/src-tauri/target/release/bundle/rpm" ]; then
+            echo "  Also copying .rpm package (optional system install)..."
+            cp "$PROJECT_ROOT/src/frontend/src-tauri/target/release/bundle/rpm/"*.rpm "dist-package/" 2>/dev/null || true
+        fi
     fi
     
     PLATFORM="Linux"
@@ -137,10 +171,11 @@ else
 fi
 
 # Step 3: Create README for end users
-cat > dist-package/$DIST_NAME/README.txt << 'EOF'
-# VHS CFD GUI - Beta Installation Guide
+if [[ "$PLATFORM" == "macOS" ]]; then
+    cat > dist-package/$DIST_NAME/README.txt << 'EOF'
+# VHS CFD GUI - Beta Installation Guide (macOS)
 
-## Quick Start (macOS)
+## Quick Start
 
 ### Option 1: Use the helper script (RECOMMENDED)
 ```bash
@@ -148,16 +183,14 @@ cat > dist-package/$DIST_NAME/README.txt << 'EOF'
 ```
 This script will:
 - Remove the macOS quarantine attribute
-- Optionally move the app to /Applications
 - Launch the application
 
-### Option 2: Manual installation
-1. Copy "VHS CFD GUI.app" to /Applications
-2. Remove quarantine:
+### Option 2: Manual launch
+1. Remove quarantine:
    ```bash
-   xattr -cr "/Applications/VHS CFD GUI.app"
+   xattr -cr "VHS CFD GUI.app"
    ```
-3. Launch from Applications folder
+2. Double-click "VHS CFD GUI.app"
 
 ## First Launch
 
@@ -189,6 +222,114 @@ For issues or questions, contact your administrator.
 This is a BETA release. Please report any issues you encounter.
 Build info is shown in the status bar at the bottom of the application.
 EOF
+elif [[ "$PLATFORM" == "Linux" ]]; then
+    cat > dist-package/$DIST_NAME/README.txt << 'EOF'
+# VHS CFD GUI - Beta Installation Guide (Linux)
+
+## Quick Start - Standalone App (RECOMMENDED)
+
+Simply extract and run - **no installation required!**
+
+### Option 1: Use the helper script
+```bash
+./run.sh
+```
+
+### Option 2: Run directly
+```bash
+./vhs-gui
+```
+
+## Installation Location
+
+You can extract this archive **anywhere you like**:
+- Your home directory: `~/vhs-gui/`
+- A local applications folder: `~/.local/vhs-gui/`
+- A shared location: `/opt/vhs-gui/`
+- Even a USB drive for portable use!
+
+## Creating a Desktop Launcher (Optional)
+
+To add VHS CFD GUI to your application menu:
+
+1. Create a desktop file at `~/.local/share/applications/vhs-gui.desktop`:
+   ```ini
+   [Desktop Entry]
+   Name=VHS CFD GUI
+   Comment=CFD Simulation Configuration Tool
+   Exec=/path/to/your/vhs-gui-v1.0.0/vhs-gui
+   Terminal=false
+   Type=Application
+   Categories=Science;Engineering;
+   ```
+
+2. Replace `/path/to/your/` with the actual path where you extracted the archive
+
+3. Make it executable:
+   ```bash
+   chmod +x ~/.local/share/applications/vhs-gui.desktop
+   ```
+
+## System Installation (Alternative)
+
+If you prefer a traditional system installation, you can use the installer packages
+available in the parent directory:
+
+### Debian/Ubuntu (.deb)
+```bash
+sudo dpkg -i "VHS CFD GUI_1.0.0-beta.1_amd64.deb"
+```
+
+### Fedora/RHEL (.rpm)
+```bash
+sudo rpm -i "VHS CFD GUI-1.0.0-beta.1-1.x86_64.rpm"
+```
+
+**Note:** System installation is NOT required. The standalone binary works perfectly!
+
+## Requirements
+
+- **Linux:** Modern distribution (tested on Ubuntu 20.04+, Fedora 36+)
+- **Libraries:** GTK3, WebKit2GTK (usually pre-installed)
+  - Ubuntu/Debian: `sudo apt install libgtk-3-0 libwebkit2gtk-4.0-37`
+  - Fedora: `sudo dnf install gtk3 webkit2gtk3`
+
+## Features
+
+- Native desktop application (not browser-based)
+- 3D mesh visualization and editing
+- Boundary condition configuration
+- CFD simulation setup
+- JSON schema-driven configuration
+- **ESP/OpenCASCADE geometry support included**
+
+## Troubleshooting
+
+### "Permission denied" error
+Make sure the binary is executable:
+```bash
+chmod +x vhs-gui
+```
+
+### Missing libraries
+Install the required GTK libraries (see Requirements section above)
+
+### Application won't start
+Check if any libraries are missing:
+```bash
+ldd vhs-gui
+```
+
+## Support
+
+For issues or questions, contact your administrator.
+
+## Beta Testing Notes
+
+This is a BETA release. Please report any issues you encounter.
+Build info is shown in the status bar at the bottom of the application.
+EOF
+fi
 
 # Step 4: Create archive
 echo ""
@@ -220,11 +361,12 @@ ls -lh dist-package/$DIST_NAME/
 echo ""
 echo "To distribute:"
 if [[ "$PLATFORM" == "macOS" ]]; then
-    echo "  - Share the .tgz file with beta testers"
+    echo "  - Share the .tgz file with users"
     echo "  - They should extract and run: ./run.sh"
 elif [[ "$PLATFORM" == "Linux" ]]; then
-    echo "  - Share .deb files with Debian/Ubuntu users"
-    echo "  - Share .rpm files with Fedora/RHEL users"
+    echo "  - Share the .tar.gz file with users"
+    echo "  - They can extract it anywhere and run: ./run.sh or ./vhs-gui"
+    echo "  - Optional: .deb/.rpm packages available in dist-package/ for system install"
 fi
 echo ""
 echo "To test locally:"
@@ -232,7 +374,12 @@ if [[ "$PLATFORM" == "macOS" ]]; then
     echo "  cd dist-package/$DIST_NAME"
     echo "  ./run.sh"
 elif [[ "$PLATFORM" == "Linux" ]]; then
-    echo "  sudo dpkg -i dist-package/*.deb  # Debian/Ubuntu"
-    echo "  sudo rpm -i dist-package/*.rpm   # Fedora/RHEL"
+    echo "  cd dist-package/$DIST_NAME"
+    echo "  ./run.sh"
+    echo ""
+    echo "  OR extract anywhere:"
+    echo "  tar -xzf dist-package/$ARCHIVE_FILE -C ~/"
+    echo "  cd ~/$DIST_NAME"
+    echo "  ./vhs-gui"
 fi
 echo "======================================"

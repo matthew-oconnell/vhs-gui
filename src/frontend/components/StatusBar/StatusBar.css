@@ -29,11 +29,11 @@
   color: #ffa726;
 }
 
-/* Checklist container */
-.status-bar-checklist {
+/* Categories container */
+.status-bar-categories {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   flex-grow: 1;
 }
 

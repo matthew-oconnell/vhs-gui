@@ -1,21 +1,15 @@
 /**
  * StatusBar - Project setup checklist tracker
  * 
- * Shows completion status for all required CFD setup tasks.
- * Tasks can be completed in any order - no enforced sequence.
+ * Shows categorized completion status for all required CFD setup tasks.
+ * Categories expand on click to show individual wizards.
  */
 
+import { useState } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { Check, Circle, AlertCircle } from 'lucide-react'
+import { Check, AlertCircle } from 'lucide-react'
+import CategoryDropdown, { WizardItem } from './CategoryDropdown'
 import './StatusBar.css'
-
-interface ChecklistItem {
-  id: string
-  label: string
-  isComplete: boolean
-  details?: string
-  onClick?: () => void
-}
 
 interface StatusBarProps {
   onOpenThermodynamicsWizard?: () => void
@@ -40,42 +34,33 @@ function StatusBar({
     meshNeedsExport,
   } = useAppStore()
 
+  // Track which category dropdown is currently open
+  const [openCategory, setOpenCategory] = useState<string | null>(null)
+
   const hasMesh = availableTags.length > 0
 
-  // Build checklist items based on current project state
-  const checklistItems: ChecklistItem[] = []
+  // === Build wizard items for each category ===
 
-  // 1. Mesh - complete when mesh filename is set AND no pending exports
+  // MESH CATEGORY
+  const meshWizards: WizardItem[] = []
   if (hasMesh) {
     const meshFilename = (configData as any)['mesh filename']
     const isMeshComplete = meshFilename && !meshNeedsExport
     
-    checklistItems.push({
+    meshWizards.push({
       id: 'mesh',
-      label: 'Mesh',
+      label: 'Mesh Status',
       isComplete: isMeshComplete,
       details: meshNeedsExport 
         ? 'Needs re-export' 
         : meshFilename 
-          ? `${availableTags.length.toLocaleString()} tags`
+          ? `${availableTags.length.toLocaleString()} surface tags`
           : 'No filename set'
     })
   }
 
-  // 2. Thermodynamics - Check if user has run the wizard
-  const thermoWizardExecuted = useAppStore((s) => s.thermoWizardExecuted)
-
-  if (hasMesh) {
-    checklistItems.push({
-      id: 'thermodynamics',
-      label: 'Thermodynamics',
-      isComplete: thermoWizardExecuted,
-      details: thermoWizardExecuted ? 'Configured' : 'default: ideal gas',
-      onClick: onOpenThermodynamicsWizard
-    })
-  }
-
-  // 3. Boundary Conditions
+  // BOUNDARY CONDITIONS CATEGORY
+  const bcWizards: WizardItem[] = []
   const bcProgress = (() => {
     const total = availableTags.length
     if (total === 0) return { assigned: 0, total: 0, isComplete: false }
@@ -102,21 +87,31 @@ function StatusBar({
   })()
 
   if (hasMesh) {
-    checklistItems.push({
+    bcWizards.push({
       id: 'boundary-conditions',
       label: 'Boundary Conditions',
       isComplete: bcProgress.isComplete,
-      details: `${bcProgress.assigned} of ${bcProgress.total} assigned`
+      details: `${bcProgress.assigned} of ${bcProgress.total} surfaces assigned`
     })
   }
 
-  // 4. Turbulence Model - Check if equation type is selected
+  // PHYSICS CATEGORY
+  const physicsWizards: WizardItem[] = []
+  const thermoWizardExecuted = useAppStore((s) => s.thermoWizardExecuted)
   const turbulenceWizardExecuted = useAppStore((s) => s.turbulenceWizardExecuted)
   const equationType = configData['equation type']
   const hasTurbulenceModel = equationType !== undefined && equationType !== null
 
   if (hasMesh) {
-    checklistItems.push({
+    physicsWizards.push({
+      id: 'thermodynamics',
+      label: 'Thermodynamics',
+      isComplete: thermoWizardExecuted,
+      details: thermoWizardExecuted ? 'Configured' : 'default: ideal gas',
+      onClick: onOpenThermodynamicsWizard
+    })
+
+    physicsWizards.push({
       id: 'turbulence-model',
       label: 'Turbulence Model',
       isComplete: hasTurbulenceModel,
@@ -125,26 +120,23 @@ function StatusBar({
     })
   }
 
-  // 5. Initialization - Check if initial state is set
+  // TIME CONTROL CATEGORY
+  const timeControlWizards: WizardItem[] = []
   const initialState = configData['initial state']
   const hasInitialState = initialState !== undefined && initialState !== null && initialState !== ''
+  const timeAccuracyType = configData['time accuracy']?.type
+  const hasTimeAccuracy = timeAccuracyType !== undefined && timeAccuracyType !== null
 
   if (hasMesh) {
-    checklistItems.push({
+    timeControlWizards.push({
       id: 'initialization',
       label: 'Initialization',
       isComplete: hasInitialState,
       details: hasInitialState ? `initial state: ${initialState}` : 'Not configured',
       onClick: onOpenInitializationWizard
     })
-  }
 
-  // 6. Time Accuracy - Check if time accuracy is configured
-  const timeAccuracyType = configData['time accuracy']?.type
-  const hasTimeAccuracy = timeAccuracyType !== undefined && timeAccuracyType !== null
-
-  if (hasMesh) {
-    checklistItems.push({
+    timeControlWizards.push({
       id: 'time-accuracy',
       label: 'Time Accuracy',
       isComplete: hasTimeAccuracy,
@@ -153,12 +145,13 @@ function StatusBar({
     })
   }
 
-  // 7. Visualization - Check if at least one visualization output exists
+  // OUTPUT CATEGORY
+  const outputWizards: WizardItem[] = []
   const visualizations = configData.visualization || []
   const hasVisualization = visualizations.length > 0
 
   if (hasMesh) {
-    checklistItems.push({
+    outputWizards.push({
       id: 'visualization',
       label: 'Visualization',
       isComplete: hasVisualization,
@@ -167,8 +160,15 @@ function StatusBar({
     })
   }
 
-  // Check if all items are complete
-  const allComplete = checklistItems.length > 0 && checklistItems.every(item => item.isComplete)
+  // Calculate total completion across all categories
+  const allWizards = [
+    ...meshWizards,
+    ...bcWizards,
+    ...physicsWizards,
+    ...timeControlWizards,
+    ...outputWizards
+  ]
+  const allComplete = allWizards.length > 0 && allWizards.every(w => w.isComplete)
 
   // Don't show status bar if no mesh loaded
   if (!hasMesh) {
@@ -184,34 +184,51 @@ function StatusBar({
 
   return (
     <div className="status-bar">
-      <div className="status-bar-checklist">
-        {checklistItems.map((item) => (
-          <div 
-            key={item.id} 
-            className={`checklist-item ${
-              item.isComplete
-                ? 'checklist-item-complete'
-                : item.id === 'thermodynamics'
-                ? 'checklist-item-default'
-                : item.id === 'boundary-conditions' || item.id === 'turbulence-model' || item.id === 'mesh' || item.id === 'initialization' || item.id === 'time-accuracy' || item.id === 'visualization'
-                ? 'checklist-item-warning'
-                : 'checklist-item-incomplete'
-            } ${item.onClick ? 'checklist-item-clickable' : ''}`}
-            onClick={item.onClick}
-            role={item.onClick ? 'button' : undefined}
-            tabIndex={item.onClick ? 0 : undefined}
-          >
-            {item.isComplete ? (
-              <Check size={16} className="checklist-icon-complete" />
-            ) : (
-              <Circle size={16} className="checklist-icon-incomplete" />
-            )}
-            <span className="checklist-label">{item.label}</span>
-            {item.details && (
-              <span className="checklist-details">({item.details})</span>
-            )}
-          </div>
-        ))}
+      <div className="status-bar-categories">
+        <CategoryDropdown
+          title="Mesh"
+          icon="🌐"
+          wizards={meshWizards}
+          isOpen={openCategory === 'mesh'}
+          onToggle={() => setOpenCategory(openCategory === 'mesh' ? null : 'mesh')}
+          onClose={() => setOpenCategory(null)}
+        />
+        
+        <CategoryDropdown
+          title="Boundary Conditions"
+          icon="🎯"
+          wizards={bcWizards}
+          isOpen={openCategory === 'bc'}
+          onToggle={() => setOpenCategory(openCategory === 'bc' ? null : 'bc')}
+          onClose={() => setOpenCategory(null)}
+        />
+        
+        <CategoryDropdown
+          title="Physics"
+          icon="🔬"
+          wizards={physicsWizards}
+          isOpen={openCategory === 'physics'}
+          onToggle={() => setOpenCategory(openCategory === 'physics' ? null : 'physics')}
+          onClose={() => setOpenCategory(null)}
+        />
+        
+        <CategoryDropdown
+          title="Time Control"
+          icon="⏱️"
+          wizards={timeControlWizards}
+          isOpen={openCategory === 'time'}
+          onToggle={() => setOpenCategory(openCategory === 'time' ? null : 'time')}
+          onClose={() => setOpenCategory(null)}
+        />
+        
+        <CategoryDropdown
+          title="Output"
+          icon="📊"
+          wizards={outputWizards}
+          isOpen={openCategory === 'output'}
+          onToggle={() => setOpenCategory(openCategory === 'output' ? null : 'output')}
+          onClose={() => setOpenCategory(null)}
+        />
       </div>
       
       {allComplete && (

@@ -1,5 +1,5 @@
 import { Canvas, useThree } from '@react-three/fiber'
-import { TrackballControls, Grid } from '@react-three/drei'
+import { TrackballControls, Grid, PerspectiveCamera, OrthographicCamera } from '@react-three/drei'
 import { Box as BoxIcon, Maximize2, Camera } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { Surface } from '../../types/surface'
@@ -1243,6 +1243,13 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
   
   return (
     <>
+      {/* Dynamic Camera based on projection mode */}
+      {cameraSettings.projectionMode === 'perspective' ? (
+        <PerspectiveCamera makeDefault position={[5, 5, 5]} fov={50} near={0.01} far={1000} />
+      ) : (
+        <OrthographicCamera makeDefault position={[5, 5, 5]} zoom={100} near={0.01} far={1000} />
+      )}
+      
       {/* Camera control functions */}
       <CameraControls />
       
@@ -1681,7 +1688,6 @@ function Viewport3D() {
       </div>
       <div className="viewport-content" ref={viewportContentRef}>
         <Canvas
-          camera={{ position: [5, 5, 5], fov: 50, near: 0.01, far: 1000 }}
           shadows
           onContextMenu={(e) => e.preventDefault()}
         >

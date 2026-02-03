@@ -1,4 +1,4 @@
-import { Maximize2, RotateCw, RotateCcw, Square, EyeOff, Palette, Mouse } from 'lucide-react'
+import { Maximize2, RotateCw, RotateCcw, Square, EyeOff, Palette, Mouse, Box } from 'lucide-react'
 import { useAppStore, ColorMode } from '../../store/appStore'
 import './ViewportToolbar.css'
 
@@ -15,11 +15,12 @@ export function ViewportToolbar() {
     setColorMode, 
     toggleHideAssignedTags,
     cameraSettings,
-    setSelectionMode
+    setSelectionMode,
+    setCameraProjection
   } = useAppStore()
   
   const { colorMode, hideAssignedTags } = globalRenderSettings
-  const { selectionMode } = cameraSettings
+  const { selectionMode, projectionMode } = cameraSettings
 
   const handleColorModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setColorMode(e.target.value as ColorMode)
@@ -27,6 +28,10 @@ export function ViewportToolbar() {
   
   const handleSelectionModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectionMode(e.target.value as 'tag' | 'group')  // MIGRATION: Changed from 'face' to 'tag'
+  }
+  
+  const handleProjectionModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setCameraProjection(e.target.value as 'perspective' | 'orthographic')
   }
 
   const handleFitToView = () => {
@@ -132,6 +137,22 @@ export function ViewportToolbar() {
             <Square size={14} />
             <span>XZ</span>
           </button>
+        </div>
+        
+        <div className="toolbar-separator" />
+        
+        <div className="toolbar-group">
+          <Box size={14} color="#808080" />
+          <span className="toolbar-label">Projection</span>
+          <select 
+            className="toolbar-select"
+            value={projectionMode}
+            onChange={handleProjectionModeChange}
+            title="Camera projection mode"
+          >
+            <option value="perspective">Perspective</option>
+            <option value="orthographic">Orthographic</option>
+          </select>
         </div>
         
         <div className="toolbar-separator" />

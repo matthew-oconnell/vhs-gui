@@ -44,6 +44,7 @@ export interface CameraSettings {
   invertZoom: boolean
   multiSelectModifier: 'shift' | 'ctrl' | 'alt'
   selectionMode: 'tag' | 'group'  // MIGRATION: Changed from 'face' to 'tag'
+  projectionMode: 'perspective' | 'orthographic'
 }
 
 export interface OverlayPosition {
@@ -113,6 +114,7 @@ interface AppState {
   cameraSettings: CameraSettings
   updateCameraSettings: (settings: Partial<CameraSettings>) => void
   setSelectionMode: (mode: 'tag' | 'group') => void  // MIGRATION: Changed from 'face' to 'tag'
+  setCameraProjection: (mode: 'perspective' | 'orthographic') => void
   overlayPosition: OverlayPosition
   setOverlayPosition: (position: OverlayPosition) => void
   tagVisibility: Record<string, boolean>
@@ -345,7 +347,8 @@ export const useAppStore = create<AppState>((set) => ({
     panSpeed: 0.8,
     invertZoom: true, // Pulling back zooms in (Paraview-like)
     multiSelectModifier: 'shift' as const, // Default modifier for multi-selection
-    selectionMode: 'tag' as const // MIGRATION: Changed from 'face' to 'tag' - individual tag selection
+    selectionMode: 'tag' as const, // MIGRATION: Changed from 'face' to 'tag' - individual tag selection
+    projectionMode: 'perspective' as const // Default to perspective camera
   },
   
   updateCameraSettings: (settings) => set((state) => ({
@@ -353,6 +356,9 @@ export const useAppStore = create<AppState>((set) => ({
   })),
   setSelectionMode: (mode) => set((state) => ({
     cameraSettings: { ...state.cameraSettings, selectionMode: mode }
+  })),
+  setCameraProjection: (mode) => set((state) => ({
+    cameraSettings: { ...state.cameraSettings, projectionMode: mode }
   })),
   
   // Box selection settings with defaults

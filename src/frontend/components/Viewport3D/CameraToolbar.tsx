@@ -7,8 +7,8 @@ import './CameraToolbar.css'
 
 // Component that provides camera control functions
 export function CameraControls() {
-  const { camera, controls, invalidate } = useThree()
-  const { availableTags, tagVisibility, soloBC } = useAppStore()
+  const { camera, controls, invalidate, gl } = useThree()
+  const { availableTags, tagVisibility, soloBC, cameraSettings } = useAppStore()
   const controlsRef = useRef<any>(controls)
   
   useEffect(() => {
@@ -65,16 +65,36 @@ export function CameraControls() {
         box.getCenter(center)
         const size = box.getSize(new THREE.Vector3())
         const maxDim = Math.max(size.x, size.y, size.z)
-        const fov = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180)
-        const cameraDistance = maxDim / (2 * Math.tan(fov / 2)) * 1.5 // 1.5 for some padding
         
         // Get current camera direction
         const direction = new THREE.Vector3()
         camera.getWorldDirection(direction)
         
-        // Position camera at distance along current view direction
-        const newPosition = center.clone().sub(direction.multiplyScalar(cameraDistance))
-        camera.position.copy(newPosition)
+        const { cameraSettings } = useAppStore.getState()
+        
+        if (cameraSettings.projectionMode === 'perspective') {
+          // Perspective: calculate distance based on FOV
+          const fov = (camera as THREE.PerspectiveCamera).fov * (Math.PI / 180)
+          const cameraDistance = maxDim / (2 * Math.tan(fov / 2)) * 1.5 // 1.5 for some padding
+          
+          // Position camera at distance along current view direction
+          const newPosition = center.clone().sub(direction.multiplyScalar(cameraDistance))
+          camera.position.copy(newPosition)
+        } else {
+          // Orthographic: adjust zoom level
+          const aspect = gl.domElement.width / gl.domElement.height
+          const zoomLevel = Math.min(
+            gl.domElement.width / (maxDim * 1.5),
+            gl.domElement.height / (maxDim * 1.5)
+          )
+          ;(camera as THREE.OrthographicCamera).zoom = zoomLevel
+          camera.updateProjectionMatrix()
+          
+          // Still position camera for proper view
+          const cameraDistance = maxDim * 2 // Arbitrary distance for orthographic
+          const newPosition = center.clone().sub(direction.multiplyScalar(cameraDistance))
+          camera.position.copy(newPosition)
+        }
         
         // Update controls target
         if (controlsRef.current && 'target' in controlsRef.current) {

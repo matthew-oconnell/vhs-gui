@@ -191,6 +191,9 @@ function App() {
       const { processLoadedConfig } = await import('./utils/configLoader')
       const { readProjectFile } = await import('./utils/fileUtils')
       
+      const currentTags = useAppStore.getState().availableTags
+      const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
+      
       // Use unified config processing logic with directory from loaded file
       const { meshLoaded, showedLumpDialog } = await processLoadedConfig(result.config, {
         isTauri: '__TAURI_INTERNALS__' in window,
@@ -215,9 +218,6 @@ function App() {
           setShowLumpDialog(true)
         },
         onTransformAndSetConfig: (config) => {
-          // CRITICAL: Get current tags AFTER mesh is loaded, not before!
-          const currentTags = useAppStore.getState().availableTags
-          const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
           const transformedConfig = transformLoadedConfig(config, currentTags, rootKey)
           setConfigData(transformedConfig)
         },
@@ -486,9 +486,17 @@ function App() {
     }
   }
 
-  const handleExit = () => {
-    console.log('Exit')
-    // TODO: Prompt to save if dirty, then close
+  const handleExit = async () => {
+    // Check if there are unsaved changes
+    if (hasUnsavedChanges) {
+      const shouldExit = window.confirm('You have unsaved changes. Are you sure you want to exit?')
+      if (!shouldExit) return
+    }
+    
+    // Close the Tauri window using the getCurrentWindow API
+    const { getCurrentWindow } = await import('@tauri-apps/api/window')
+    const appWindow = getCurrentWindow()
+    await appWindow.close()
   }
 
   const handleSettings = () => {
@@ -548,6 +556,8 @@ function App() {
       const { processLoadedConfig } = await import('./utils/configLoader')
       const { readProjectFile } = await import('./utils/fileUtils')
       
+      const currentTags = useAppStore.getState().availableTags
+      const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
       const projectFolder = useAppStore.getState().projectFolderHandle
       const isTauriMode = '__TAURI_INTERNALS__' in window
       
@@ -588,9 +598,6 @@ function App() {
           setShowLumpDialog(true)
         },
         onTransformAndSetConfig: (config) => {
-          // CRITICAL: Get current tags AFTER mesh is loaded, not before!
-          const currentTags = useAppStore.getState().availableTags
-          const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
           const transformedConfig = transformLoadedConfig(config, currentTags, rootKey)
           setConfigData(transformedConfig)
         },

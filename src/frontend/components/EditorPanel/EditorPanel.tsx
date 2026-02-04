@@ -118,6 +118,8 @@ function EditorPanel({
   const [showThermoWizard, setShowThermoWizard] = useState(false)
   const [showTurbulenceWizard, setShowTurbulenceWizard] = useState(false)
   const [showInitializationWizard, setShowInitializationWizard] = useState(false)
+  const [savedStateWizardState, setSavedStateWizardState] = useState<any>(undefined)
+  const [showThermoWizardFromStateWizard, setShowThermoWizardFromStateWizard] = useState(false)
   const [showTimeAccuracyWizard, setShowTimeAccuracyWizard] = useState(false)
   const [showVisualizationWizardLocal, setShowVisualizationWizardLocal] = useState(false)
   const [normalPreset, setNormalPreset] = useState<string>('custom')
@@ -1947,8 +1949,33 @@ function EditorPanel({
       
       {showStateWizard && (
         <StateWizard
-          onClose={() => setShowStateWizard(false)}
-          onCreate={(state) => addState(state)}
+          onClose={() => {
+            setShowStateWizard(false)
+            setSavedStateWizardState(undefined)
+          }}
+          onCreate={(state) => {
+            addState(state)
+            setShowStateWizard(false)
+            setSavedStateWizardState(undefined)
+          }}
+          onOpenThermodynamics={() => {
+            setShowStateWizard(false)
+            setShowThermoWizardFromStateWizard(true)
+          }}
+          savedState={savedStateWizardState}
+          onSaveState={setSavedStateWizardState}
+        />
+      )}
+      
+      {showThermoWizardFromStateWizard && (
+        <ThermodynamicsWizard
+          onClose={() => {
+            setShowThermoWizardFromStateWizard(false)
+            if (savedStateWizardState) {
+              setShowStateWizard(true)
+            }
+          }}
+          onUpdate={() => {/* Updates via store */}}
         />
       )}
       

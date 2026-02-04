@@ -3,7 +3,9 @@ import { useState } from 'react'
 import { TreeNode } from '../../utils/schemaParser'
 import { isCategoryHidden } from '../../utils/featureFlags'
 import { useAppStore } from '../../store/appStore'
-import StateWizard from '../EditorPanel/StateWizard'
+import { useConsoleStore } from '../../store/consoleStore'
+import StateWizard, { SavedWizardState } from '../EditorPanel/StateWizard'
+import ThermodynamicsWizard from '../EditorPanel/ThermodynamicsWizard'
 import ArrayEditor from '../ArrayEditor/ArrayEditor'
 import './PropertyEditorDialog.css'
 
@@ -48,7 +50,10 @@ export default function PropertyEditorDialog({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [nestedDialog, setNestedDialog] = useState<{key: string, prop: SchemaProperty} | null>(null)
   const [showStateWizard, setShowStateWizard] = useState(false)
+  const [showThermoWizard, setShowThermoWizard] = useState(false)
+  const [savedStateWizardState, setSavedStateWizardState] = useState<SavedWizardState | undefined>(undefined)
   const { addState } = useAppStore()
+  const { log } = useConsoleStore()
   
   if (!isOpen || !node) return null
 
@@ -232,8 +237,10 @@ export default function PropertyEditorDialog({
   }
 
   const handleCreateState = (state: any) => {
+    log('DEBUG', 'info', `[PropertyEditor] State created: ${state.name}`)
     addState(state)
     setShowStateWizard(false)
+    setSavedStateWizardState(undefined)
   }
 
   const renderProperties = () => {
@@ -558,8 +565,35 @@ export default function PropertyEditorDialog({
     
     {showStateWizard && (
       <StateWizard
-        onClose={() => setShowStateWizard(false)}
+        onClose={() => {
+          log('DEBUG', 'info', '[PropertyEditor] State wizard closed')
+          setShowStateWizard(false)
+          setSavedStateWizardState(undefined)
+        }}
         onCreate={handleCreateState}
+        onOpenThermodynamics={() => {
+          log('DEBUG', 'info', '[PropertyEditor] Opening thermodynamics wizard from state wizard')
+          setShowStateWizard(false)
+          setShowThermoWizard(true)
+        }}
+        savedState={savedStateWizardState}
+        onSaveState={setSavedStateWizardState}
+      />
+    )}
+    
+    {showThermoWizard && (
+      <ThermodynamicsWizard
+        onClose={() => {
+          log('DEBUG', 'info', '[PropertyEditor] Thermodynamics wizard closed')
+          setShowThermoWizard(false)
+          if (savedStateWizardState) {
+            log('DEBUG', 'info', '[PropertyEditor] Reopening state wizard with saved state')
+            setShowStateWizard(true)
+          }
+        }}
+        onUpdate={() => {
+          log('DEBUG', 'success', '[PropertyEditor] Thermodynamics updated')
+        }}
       />
     )}
     </>

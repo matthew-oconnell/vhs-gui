@@ -21,6 +21,95 @@ echo "======================================"
 echo "Building VHS Desktop Application"
 echo "======================================"
 
+# Step 0: Check and download ESP128 if needed
+echo ""
+echo "Step 0: Checking ESP128 installation..."
+
+ESP_DIR="$PROJECT_ROOT/third-party/ESP128"
+ESP_BASE_URL="https://acdl.mit.edu/ESP/PreBuilts"
+
+# Function to detect OS and architecture
+detect_platform() {
+    local os=$(uname -s)
+    local arch=$(uname -m)
+    
+    case "$os" in
+        Darwin)
+            if [ "$arch" = "arm64" ]; then
+                echo "ESP128-macos-arm64.tgz"
+            else
+                echo "ESP128-macos-x86_64.tgz"
+            fi
+            ;;
+        Linux)
+            if [ "$arch" = "aarch64" ]; then
+                echo "ESP128-linux-aarch64.tgz"
+            else
+                echo "ESP128-linux-x86_64.tgz"
+            fi
+            ;;
+        MINGW*|MSYS*|CYGWIN*)
+            echo "ESP128-win-x64.zip"
+            ;;
+        *)
+            echo "unsupported"
+            ;;
+    esac
+}
+
+# Check if ESP128 is already installed
+if [ -d "$ESP_DIR" ] && [ "$(ls -A $ESP_DIR 2>/dev/null)" ]; then
+    echo "  ✅ ESP128 found in third-party/ESP128"
+else
+    echo "  ESP128 not found. Downloading..."
+    
+    # Detect platform
+    TARBALL=$(detect_platform)
+    
+    if [ "$TARBALL" = "unsupported" ]; then
+        echo "  ⚠️  Warning: Unsupported platform $(uname -s) $(uname -m)"
+        echo "  Please download ESP128 manually from $ESP_BASE_URL"
+        echo "  Continuing without ESP (CSM files will not be supported)..."
+    else
+        # Create third-party directory
+        mkdir -p "$PROJECT_ROOT/third-party"
+        
+        # Download ESP128
+        echo "  Downloading $TARBALL..."
+        if command -v curl > /dev/null; then
+            curl -L --insecure -o "$PROJECT_ROOT/third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL" 2>/dev/null
+        elif command -v wget > /dev/null; then
+            wget --no-check-certificate -O "$PROJECT_ROOT/third-party/$TARBALL" "$ESP_BASE_URL/$TARBALL" 2>/dev/null
+        else
+            echo "  ⚠️  Warning: Neither curl nor wget found."
+            echo "  Continuing without ESP (CSM files will not be supported)..."
+        fi
+        
+        # Extract tarball if download succeeded
+        if [ -f "$PROJECT_ROOT/third-party/$TARBALL" ]; then
+            echo "  Extracting ESP128..."
+            cd "$PROJECT_ROOT/third-party"
+            if [[ "$TARBALL" == *.zip ]]; then
+                unzip -q "$TARBALL" 2>/dev/null || echo "  ⚠️  Extraction failed"
+            else
+                tar -xzf "$TARBALL" 2>/dev/null || echo "  ⚠️  Extraction failed"
+            fi
+            
+            # Remove tarball to save space
+            rm "$TARBALL"
+            
+            cd "$PROJECT_ROOT"
+            
+            if [ -d "$ESP_DIR" ]; then
+                echo "  ✅ ESP128 installed successfully"
+            else
+                echo "  ⚠️  Warning: ESP128 extraction incomplete"
+                echo "  Continuing without ESP (CSM files will not be supported)..."
+            fi
+        fi
+    fi
+fi
+
 # Step 1: Build C++ backend server
 echo ""
 echo "Step 1: Building C++ backend server..."
@@ -42,6 +131,13 @@ echo "  ✅ Backend server built: src/server/build/vhs_server"
 echo ""
 echo "Step 2: Building Tauri desktop application..."
 cd "$PROJECT_ROOT/src/frontend"
+
+# Install npm dependencies if needed
+if [ ! -d "node_modules" ]; then
+    echo "  Installing npm dependencies..."
+    npm install > /dev/null 2>&1
+    echo "  ✅ Dependencies installed"
+fi
 
 # Force rebuild if requested
 if [ "$FORCE_REBUILD" = true ]; then

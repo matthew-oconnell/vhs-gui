@@ -127,9 +127,14 @@ echo "  Building with make..."
 make -j$(nproc) > /dev/null 2>&1
 echo "  ✅ Backend server built: src/server/build/vhs_server"
 
-# Step 2: Build Tauri desktop application
+# Step 2: Generate version info
 echo ""
-echo "Step 2: Building Tauri desktop application..."
+echo "Step 2: Generating version info..."
+"$PROJECT_ROOT/scripts/generate-version.sh"
+
+# Step 3: Build Tauri desktop application
+echo ""
+echo "Step 3: Building Tauri desktop application..."
 cd "$PROJECT_ROOT/src/frontend"
 
 # Install npm dependencies if needed
@@ -154,9 +159,9 @@ echo "  ✅ Desktop app built: src/frontend/src-tauri/target/release/app"
 
 cd "$PROJECT_ROOT"
 
+echo ""4: Start backend server
 echo ""
-echo "======================================"
-echo "✅ All components built successfully!"
+echo "Step 4components built successfully!"
 echo "======================================"
 
 # Step 3: Start backend server
@@ -179,7 +184,7 @@ if [ -f "$BACKEND_SERVER" ]; then
     fi
 else
     echo "  ⚠️  Backend server not found, skipping"
-    BACKEND_PID=""
+    BAC5END_PID=""
 fi
 
 cd "$PROJECT_ROOT"

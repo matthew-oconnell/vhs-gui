@@ -96,6 +96,8 @@ interface AppState {
   selectedTags: Surface[]
   toggleTagSelection: (tag: Surface) => void
   clearTagSelection: () => void
+  hoveredGroup: string | null  // bc_name of the currently hovered group (null if not hovering or in tag mode)
+  setHoveredGroup: (bcName: string | null) => void
   selectedBC: BoundaryCondition | null
   setSelectedBC: (bc: BoundaryCondition | null) => void
   selectedState: State | null
@@ -213,6 +215,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedTag: null,
   setSelectedTag: (tag) => set({ selectedTag: tag, selectedTags: tag ? [tag] : [], selectedNode: null, selectedBC: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
   selectedTags: [],
+  hoveredGroup: null,
   toggleTagSelection: (tag) => set((state) => {
     const isSelected = state.selectedTags.some(s => s.id === tag.id)
     if (isSelected) {
@@ -232,6 +235,7 @@ export const useAppStore = create<AppState>((set) => ({
     }
   }),
   clearTagSelection: () => set({ selectedTags: [], selectedTag: null }),
+  setHoveredGroup: (bcName) => set({ hoveredGroup: bcName }),
   selectedBC: null,
   // NOTE: BC selection now preserves selectedNode to enable generic rendering
   setSelectedBC: (bc) => set({ selectedBC: bc, selectedTag: null, selectedState: null, selectedViz: null, selectedInitRegion: null }),
@@ -273,7 +277,38 @@ export const useAppStore = create<AppState>((set) => ({
     states: {}
   },
   
-  setConfigData: (configData) => set({ configData }),
+  setConfigData: (configData) => set((state) => {
+    // Check if loaded config already has wizard configurations
+    const thermodynamics = configData.thermodynamics
+    const hasThermoConfig = thermodynamics && (
+      thermodynamics['chemistry model'] !== undefined ||
+      thermodynamics['molecular weight'] !== undefined ||
+      thermodynamics['ratio of specific heats'] !== undefined ||
+      (thermodynamics.species && thermodynamics.species.length > 0)
+    )
+    
+    const equationType = configData['equation type']
+    const hasTurbulenceConfig = equationType !== undefined && equationType !== null
+    
+    const initialState = configData['initial state']
+    const hasInitializationConfig = initialState !== undefined && initialState !== null && initialState !== ''
+    
+    const timeAccuracyType = configData['time accuracy']?.type
+    const hasTimeAccuracyConfig = timeAccuracyType !== undefined && timeAccuracyType !== null
+    
+    const visualization = configData.visualization
+    const hasVisualizationConfig = Array.isArray(visualization) && visualization.length > 0
+    
+    return {
+      configData,
+      // Auto-detect wizard completion from loaded config
+      thermoWizardExecuted: hasThermoConfig,
+      turbulenceWizardExecuted: hasTurbulenceConfig,
+      initializationWizardExecuted: hasInitializationConfig,
+      timeAccuracyWizardExecuted: hasTimeAccuracyConfig,
+      visualizationWizardExecuted: hasVisualizationConfig
+    }
+  }),
   
   availableTags: [],
   totalVertices: 0,

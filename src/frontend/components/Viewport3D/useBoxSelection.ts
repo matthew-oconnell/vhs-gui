@@ -305,6 +305,7 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
   } = useAppStore()
   
   const isBoxSelectingRef = useRef(false)
+  const pendingBoxSelectRef = useRef<{ x: number; y: number; mode: 'all' | 'visible' } | null>(null)
   
   /**
    * Get surfaces within the selection box
@@ -370,7 +371,8 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
   }, [availableTags, tagBounds, tagVisibility, cameraSettings.selectionMode])
   
   /**
-   * Handle pointer down - check for modifier keys and start box selection
+   * Handle pointer down - check for modifier keys and prepare for potential box selection
+   * Don't start box selection immediately - wait for drag to distinguish from shift+click on surface
    */
   const handlePointerDown = useCallback((e: PointerEvent) => {
     // Only handle left mouse button
@@ -390,31 +392,23 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     }
     
     if (mode) {
-      e.preventDefault()
-      e.stopPropagation()
-      
-      // Disable camera controls during box selection
-      const controls = refs.getControls()
-      if (controls) {
-        controls.enabled = false
-      }
-      
+      // Store the mode and start position, but don't start box selection yet
+      // This allows shift+click on surfaces to work for multi-selection
+      // Box selection only starts when the user actually drags
       const canvas = refs.canvas
       const rect = canvas.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
       
-      isBoxSelectingRef.current = true
-      startBoxSelection(x, y, mode)
+      // Store pending box selection info (will be used if drag occurs)
+      pendingBoxSelectRef.current = { x, y, mode }
     }
-  }, [boxSelectionSettings, startBoxSelection])
+  }, [boxSelectionSettings])
   
   /**
-   * Handle pointer move - update box end position
+   * Handle pointer move - start box selection if dragging with modifier, or update box
    */
   const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!isBoxSelectingRef.current) return
-    
     const refs = getBoxSelectionRefs()
     if (!refs) return
     
@@ -423,13 +417,50 @@ export function useBoxSelection({ viewportRef }: UseBoxSelectionOptions) {
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
     
-    updateBoxSelection(x, y)
-  }, [updateBoxSelection])
+    // Check if we have a pending box selection (user pressed shift/ctrl but hasn't dragged yet)
+    if (pendingBoxSelectRef.current && !isBoxSelectingRef.current) {
+      const { x: startX, y: startY, mode } = pendingBoxSelectRef.current
+      
+      // Calculate drag distance (use a threshold to distinguish click from drag)
+      const dragThreshold = 3 // pixels
+      const dx = x - startX
+      const dy = y - startY
+      const distance = Math.sqrt(dx * dx + dy * dy)
+      
+      if (distance > dragThreshold) {
+        // User is dragging - start box selection now
+        e.preventDefault()
+        e.stopPropagation()
+        
+        // Disable camera controls during box selection
+        const controls = refs.getControls()
+        if (controls) {
+          controls.enabled = false
+        }
+        
+        isBoxSelectingRef.current = true
+        startBoxSelection(startX, startY, mode)
+        pendingBoxSelectRef.current = null
+      }
+    }
+    
+    // Update box end position if already box selecting
+    if (isBoxSelectingRef.current) {
+      updateBoxSelection(x, y)
+    }
+  }, [startBoxSelection, updateBoxSelection])
   
   /**
-   * Handle pointer up - finalize selection
+   * Handle pointer up - finalize selection or clear pending box select
    */
   const handlePointerUp = useCallback((e: PointerEvent) => {
+    // Clear pending box selection if user didn't drag (was just a click)
+    if (pendingBoxSelectRef.current) {
+      pendingBoxSelectRef.current = null
+      // Don't prevent - let the click through to surface handlers for shift+click multi-select
+      return
+    }
+    
     if (!isBoxSelectingRef.current) return
     
     isBoxSelectingRef.current = false

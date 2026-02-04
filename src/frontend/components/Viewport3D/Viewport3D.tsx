@@ -51,7 +51,7 @@ function ClickableSurface({
   // Track right-click position and time to differentiate click from drag
   const rightClickStartRef = useRef<{ x: number; y: number; time: number } | null>(null)
   
-  const { selectedTag, setSelectedTag, selectedTags, toggleTagSelection, clearTagSelection, selectedBC, soloBC, tagVisibility, tagRenderSettings, globalRenderSettings, configData, cameraSettings } = useAppStore()
+  const { selectedTag, setSelectedTag, selectedTags, toggleTagSelection, clearTagSelection, selectedBC, soloBC, tagVisibility, tagRenderSettings, globalRenderSettings, configData, cameraSettings, hoveredGroup, setHoveredGroup } = useAppStore()
   const [hovered, setHovered] = useState(false)
   
   // Check if this tag is in the multi-selection
@@ -244,6 +244,28 @@ function ClickableSurface({
     e.stopPropagation()
   }
   
+  // Hover handlers that respect selection mode (tag vs group)
+  const handlePointerOver = () => {
+    setHovered(true)
+    const selectionMode = cameraSettings.selectionMode || 'tag'
+    if (selectionMode === 'group' && surface.metadata.bcName) {
+      // In group mode, set the hovered group so all surfaces with same bc_name show hover
+      setHoveredGroup(surface.metadata.bcName)
+    }
+  }
+  
+  const handlePointerOut = () => {
+    setHovered(false)
+    const selectionMode = cameraSettings.selectionMode || 'tag'
+    if (selectionMode === 'group' && surface.metadata.bcName) {
+      // Clear the hovered group
+      setHoveredGroup(null)
+    }
+  }
+  
+  // Check if this surface should show hover highlighting
+  const shouldShowHover = hovered || (hoveredGroup !== null && surface.metadata.bcName === hoveredGroup)
+  
   // Get base color from color mode
   const baseColor = getColorForTag(
     surface,
@@ -253,9 +275,9 @@ function ClickableSurface({
   )
   
   // Determine display color (selection/hover overrides base color)
-  const displayColor = isSelected ? '#ffd700' : hovered ? '#ffffff' : baseColor
-  const emissive = isSelected ? '#aa8800' : hovered ? '#444444' : '#000000'
-  const emissiveIntensity = isSelected ? 0.5 : hovered ? 0.2 : 0
+  const displayColor = isSelected ? '#ffd700' : shouldShowHover ? '#ffffff' : baseColor
+  const emissive = isSelected ? '#aa8800' : shouldShowHover ? '#444444' : '#000000'
+  const emissiveIntensity = isSelected ? 0.5 : shouldShowHover ? 0.2 : 0
   
   // If we have geometry from mesh, use it
   if (geometry) {
@@ -273,8 +295,8 @@ function ClickableSurface({
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
             onContextMenu={handleContextMenu}
-            onPointerOver={() => setHovered(true)}
-            onPointerOut={() => setHovered(false)}
+            onPointerOver={handlePointerOver}
+            onPointerOut={handlePointerOut}
           >
             <meshStandardMaterial 
               color={displayColor}
@@ -296,8 +318,8 @@ function ClickableSurface({
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
             onContextMenu={handleContextMenu}
-            onPointerOver={() => setHovered(true)}
-            onPointerOut={() => setHovered(false)}
+            onPointerOver={handlePointerOver}
+            onPointerOut={handlePointerOut}
           >
             <edgesGeometry args={[geometry]} />
             <lineBasicMaterial color={settings.meshColor} />
@@ -329,8 +351,8 @@ function ClickableSurface({
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
           onContextMenu={handleContextMenu}
-          onPointerOver={() => setHovered(true)}
-          onPointerOut={() => setHovered(false)}
+          onPointerOver={handlePointerOver}
+          onPointerOut={handlePointerOut}
         >
           <boxGeometry args={size} />
           <meshStandardMaterial 
@@ -350,8 +372,8 @@ function ClickableSurface({
           onPointerDown={handlePointerDown}
           onPointerUp={handlePointerUp}
           onContextMenu={handleContextMenu}
-          onPointerOver={() => setHovered(true)}
-          onPointerOut={() => setHovered(false)}
+          onPointerOver={handlePointerOver}
+          onPointerOut={handlePointerOut}
         >
           <edgesGeometry args={[new THREE.BoxGeometry(...size)]} />
           <lineBasicMaterial color={settings.meshColor} />

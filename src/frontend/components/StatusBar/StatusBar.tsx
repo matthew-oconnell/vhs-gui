@@ -8,6 +8,7 @@
 import { useState } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { Check, AlertCircle } from 'lucide-react'
+import versionInfo from '../../src/version.json'
 import CategoryDropdown, { WizardItem } from './CategoryDropdown'
 import './StatusBar.css'
 
@@ -246,7 +247,7 @@ function StatusBar({
       
       <div className="status-bar-version">
         <span className="status-bar-beta-label">BETA</span>
-        <span className="status-bar-version-info">v1.0.0-beta.1 • 2026-02-03 • 72782d0</span>
+        <span className="status-bar-version-info">{versionInfo.version} • {versionInfo.buildDate} • {versionInfo.gitHash}</span>
       </div>
     </div>
   )

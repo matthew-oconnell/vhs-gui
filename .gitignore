@@ -15,6 +15,9 @@ vite.config.js
 # Schema copies (generated during build from canonical schemas/)
 src/frontend/public/schemas/
 
+# Auto-generated version info (generated during build)
+src/frontend/src/version.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

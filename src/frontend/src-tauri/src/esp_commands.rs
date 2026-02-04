@@ -57,6 +57,16 @@ pub async fn load_csm_file(
 ) -> Result<GeometryData, String> {
     let total_start = std::time::Instant::now();
     
+    // ⚠️ DIAGNOSTIC: Check if old model exists (should have been closed)
+    let had_previous_model = state.model.lock().unwrap().is_some();
+    if had_previous_model {
+        println!("⚠️  WARNING: Previous ESP model still loaded! This may cause corruption.");
+        println!("   Forcibly closing old model before loading new one...");
+        *state.model.lock().unwrap() = None;
+    }
+    
+    println!("🔧 Loading CSM file: {}", path);
+    
     // Load CSM file with absolute path - ESP should resolve dependencies relative to CSM location
     let load_start = std::time::Instant::now();
     let mut model = OcsmModel::load(&path)?;
@@ -271,7 +281,15 @@ pub async fn get_model_info(
 /// Close current model
 #[tauri::command]
 pub async fn close_model(state: State<'_, EspState>) -> Result<(), String> {
+    let was_loaded = state.model.lock().unwrap().is_some();
     *state.model.lock().unwrap() = None;
+    
+    if was_loaded {
+        println!("✅ ESP model closed successfully");
+    } else {
+        println!("ℹ️  No ESP model to close (already clean)");
+    }
+    
     Ok(())
 }
 

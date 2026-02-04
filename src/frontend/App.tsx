@@ -384,6 +384,7 @@ function App() {
   }
 
   const handleNewBlankProject = () => {
+    log('PROJECT', 'info', 'Creating new blank project...')
     const hasUnsaved = useAppStore.getState().hasUnsavedChanges
     
     if (hasUnsaved) {
@@ -392,6 +393,7 @@ function App() {
     } else {
       // No unsaved changes, just reset
       useAppStore.getState().resetToBlankProject()
+      log('PROJECT', 'success', 'Blank project created (ESP model closed, UI state reset)')
     }
   }
 
@@ -405,6 +407,7 @@ function App() {
   const handleUnsavedChangesDiscard = () => {
     setShowUnsavedChangesDialog(false)
     useAppStore.getState().resetToBlankProject()
+    log('PROJECT', 'success', 'Blank project created (changes discarded, ESP model closed)')
   }
 
   const handleUnsavedChangesCancel = () => {

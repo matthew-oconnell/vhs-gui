@@ -222,3 +222,17 @@ export const exportCSMWithBCNames = async (
   console.log('[ESP API] Update result:', result)
   return result as string
 }
+
+/**
+ * Close the current ESP model and free native resources
+ * Should be called when creating a new blank project or before loading a new model
+ */
+export const closeESPModel = async (): Promise<void> => {
+  try {
+    await invoke('close_model')
+    console.log('[ESP API] ✅ ESP model closed successfully')
+  } catch (error) {
+    console.warn('[ESP API] ⚠️ Error closing ESP model:', error)
+    // Don't throw - we want cleanup to continue even if close fails
+  }
+}

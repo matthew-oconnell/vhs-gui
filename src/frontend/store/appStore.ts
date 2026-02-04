@@ -1303,22 +1303,29 @@ export const useAppStore = create<AppState>((set) => ({
   markAsModified: () => set({ hasUnsavedChanges: true }),
   
   // Reset to blank project
-  resetToBlankProject: () => set({
-    // Clear all selections
-    selectedNode: null,
-    selectedTag: null,
-    selectedTags: [],
-    selectedBC: null,
-    selectedState: null,
-    selectedViz: null,
-    selectedInitRegion: null,
-    soloBC: null,
+  resetToBlankProject: () => {
+    // Close ESP model to prevent state corruption (fire and forget)
+    import('../utils/espApi').then(({ closeESPModel }) => {
+      closeESPModel().catch(err => console.warn('[Store] ESP close failed:', err))
+    }).catch(err => console.warn('[Store] Failed to import espApi:', err))
     
-    // Reset configuration
-    configData: {
-      'boundary conditions': [],
-      states: {}
-    },
+    // Reset UI state immediately
+    set({
+      // Clear all selections
+      selectedNode: null,
+      selectedTag: null,
+      selectedTags: [],
+      selectedBC: null,
+      selectedState: null,
+      selectedViz: null,
+      selectedInitRegion: null,
+      soloBC: null,
+      
+      // Reset configuration
+      configData: {
+        'boundary conditions': [],
+        states: {}
+      },
     
     // Clear mesh data
     availableTags: [],
@@ -1351,5 +1358,6 @@ export const useAppStore = create<AppState>((set) => ({
     
     // Mark as saved (since it's a fresh state)
     hasUnsavedChanges: false
-  })
+    })
+  }
 }))

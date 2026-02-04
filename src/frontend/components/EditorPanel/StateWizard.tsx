@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { State } from '../../types/config'
 import { useAppStore } from '../../store/appStore'
+import { useConsoleStore } from '../../store/consoleStore'
 import MapEditor from '../MapEditor/MapEditor'
 import { 
   isSingleSpecies, 
@@ -38,6 +39,16 @@ interface StateWizardProps {
 
 export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, savedState, onSaveState }: StateWizardProps) {
   const { configData } = useAppStore()
+  const { log } = useConsoleStore()
+  
+  // Log wizard instantiation with prop status
+  useEffect(() => {
+    log('DEBUG', 'info', '[StateWizard] Wizard instantiated')
+    log('DEBUG', 'info', `[StateWizard] Props provided: onOpenThermodynamics=${!!onOpenThermodynamics}, savedState=${!!savedState}, onSaveState=${!!onSaveState}`)
+    if (!onOpenThermodynamics) {
+      log('DEBUG', 'warning', '[StateWizard] Missing onOpenThermodynamics - thermodynamics wizard integration disabled')
+    }
+  }, [])
   
   // Initialize state from savedState if available, otherwise use defaults
   const [mode, setMode] = useState<StateMode>(savedState?.mode ?? null)
@@ -63,6 +74,8 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
   const [massFractions, setMassFractions] = useState<Record<string, number>>(
     savedState?.massFractions ?? {}
   )
+  
+  const [isCreating, setIsCreating] = useState(false)
 
   // Initialize mass fractions when wizard opens or thermodynamics changes
   useEffect(() => {
@@ -88,10 +101,15 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
 
   // Handler to open thermodynamics wizard
   const handleOpenThermodynamics = () => {
+    log('DEBUG', 'info', '[StateWizard] handleOpenThermodynamics called')
+    
     if (!onOpenThermodynamics) {
+      log('DEBUG', 'error', '[StateWizard] onOpenThermodynamics callback not provided - cannot open thermodynamics wizard')
       console.warn('onOpenThermodynamics not provided to StateWizard')
       return
     }
+    
+    log('DEBUG', 'info', '[StateWizard] Saving current wizard state before opening thermodynamics')
     
     // Save current wizard state before opening thermodynamics
     if (onSaveState) {
@@ -108,62 +126,90 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
         angleOfYaw,
         massFractions
       })
+      log('DEBUG', 'success', '[StateWizard] Wizard state saved successfully')
+    } else {
+      log('DEBUG', 'warning', '[StateWizard] onSaveState not provided - wizard state will not persist')
     }
     
+    log('DEBUG', 'info', '[StateWizard] Calling onOpenThermodynamics callback')
     // Don't call onClose() here - let the parent handle closing when onOpenThermodynamics is called
     onOpenThermodynamics()
   }
 
-  const handleCreate = () => {
-    const baseState: State = {
-      id: `state-${Date.now()}`,
-      name: stateName || `state_${Date.now()}`,
-      'angle of attack': parseFloat(angleOfAttack) || 0,
-      'angle of yaw': parseFloat(angleOfYaw) || 0
+  const handleCreate = async () => {
+    if (isCreating) {
+      log('DEBUG', 'warning', '[StateWizard] Already creating state, ignoring duplicate click')
+      return
     }
     
-    // Add mass fractions if any have been defined
-    if (Object.keys(massFractions).length > 0) {
-      baseState['mass fractions'] = massFractions
-    }
+    setIsCreating(true)
+    log('DEBUG', 'info', `[StateWizard] handleCreate called - mode: ${mode}, stateName: ${stateName}`)
+    
+    try {
+      const baseState: State = {
+        id: `state-${Date.now()}`,
+        name: stateName || `state_${Date.now()}`,
+        'angle of attack': parseFloat(angleOfAttack) || 0,
+        'angle of yaw': parseFloat(angleOfYaw) || 0
+      }
+      
+      // Add mass fractions if any have been defined
+      if (Object.keys(massFractions).length > 0) {
+        baseState['mass fractions'] = massFractions
+      }
 
-    if (mode === 'static') {
-      onCreate({
-        ...baseState,
-        'mach number': parseFloat(machNumber),
-        temperature: parseFloat(temperature),
-        pressure: parseFloat(pressure)
-      })
-    } else if (mode === 'total') {
-      onCreate({
-        ...baseState,
-        'mach number': parseFloat(machNumber),
-        'total temperature': parseFloat(totalTemperature),
-        'total pressure': parseFloat(totalPressure)
-      })
-    } else if (mode === 'densities') {
-      onCreate({
-        ...baseState,
-        'mach number': parseFloat(machNumber),
-        speed: parseFloat(speed),
-        temperature: parseFloat(temperature)
-      })
-    } else if (mode === 'advanced') {
-      // Create with just basics, user can edit all fields manually
-      onCreate({
-        ...baseState,
-        'mach number': parseFloat(machNumber) || 0,
-        temperature: parseFloat(temperature) || 300,
-        pressure: parseFloat(pressure) || 101325
-      })
+      let newState: State
+      if (mode === 'static') {
+        log('DEBUG', 'info', '[StateWizard] Creating static state')
+        newState = {
+          ...baseState,
+          'mach number': parseFloat(machNumber),
+          temperature: parseFloat(temperature),
+          pressure: parseFloat(pressure)
+        }
+      } else if (mode === 'total') {
+        log('DEBUG', 'info', '[StateWizard] Creating total state')
+        newState = {
+          ...baseState,
+          'mach number': parseFloat(machNumber),
+          'total temperature': parseFloat(totalTemperature),
+          'total pressure': parseFloat(totalPressure)
+        }
+      } else if (mode === 'densities') {
+        log('DEBUG', 'info', '[StateWizard] Creating densities state')
+        newState = {
+          ...baseState,
+          'mach number': parseFloat(machNumber),
+          speed: parseFloat(speed),
+          temperature: parseFloat(temperature)
+        }
+      } else if (mode === 'advanced') {
+        log('DEBUG', 'info', '[StateWizard] Creating advanced state')
+        newState = {
+          ...baseState,
+          'mach number': parseFloat(machNumber) || 0,
+          temperature: parseFloat(temperature) || 300,
+          pressure: parseFloat(pressure) || 101325
+        }
+      } else {
+        throw new Error(`Invalid mode: ${mode}`)
+      }
+      
+      log('DEBUG', 'info', `[StateWizard] Calling onCreate with state: ${JSON.stringify(newState)}`)
+      onCreate(newState)
+      log('DEBUG', 'success', '[StateWizard] onCreate completed, calling onClose()')
+      
+      // Clear saved state after successful creation
+      if (onSaveState) {
+        onSaveState(null as any)
+      }
+      
+      onClose()
+    } catch (error) {
+      log('DEBUG', 'error', `[StateWizard] Error creating state: ${error}`)
+      console.error('[StateWizard] Error:', error)
+      setIsCreating(false)
     }
-    
-    // Clear saved state after successful creation
-    if (onSaveState) {
-      onSaveState(null as any)
-    }
-    
-    onClose()
   }
 
   const isValid = () => {
@@ -491,9 +537,9 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
             <button
               className="modal-button modal-button-primary"
               onClick={handleCreate}
-              disabled={!isValid()}
+              disabled={!isValid() || isCreating}
             >
-              Create State
+              {isCreating ? 'Creating...' : 'Create State'}
             </button>
           )}
         </div>

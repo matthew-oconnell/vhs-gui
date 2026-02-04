@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import StateWizard from '../EditorPanel/StateWizard'
+import { useConsoleStore } from '../../store/consoleStore'
+import StateWizard, { SavedWizardState } from '../EditorPanel/StateWizard'
+import ThermodynamicsWizard from '../EditorPanel/ThermodynamicsWizard'
 import './InitializationRegionDialog.css'
 
 // Initialization region types from the schema
@@ -34,10 +36,13 @@ interface InitializationRegionDialogProps {
 
 export default function InitializationRegionDialog({ isOpen, onClose }: InitializationRegionDialogProps) {
   const { configData, setConfigData, availableTags, setSelectedInitRegion, addState } = useAppStore()
+  const { log } = useConsoleStore()
 
   const [regionType, setRegionType] = useState('box')
   const [stateName, setStateName] = useState('')
   const [showStateWizard, setShowStateWizard] = useState(false)
+  const [showThermoWizard, setShowThermoWizard] = useState(false)
+  const [savedStateWizardState, setSavedStateWizardState] = useState<SavedWizardState | undefined>(undefined)
   
   // AABB/Box fields
   const [lo, setLo] = useState<[number, number, number]>([0, 0, 0])
@@ -135,7 +140,10 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
   }
 
   const handleStateChange = (value: string) => {
+    log('DEBUG', 'info', `[InitRegionDialog] State selection changed to: ${value}`)
     if (value === '__CREATE_NEW__') {
+      log('DEBUG', 'info', '[InitRegionDialog] Opening state wizard for new state creation')
+      log('DEBUG', 'info', `[InitRegionDialog] handleStateCreated exists: ${typeof handleStateCreated}`)
       setShowStateWizard(true)
     } else {
       setStateName(value)
@@ -143,9 +151,19 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
   }
 
   const handleStateCreated = (newState: any) => {
-    addState(newState)
-    setStateName(newState.name)
-    setShowStateWizard(false)
+    try {
+      log('DEBUG', 'info', `[InitRegionDialog] handleStateCreated called with state: ${newState.name}`)
+      log('DEBUG', 'info', `[InitRegionDialog] State object: ${JSON.stringify(newState)}`)
+      addState(newState)
+      log('DEBUG', 'success', `[InitRegionDialog] State added to store`)
+      setStateName(newState.name)
+      log('DEBUG', 'success', `[InitRegionDialog] State name set in form: ${newState.name}`)
+      setShowStateWizard(false)
+      log('DEBUG', 'success', `[InitRegionDialog] State wizard closed - returning to initialization dialog`)
+    } catch (error) {
+      log('DEBUG', 'error', `[InitRegionDialog] Error in handleStateCreated: ${error}`)
+      console.error('[InitRegionDialog] Error:', error)
+    }
   }
 
   const handleCreate = () => {
@@ -251,6 +269,7 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
     onClose()
   }
 
+  // Early return after all hooks and functions are defined
   if (!isOpen) return null
 
   const availableStates = getAvailableStates()
@@ -821,11 +840,40 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
 
       {showStateWizard && (
         <StateWizard
-          onClose={() => setShowStateWizard(false)}
-          onCreate={handleStateCreated}
+          onClose={() => {
+            log('DEBUG', 'info', '[InitRegionDialog] State wizard closed by user (cancel)')
+            setShowStateWizard(false)
+            setSavedStateWizardState(undefined) // Clear saved state on cancel
+          }}
+          onCreate={(newState: any) => {
+            log('DEBUG', 'info', `[InitRegionDialog] onCreate callback invoked with state: ${newState?.name}`)
+            handleStateCreated(newState)
+          }}
           onOpenThermodynamics={() => {
+            log('DEBUG', 'info', '[InitRegionDialog] Opening thermodynamics wizard from state wizard')
+            // State is already saved via onSaveState callback
             setShowStateWizard(false)
             setShowThermoWizard(true)
+          }}
+          savedState={savedStateWizardState}
+          onSaveState={setSavedStateWizardState}
+        />
+      )}
+      
+      {showThermoWizard && (
+        <ThermodynamicsWizard
+          onClose={() => {
+            log('DEBUG', 'info', '[InitRegionDialog] Thermodynamics wizard closed')
+            setShowThermoWizard(false)
+            // Reopen state wizard with saved state if it existed
+            if (savedStateWizardState) {
+              log('DEBUG', 'info', '[InitRegionDialog] Reopening state wizard with saved state')
+              setShowStateWizard(true)
+            }
+          }}
+          onUpdate={() => {
+            log('DEBUG', 'success', '[InitRegionDialog] Thermodynamics updated')
+            // Wizard updates configData directly via updateThermodynamics store action
           }}
         />
       )}

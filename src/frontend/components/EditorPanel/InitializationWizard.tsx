@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import StateWizard from './StateWizard'
+import { useConsoleStore } from '../../store/consoleStore'
+import StateWizard, { SavedWizardState } from './StateWizard'
+import ThermodynamicsWizard from './ThermodynamicsWizard'
 import './InitializationWizard.css'
 
 interface InitializationWizardProps {
@@ -9,11 +11,14 @@ interface InitializationWizardProps {
 }
 
 export default function InitializationWizard({ onClose }: InitializationWizardProps) {
-  const { configData, setInitialState, setInitializationWizardExecuted } = useAppStore()
+  const { configData, setInitialState, setInitializationWizardExecuted, addState } = useAppStore()
+  const { log } = useConsoleStore()
   
   const [currentStep, setCurrentStep] = useState(1)
   const [selectedState, setSelectedState] = useState('')
   const [showStateWizard, setShowStateWizard] = useState(false)
+  const [showThermoWizard, setShowThermoWizard] = useState(false)
+  const [savedStateWizardState, setSavedStateWizardState] = useState<SavedWizardState | undefined>(undefined)
 
   // Get available states from configData
   const getAvailableStates = (): string[] => {
@@ -40,16 +45,24 @@ export default function InitializationWizard({ onClose }: InitializationWizardPr
   }
 
   const handleCreateState = () => {
+    log('DEBUG', 'info', '[InitWizard] Opening state wizard for new state creation')
     setShowStateWizard(true)
   }
 
-  const handleStateWizardClose = () => {
-    setShowStateWizard(false)
-    // Refresh available states - the new state should now be in configData.states
-    const states = getAvailableStates()
-    // Auto-select the newly created state (it will be the last one added)
-    if (states.length > 0) {
-      setSelectedState(states[states.length - 1])
+  const handleStateCreated = (newState: any) => {
+    try {
+      log('DEBUG', 'info', `[InitWizard] handleStateCreated called with state: ${newState.name}`)
+      log('DEBUG', 'info', `[InitWizard] State object: ${JSON.stringify(newState)}`)
+      addState(newState)
+      log('DEBUG', 'success', `[InitWizard] State added to store`)
+      setSelectedState(newState.name)
+      log('DEBUG', 'success', `[InitWizard] State auto-selected: ${newState.name}`)
+      setShowStateWizard(false)
+      log('DEBUG', 'success', `[InitWizard] State wizard closed - returning to initialization wizard`)
+      setSavedStateWizardState(undefined) // Clear saved state after successful creation
+    } catch (error) {
+      log('DEBUG', 'error', `[InitWizard] Error in handleStateCreated: ${error}`)
+      console.error('[InitWizard] Error:', error)
     }
   }
 
@@ -179,9 +192,37 @@ export default function InitializationWizard({ onClose }: InitializationWizardPr
       {/* State Wizard (modal within modal) */}
       {showStateWizard && (
         <StateWizard
-          onClose={handleStateWizardClose}
+          onClose={() => {
+            log('DEBUG', 'info', '[InitWizard] State wizard closed by user (cancel)')
+            setShowStateWizard(false)
+            setSavedStateWizardState(undefined) // Clear saved state on cancel
+          }}
+          onCreate={handleStateCreated}
+          onOpenThermodynamics={() => {
+            log('DEBUG', 'info', '[InitWizard] Opening thermodynamics wizard from state wizard')
+            // State is already saved via onSaveState callback
+            setShowStateWizard(false)
+            setShowThermoWizard(true)
+          }}
+          savedState={savedStateWizardState}
+          onSaveState={setSavedStateWizardState}
+        />
+      )}
+      
+      {showThermoWizard && (
+        <ThermodynamicsWizard
+          onClose={() => {
+            log('DEBUG', 'info', '[InitWizard] Thermodynamics wizard closed')
+            setShowThermoWizard(false)
+            // Reopen state wizard with saved state if it existed
+            if (savedStateWizardState) {
+              log('DEBUG', 'info', '[InitWizard] Reopening state wizard with saved state')
+              setShowStateWizard(true)
+            }
+          }}
           onUpdate={() => {
-            // State wizard updates configData directly via store
+            log('DEBUG', 'success', '[InitWizard] Thermodynamics updated')
+            // Wizard updates configData directly via updateThermodynamics store action
           }}
         />
       )}

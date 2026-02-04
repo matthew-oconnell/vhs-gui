@@ -1,10 +1,21 @@
 #!/bin/bash
 # Build script - builds all components and launches the desktop application
 # Components: C++ backend server, Tauri frontend (ESP integrated via Rust FFI)
+# Usage: ./build.sh [--force]
+#   --force    Force a clean rebuild (clears all caches)
 
 set -e  # Exit on error
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Parse command line arguments
+FORCE_REBUILD=false
+if [ "$1" == "--force" ] || [ "$1" == "-f" ]; then
+    FORCE_REBUILD=true
+    echo "======================================"
+    echo "FORCE REBUILD MODE"
+    echo "======================================"
+fi
 
 echo "======================================"
 echo "Building VHS Desktop Application"
@@ -24,12 +35,7 @@ cd build
 echo "  Configuring with CMake..."
 cmake .. > /dev/null 2>&1
 echo "  Building with make..."
-# Use sysctl for macOS (nproc is Linux-only)
-if command -v nproc > /dev/null 2>&1; then
-    make -j$(nproc) > /dev/null 2>&1
-else
-    make -j$(sysctl -n hw.ncpu) > /dev/null 2>&1
-fi
+make -j$(nproc) > /dev/null 2>&1
 echo "  ✅ Backend server built: src/server/build/vhs_server"
 
 # Step 2: Build Tauri desktop application
@@ -37,38 +43,18 @@ echo ""
 echo "Step 2: Building Tauri desktop application..."
 cd "$PROJECT_ROOT/src/frontend"
 
-# Install dependencies if node_modules is missing or incomplete
-if [ ! -d "node_modules" ] || [ ! -d "node_modules/@tauri-apps/cli" ]; then
-    echo "  Installing npm dependencies..."
-    npm install > /dev/null 2>&1
+# Force rebuild if requested
+if [ "$FORCE_REBUILD" = true ]; then
+    echo "  🧹 Cleaning build caches..."
+    rm -rf dist
+    rm -rf src-tauri/target/release/bundle
+    echo "  ✨ Caches cleared"
 fi
 
-# Check if we need to rebuild
-EXECUTABLE="$PROJECT_ROOT/src/frontend/src-tauri/target/release/app"
-NEEDS_REBUILD=false
+echo "  Running: npx tauri build"
+npx tauri build
 
-if [ ! -f "$EXECUTABLE" ]; then
-    echo "  No existing build found - full build required"
-    NEEDS_REBUILD=true
-else
-    # Check if source files are newer than executable
-    if [ -n "$(find src -newer "$EXECUTABLE" 2>/dev/null | head -1)" ] || \
-       [ -n "$(find components -newer "$EXECUTABLE" 2>/dev/null | head -1)" ] || \
-       [ -n "$(find src-tauri/src -newer "$EXECUTABLE" 2>/dev/null | head -1)" ]; then
-        echo "  Source files changed - incremental build required"
-        NEEDS_REBUILD=true
-    else
-        echo "  No changes detected - using existing build"
-    fi
-fi
-
-if [ "$NEEDS_REBUILD" = true ]; then
-    echo "  Running: npx tauri build"
-    npx tauri build
-    echo "  ✅ Desktop app built: src/frontend/src-tauri/target/release/app"
-else
-    echo "  ✅ Using cached build: src/frontend/src-tauri/target/release/app"
-fi
+echo "  ✅ Desktop app built: src/frontend/src-tauri/target/release/app"
 
 cd "$PROJECT_ROOT"
 
@@ -105,7 +91,7 @@ cd "$PROJECT_ROOT"
 # Step 4: Launch desktop application
 echo ""
 echo "======================================"
-echo "Launching Tauri Desktop Application"
+echo "Launching desktop application..."
 echo "======================================"
 EXECUTABLE="$PROJECT_ROOT/src/frontend/src-tauri/target/release/app"
 
@@ -129,9 +115,8 @@ if [ -f "$EXECUTABLE" ]; then
     fi
     
     echo ""
-    echo "🚀 Launching standalone desktop app (NOT in browser)"
     echo "Running: $EXECUTABLE"
-    echo "Backend logs: /tmp/vhs-server.log"
+    echo "Logs: /tmp/vhs-server.log"
     echo ""
     exec "$EXECUTABLE"
 else

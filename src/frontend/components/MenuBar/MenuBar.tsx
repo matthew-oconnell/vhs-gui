@@ -142,7 +142,7 @@ function MenuBar({ onNewProject, onNewBlankProject, onOpen, onOpenProjectFolder,
             <div className="menu-separator" />
             <button 
               className="menu-option" 
-              onClick={() => handleMenuItemClick(onExit || (() => console.log('Exit')))}
+              onClick={() => handleMenuItemClick(onExit || (() => {}))}
             >
               <span className="menu-option-label">Exit</span>
               <span className="menu-option-shortcut">Ctrl+Q</span>

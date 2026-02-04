@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Panel, PanelGroup, PanelResizeHandle, type PanelImperativeHandle } from 'react-resizable-panels'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { writeTextFile } from '@tauri-apps/plugin-fs'
+import { getCurrentWindow } from '@tauri-apps/api/window'
 import TreePanel from './components/TreePanel/TreePanel'
 import EditorPanel from './components/EditorPanel/EditorPanel'
 import TagsPanel from './components/TagsPanel/TagsPanel'
@@ -487,16 +488,25 @@ function App() {
   }
 
   const handleExit = async () => {
-    // Check if there are unsaved changes
-    if (hasUnsavedChanges) {
-      const shouldExit = window.confirm('You have unsaved changes. Are you sure you want to exit?')
-      if (!shouldExit) return
+    log('UI', 'info', 'Exit requested')
+    try {
+      // Check if there are unsaved changes
+      const hasUnsaved = useAppStore.getState().hasUnsavedChanges
+      if (hasUnsaved) {
+        const shouldExit = window.confirm('You have unsaved changes. Are you sure you want to exit?')
+        if (!shouldExit) {
+          log('UI', 'info', 'Exit cancelled by user')
+          return
+        }
+      }
+      
+      log('UI', 'info', 'Closing application window')
+      const appWindow = getCurrentWindow()
+      await appWindow.close()
+    } catch (error) {
+      log('UI', 'error', `Failed to exit application: ${error}`)
+      alert(`Failed to close application: ${error}`)
     }
-    
-    // Close the Tauri window using the getCurrentWindow API
-    const { getCurrentWindow } = await import('@tauri-apps/api/window')
-    const appWindow = getCurrentWindow()
-    await appWindow.close()
   }
 
   const handleSettings = () => {

@@ -219,7 +219,9 @@ function App() {
           setShowLumpDialog(true)
         },
         onTransformAndSetConfig: (config) => {
-          const transformedConfig = transformLoadedConfig(config, currentTags, rootKey)
+          // Get fresh tags from store (CSM may have loaded since capture)
+          const freshTags = useAppStore.getState().availableTags
+          const transformedConfig = transformLoadedConfig(config, freshTags, rootKey)
           setConfigData(transformedConfig)
         },
         onLog: log,
@@ -611,7 +613,9 @@ function App() {
           setShowLumpDialog(true)
         },
         onTransformAndSetConfig: (config) => {
-          const transformedConfig = transformLoadedConfig(config, currentTags, rootKey)
+          // Get fresh tags from store (CSM may have loaded since capture)
+          const freshTags = useAppStore.getState().availableTags
+          const transformedConfig = transformLoadedConfig(config, freshTags, rootKey)
           setConfigData(transformedConfig)
         },
         onLog: log,

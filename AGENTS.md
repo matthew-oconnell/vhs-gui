@@ -178,6 +178,104 @@ Until then, **docs/whenSchemaChanges.md is our safety net** to ensure the projec
 
 ---
 
+## 🏗️ Architecture Overview
+
+### System Components
+
+This is a **Tauri v2 desktop application** combining:
+- **Frontend**: React 18 + TypeScript (Vite build system)
+- **Backend**: Rust (Tauri runtime) + C++ server (mesh parsing)
+- **Geometry Engine**: ESP128/OpenCASCADE 7.8.1 (via Rust FFI)
+
+### Technology Stack
+
+**Frontend (`src/frontend/`)**
+- **UI Framework**: React 18 with TypeScript
+- **3D Visualization**: Three.js + React Three Fiber (WebGL)
+- **State Management**: Zustand (single `appStore`)
+- **Code Editor**: Monaco Editor (embedded)
+- **Build Tool**: Vite 5
+- **Testing**: Vitest + React Testing Library
+
+**Backend**
+- **Desktop Wrapper**: Tauri 2.x (Rust)
+- **Mesh Server**: C++ server on port 8080 (STL, OBJ, meshb, EGADS parsing)
+- **CAD Engine**: ESP128 via Rust FFI bindings (`src-tauri/src/esp_ffi.rs`)
+- **Build**: CMake (C++) + Cargo (Rust)
+
+### Data Flow
+
+```
+User Input → React UI → Zustand Store → JSON Config (schema-validated)
+                ↓                              ↓
+          3D Viewport (Three.js)        Tauri File API
+                ↓                              ↓
+     ESP Geometry (CAD files)          Disk (config.json)
+                ↓
+    Mesh Server (C++ on :8080)
+```
+
+**Key Paths:**
+1. **Configuration editing**: Tree panel → Property editor → Schema validation → JSON save
+2. **Geometry loading**: CSM/EGADS file → ESP/OpenCASCADE → Tessellation → Three.js mesh
+3. **Mesh parsing**: Upload → C++ server → Parsed mesh data → 3D visualization
+
+### Directory Structure
+
+```
+/home/matthew/Projects/vulcan-gui/
+├── schemas/input.schema.json          # Source of truth (upstream)
+├── public/                            # Static assets (schema, hints)
+├── src/
+│   ├── frontend/                      # React application
+│   │   ├── components/                # React components
+│   │   ├── store/appStore.ts          # Zustand state
+│   │   ├── utils/                     # Utilities (fileUtils, espApi, etc.)
+│   │   └── src-tauri/                 # Rust/Tauri code
+│   │       ├── src/esp_ffi.rs         # ESP FFI bindings
+│   │       └── src/esp_commands.rs    # Tauri commands for ESP
+│   └── server/                        # C++ mesh server
+│       ├── src/                       # C++ source
+│       └── build/vhs_server           # Compiled server binary
+├── third-party/ESP128/                # CAD geometry engine
+└── build.sh                           # Orchestrates full build
+```
+
+### Build System
+
+**Full Build** (`./build.sh`):
+1. Build C++ mesh server (CMake)
+2. Generate version info
+3. Build Tauri app (Cargo + Vite)
+4. Bundle .deb and .rpm packages
+
+**Frontend Only** (`cd src/frontend && npm run build`):
+- TypeScript compilation (`tsc`)
+- Vite bundling → `dist/`
+
+**Development**:
+- `npm run dev` - Vite dev server (port 3000)
+- `npx tauri dev` - Full desktop app with hot reload
+
+### State Management
+
+**Single Store** (`src/frontend/store/appStore.ts`):
+- Configuration data (`configData`)
+- Mesh/geometry data (`availableTags`, `meshRegions`)
+- UI state (selected nodes, panels, dialogs)
+- Feature flags (console categories)
+
+**Design Principle**: All application state lives in Zustand store. React components are mostly stateless, deriving from store.
+
+### Key Integration Points
+
+1. **Schema Loading**: `/schemas/input.schema.json` → Schema validator → Tree renderer
+2. **ESP Integration**: Tauri commands → Rust FFI → C++ ESP library → Geometry data
+3. **File I/O**: Tauri FS plugin → Native file dialogs → Config/mesh files
+4. **Mesh Parsing**: HTTP POST → C++ server (port 8080) → Parsed mesh JSON
+
+---
+
 ## 🧪 Test-Driven Development (TDD)
 
 This project uses **Vitest** for unit/integration testing and **React Testing Library** for component testing.
@@ -577,6 +675,65 @@ Dialogs following this pattern:
 - ✅ Other modal dialogs
 
 **Why This Matters:** Consistent button styling creates a professional, cohesive user experience. Users should not have to relearn button interactions across different dialogs.
+
+---
+
+## 📋 Logging Best Practices
+
+### Use Application Log Function, Not console.log()
+
+**Always use the application's `log()` function instead of `console.log()` or other console methods.**
+
+#### Why This Matters
+
+The application uses a centralized logging system with:
+- **Categorization** - Logs are organized by category (e.g., 'Config', 'ESP', 'Mesh', 'BC')
+- **Level filtering** - Users can enable/disable specific log categories at runtime
+- **Consistent formatting** - All logs follow a uniform structure
+- **Better debugging** - Logs can be filtered in the console panel by category
+
+#### Usage
+
+```typescript
+// ❌ BAD: Direct console usage
+console.log('Loading configuration file')
+console.error('Failed to parse mesh')
+
+// ✅ GOOD: Use application log function
+import { useAppStore } from '../store/appStore'
+
+const log = useAppStore.getState().log
+
+log('Config', 'info', 'Loading configuration file')
+log('Mesh', 'error', 'Failed to parse mesh')
+```
+
+#### Available Log Levels
+
+- `'info'` - General information
+- `'warning'` - Warnings that don't prevent operation
+- `'error'` - Errors that prevent operation
+- `'debug'` - Detailed debugging information
+
+#### Common Categories
+
+Use existing categories when applicable:
+- `'Config'` - Configuration file operations
+- `'ESP'` - ESP/geometry operations
+- `'Mesh'` - Mesh loading/processing
+- `'BC'` - Boundary condition operations
+- `'State'` - Application state changes
+- `'File'` - File I/O operations
+- `'Schema'` - Schema validation
+
+Create new categories as needed, but keep them concise and descriptive.
+
+#### Exception: Build-Time Logging
+
+`console.log()` is acceptable **only** in:
+- Build scripts (not in application code)
+- Test files (for debugging test failures)
+- Development-only code paths (must be removed before commit)
 
 ---
 

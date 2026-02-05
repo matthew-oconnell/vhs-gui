@@ -118,8 +118,18 @@ function App() {
 
   // Keyboard shortcut for console toggle (Ctrl+`)
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.ctrlKey && e.key === '`') {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Backtick key (`) - Toggle DevTools
+      if (e.key === '`' && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+        e.preventDefault()
+        const appWindow = getCurrentWindow()
+        // @ts-ignore - openDevTools exists in Tauri v2 but types may not be complete
+        if (appWindow.openDevTools) {
+          await appWindow.openDevTools()
+        }
+      }
+      // Ctrl+` - Toggle console panel collapsed state
+      else if (e.ctrlKey && e.key === '`') {
         e.preventDefault()
         setCollapsed(!isCollapsed)
       }

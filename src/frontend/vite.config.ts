@@ -12,7 +12,7 @@ export default defineConfig({
   },
   server: {
     port: 3000,
-    open: true
+    open: false // Don't auto-open browser in Tauri dev mode
   },
   // @ts-ignore - test config is for vitest
   test: {

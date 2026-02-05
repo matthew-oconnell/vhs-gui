@@ -7,7 +7,7 @@
  * - ESP internal ID (e.g., "Body1_Face12") → stored as espInternalId for debugging
  */
 
-import { Surface, MeshGeometry } from '../types/surface'
+import { Surface, MeshGeometry } from '../types/tag'
 import { ESPRegion, CSMBuildResponse } from './espApi'
 
 /**

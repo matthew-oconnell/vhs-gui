@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { Surface } from '../../types/surface'
+import { Surface } from '../../types/tag'
 import { BoundaryCondition } from '../../types/config'
 import './SurfaceAlreadyAssignedDialog.css'
 

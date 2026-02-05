@@ -2,7 +2,8 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { TrackballControls, Grid, PerspectiveCamera, OrthographicCamera } from '@react-three/drei'
 import { Box as BoxIcon, Maximize2, Camera } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
-import { Surface } from '../../types/surface'
+import { useConsoleStore } from '../../store/consoleStore'
+import { Surface } from '../../types/tag'
 import { BoundaryCondition } from '../../types/config'
 import { useState, useRef, useEffect, useMemo } from 'react'
 import * as THREE from 'three'
@@ -13,6 +14,7 @@ import { ArrowGizmo } from './CylinderGizmo'
 import SurfaceAlreadyAssignedDialog from '../SurfaceAlreadyAssignedDialog/SurfaceAlreadyAssignedDialog'
 import ConfirmBCDeletionDialog from '../ConfirmBCDeletionDialog/ConfirmBCDeletionDialog'
 import SetBCNameDialog from '../SetBCNameDialog/SetBCNameDialog'
+import AddToBCDialog from '../AddToBCDialog/AddToBCDialog'
 import { getColorForTag } from '../../utils/surfaceColorUtils'
 import { SelectionBox } from './SelectionBox'
 import { useBoxSelection } from './useBoxSelection'
@@ -1400,6 +1402,8 @@ function Viewport3D() {
   const [showAlreadyAssignedDialog, setShowAlreadyAssignedDialog] = useState(false)
   const [showConfirmDeletionDialog, setShowConfirmDeletionDialog] = useState(false)
   const [showSetBCNameDialog, setShowSetBCNameDialog] = useState(false)
+  const [showAddToBCDialog, setShowAddToBCDialog] = useState(false)
+  const [addToBCSurfaces, setAddToBCSurfaces] = useState<Surface[]>([])
   const [conflictingSurface, setConflictingSurface] = useState<Surface | null>(null)
   const [conflictingBC, setConflictingBC] = useState<BoundaryCondition | null>(null)
   
@@ -1535,11 +1539,23 @@ function Viewport3D() {
   }
   
   const handleAddToBC = () => {
-    if (!contextMenu) return
+    const { log } = useConsoleStore.getState()
+    log('UI', 'debug', 'handleAddToBC called', { contextMenu, selectedTags })
     
-    // TODO: Show dialog to select which BC to add the tag to
-    // For now, just log it
-    console.log('Add surface to BC:', contextMenu.surface)
+    if (!contextMenu) {
+      log('UI', 'warning', 'No contextMenu, returning early')
+      return
+    }
+    
+    // Capture the surfaces to add before closing the context menu
+    const surfacesToAdd = selectedTags.length > 0 ? selectedTags : [contextMenu.surface]
+    log('UI', 'debug', 'Surfaces to add to BC', { count: surfacesToAdd.length, surfacesToAdd })
+    
+    setAddToBCSurfaces(surfacesToAdd)
+    
+    // Show the Add to BC dialog
+    log('UI', 'info', 'Opening Add to BC dialog')
+    setShowAddToBCDialog(true)
     closeContextMenu()
   }
   
@@ -1899,6 +1915,16 @@ function Viewport3D() {
         onSet={handleBCNameSet}
         surfaceCount={selectedTags.length}
         currentBCName={selectedTags.length === 1 ? selectedTags[0]?.metadata.bcName : undefined}
+      />
+
+      {/* Add to BC Dialog */}
+      <AddToBCDialog
+        isOpen={showAddToBCDialog}
+        onClose={() => {
+          setShowAddToBCDialog(false)
+          setAddToBCSurfaces([])
+        }}
+        surfaces={addToBCSurfaces}
       />
     </div>
   )

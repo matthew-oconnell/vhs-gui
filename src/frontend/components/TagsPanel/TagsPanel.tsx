@@ -1,7 +1,7 @@
 import { Layers, Eye, EyeOff, ChevronRight, ChevronDown } from 'lucide-react'
 import { useState, useMemo, RefObject } from 'react'
 import { useAppStore } from '../../store/appStore'
-import { Surface } from '../../types/surface'
+import { Surface } from '../../types/tag'
 import { getBCForTag } from '../../utils/surfaceColorUtils'
 import type { PanelImperativeHandle } from 'react-resizable-panels'
 import './TagsPanel.css'

@@ -1,0 +1,95 @@
+.add-to-bc-dialog {
+  width: 500px;
+  max-width: 90vw;
+}
+
+.add-to-bc-dialog .info-section {
+  margin-bottom: 20px;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.add-to-bc-dialog .info-section p {
+  margin: 0 0 8px 0;
+  color: #cccccc;
+}
+
+.add-to-bc-dialog .surface-list {
+  margin: 8px 0 0 0;
+  padding-left: 20px;
+  color: #aaaaaa;
+  font-size: 13px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.add-to-bc-dialog .surface-list li {
+  margin: 4px 0;
+}
+
+.add-to-bc-dialog .form-group {
+  margin-bottom: 16px;
+}
+
+.add-to-bc-dialog .form-group label {
+  display: block;
+  margin-bottom: 8px;
+  color: #cccccc;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.add-to-bc-dialog .bc-select {
+  width: 100%;
+  padding: 8px;
+  background-color: #3c3c3c;
+  color: #cccccc;
+  border: 1px solid #555555;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.add-to-bc-dialog .bc-select:hover {
+  border-color: #0e639c;
+}
+
+.add-to-bc-dialog .bc-select:focus {
+  outline: none;
+  border-color: #0e639c;
+  box-shadow: 0 0 0 1px #0e639c;
+}
+
+.modal-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 3px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.modal-button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.modal-button-primary:hover {
+  background-color: #1177bb;
+}
+
+.modal-button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
+}
+
+.modal-button-secondary {
+  background-color: #3e3e42;
+  color: #cccccc;
+}
+
+.modal-button-secondary:hover {
+  background-color: #505050;
+}

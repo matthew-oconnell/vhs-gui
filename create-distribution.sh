@@ -5,8 +5,8 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="1.0.0"
-DIST_NAME="vhs-gui-v${VERSION}"
+GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+DIST_NAME="vhs-gui-${GIT_HASH}"
 
 echo "======================================"
 echo "Creating Native Desktop App Distribution"

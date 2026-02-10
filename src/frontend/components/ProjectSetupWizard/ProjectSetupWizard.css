@@ -84,14 +84,14 @@
   text-align: center;
 }
 
-.wizard-steps {
+.setup-wizard .wizard-steps {
   display: flex;
   justify-content: center;
   gap: 12px;
   margin-bottom: 16px;
 }
 
-.wizard-step {
+.setup-wizard .wizard-step {
   width: 28px;
   height: 28px;
   border-radius: 50%;
@@ -105,7 +105,7 @@
   background-color: #2d2d30;
 }
 
-.wizard-step.active {
+.setup-wizard .wizard-step.active {
   border-color: #0e639c;
   color: #ffffff;
   background-color: #0e639c;

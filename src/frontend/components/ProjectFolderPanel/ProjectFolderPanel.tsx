@@ -314,7 +314,7 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
               className="context-menu-item"
               onClick={() => handleContextMenuAction('load-csm', contextMenu.node!)}
             >
-              Load Mesh via ESP
+              Import via ESP
             </div>
           )}
           {/* Show 'Open in Text Editor' for all file types */}
@@ -351,7 +351,11 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
             </div>
           ) : (
             <div className="file-tree">
-              <div className="folder-name">{projectFolderHandle.name}</div>
+              <div className="folder-name">
+                {typeof projectFolderHandle === 'string'
+                  ? projectFolderHandle.split('/').filter(Boolean).pop()
+                  : projectFolderHandle.name}
+              </div>
               {loading ? (
                 <div className="loading-tree">Loading...</div>
               ) : fileTree.length > 0 ? (

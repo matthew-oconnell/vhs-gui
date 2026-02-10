@@ -32,6 +32,19 @@ const logToConsole = (message: string, level: 'info' | 'error' | 'debug' = 'debu
   log('DEBUG', level, message)
 }
 
+const PROJECT_CONFIG_CANDIDATES = [
+  'vulcan.json',
+  'vul.json',
+  'hs.json',
+  'hypersolve.json',
+  'config.json'
+]
+
+export const normalizeDirectoryPath = (path: string): string => {
+  if (!path) return path
+  return path.endsWith('/') ? path.slice(0, -1) : path
+}
+
 /**
  * Log Tauri detection info on first call
  */
@@ -691,6 +704,71 @@ export const openProjectFolder = async (): Promise<string | FileSystemDirectoryH
     logToConsole(`Error opening directory: ${error}`, 'error')
     throw error
   }
+}
+
+export interface ProjectConfigMatch {
+  fileName: string
+  filePath?: string
+  fileHandle?: FileSystemFileHandle
+}
+
+export const findProjectConfigInDirectory = async (
+  folder: string | FileSystemDirectoryHandle
+): Promise<ProjectConfigMatch | null> => {
+  if (typeof folder === 'string') {
+    const normalized = normalizeDirectoryPath(folder)
+    const entries = await readDir(normalized)
+    const nameMap = new Map<string, string>()
+
+    entries.forEach(entry => {
+      if (!entry.isDirectory && entry.name) {
+        nameMap.set(entry.name.toLowerCase(), entry.name)
+      }
+    })
+
+    for (const candidate of PROJECT_CONFIG_CANDIDATES) {
+      const actualName = nameMap.get(candidate)
+      if (actualName) {
+        return {
+          fileName: actualName,
+          filePath: `${normalized}/${actualName}`
+        }
+      }
+    }
+
+    return null
+  }
+
+  const nameMap = new Map<string, FileSystemFileHandle>()
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore - entries() exists on FileSystemDirectoryHandle
+  for await (const [name, handle] of folder.entries()) {
+    if (handle.kind === 'file') {
+      nameMap.set(name.toLowerCase(), handle as FileSystemFileHandle)
+    }
+  }
+
+  for (const candidate of PROJECT_CONFIG_CANDIDATES) {
+    const handle = nameMap.get(candidate)
+    if (handle) {
+      return { fileName: handle.name, fileHandle: handle }
+    }
+  }
+
+  return null
+}
+
+export const readJsonConfigFromPath = async (filePath: string): Promise<any> => {
+  const text = await readTextFile(filePath)
+  const cleanedText = stripJsonComments(text)
+  let config = JSON.parse(cleanedText)
+
+  if (isOldFormat(config)) {
+    logToConsole('Detected old config format - auto-migrating', 'info')
+    config = migrateConfigToFlatStructure(config)
+  }
+
+  return migrateBCTypes(config)
 }
 
 /**

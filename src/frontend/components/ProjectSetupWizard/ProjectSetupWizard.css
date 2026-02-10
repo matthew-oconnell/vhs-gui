@@ -84,6 +84,72 @@
   text-align: center;
 }
 
+.wizard-steps {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.wizard-step {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid #5a5a5a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888888;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: #2d2d30;
+}
+
+.wizard-step.active {
+  border-color: #0e639c;
+  color: #ffffff;
+  background-color: #0e639c;
+}
+
+.wizard-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wizard-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+}
+
+.wizard-muted {
+  color: #999999;
+  font-size: 13px;
+}
+
+.wizard-input {
+  background-color: #1e1e1e;
+  border: 1px solid #5a5a5a;
+  border-radius: 3px;
+  color: #ffffff;
+  padding: 8px 10px;
+  font-size: 13px;
+  min-width: 220px;
+}
+
+.wizard-input:focus {
+  outline: none;
+  border-color: #0e639c;
+}
+
+.wizard-hint {
+  color: #8a8a8a;
+  font-size: 12px;
+  text-align: center;
+}
+
 .setup-options {
   display: flex;
   flex-direction: column;
@@ -148,6 +214,21 @@
   font-size: 13px;
   cursor: pointer;
   transition: background-color 0.1s ease;
+}
+
+.modal-button-primary {
+  background-color: #0e639c;
+  color: #ffffff;
+}
+
+.modal-button-primary:hover {
+  background-color: #1177bb;
+}
+
+.modal-button-primary:disabled {
+  background-color: #3e3e42;
+  color: #858585;
+  cursor: not-allowed;
 }
 
 .modal-button-secondary {

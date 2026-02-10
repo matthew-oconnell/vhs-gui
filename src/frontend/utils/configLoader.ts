@@ -148,7 +148,8 @@ export const processLoadedConfig = async (
             context.onLog('Config', 'success', `Mesh "${filename}" loaded successfully`)
           }
         } else {
-          context.onLog('Config', 'warning', `Mesh "${filename}" not found in ${source}`)
+          const locationLabel = directoryPath ? directoryPath : 'project folder'
+          context.onLog('Config', 'warning', `Mesh "${filename}" not found in ${locationLabel}`)
           context.onTransformAndSetConfig(config)
         }
       } catch (error) {

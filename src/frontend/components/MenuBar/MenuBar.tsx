@@ -10,15 +10,15 @@ interface MenuBarProps {
   onValidate?: () => void
   onExit?: () => void
   onSettings?: () => void
-  onLoadMesh?: () => void
-  onLoadCSM?: () => void
-  onImportGeometry?: () => void
+  onImportMesh?: () => void
+  onImportCSM?: () => void
+  onImportStep?: () => void
   onCreateFarfield?: () => void
   onExportCSM?: () => void
   onEditCSM?: () => void
 }
 
-function MenuBar({ onNewProject, onNewBlankProject, onOpen, onOpenProjectFolder, onSave, onValidate, onExit, onSettings, onLoadMesh, onLoadCSM, onImportGeometry, onCreateFarfield, onExportCSM, onEditCSM }: MenuBarProps) {
+function MenuBar({ onNewProject, onNewBlankProject, onOpen, onOpenProjectFolder, onSave, onValidate, onExit, onSettings, onImportMesh, onImportCSM, onImportStep, onCreateFarfield, onExportCSM, onEditCSM }: MenuBarProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -77,7 +77,7 @@ function MenuBar({ onNewProject, onNewBlankProject, onOpen, onOpenProjectFolder,
               className="menu-option" 
               onClick={() => handleMenuItemClick(onOpen || (() => console.log('Open')))}
             >
-              <span className="menu-option-label">Open</span>
+              <span className="menu-option-label">Open Project (Config)</span>
               <span className="menu-option-shortcut">Ctrl+O</span>
             </button>
             <button 
@@ -96,40 +96,9 @@ function MenuBar({ onNewProject, onNewBlankProject, onOpen, onOpenProjectFolder,
             <div className="menu-separator" />
             <button 
               className="menu-option" 
-              onClick={() => handleMenuItemClick(onLoadMesh || (() => console.log('Load Mesh')))}
-            >
-              <span className="menu-option-label">Load Mesh</span>
-            </button>
-            <button 
-              className="menu-option" 
-              onClick={() => handleMenuItemClick(onLoadCSM || (() => console.log('Open CSM')))}
-            >
-              <span className="menu-option-label">Open CSM (ESP)</span>
-            </button>
-            <button 
-              className="menu-option" 
-              onClick={() => handleMenuItemClick(onImportGeometry || (() => console.log('Import Geometry')))}
-            >
-              <span className="menu-option-label">Import Geometry (STEP)</span>
-            </button>
-            <button 
-              className="menu-option" 
               onClick={() => handleMenuItemClick(onExportCSM || (() => console.log('Export CSM')))}
             >
               <span className="menu-option-label">Export CSM</span>
-            </button>
-            <button 
-              className="menu-option" 
-              onClick={() => handleMenuItemClick(onEditCSM || (() => console.log('Edit CSM')))}
-            >
-              <span className="menu-option-label">Edit CSM</span>
-            </button>
-            <div className="menu-separator" />
-            <button 
-              className="menu-option" 
-              onClick={() => handleMenuItemClick(onCreateFarfield || (() => console.log('Create Farfield')))}
-            >
-              <span className="menu-option-label">Create Farfield Domain</span>
             </button>
             <div className="menu-separator" />
             <button 
@@ -146,6 +115,50 @@ function MenuBar({ onNewProject, onNewBlankProject, onOpen, onOpenProjectFolder,
             >
               <span className="menu-option-label">Exit</span>
               <span className="menu-option-shortcut">Ctrl+Q</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="menu-item">
+        <button 
+          className={`menu-button ${openMenu === 'geometry' ? 'active' : ''}`}
+          onClick={() => handleMenuClick('geometry')}
+        >
+          Geometry
+        </button>
+        {openMenu === 'geometry' && (
+          <div className="menu-dropdown">
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onImportMesh || (() => console.log('Import Mesh')))}
+            >
+              <span className="menu-option-label">Import Mesh</span>
+            </button>
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onImportCSM || (() => console.log('Import CSM')))}
+            >
+              <span className="menu-option-label">Import CSM (ESP)</span>
+            </button>
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onImportStep || (() => console.log('Import STEP')))}
+            >
+              <span className="menu-option-label">Import STEP (ESP)</span>
+            </button>
+            <div className="menu-separator" />
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onEditCSM || (() => console.log('Edit CSM')))}
+            >
+              <span className="menu-option-label">Edit CSM</span>
+            </button>
+            <button 
+              className="menu-option" 
+              onClick={() => handleMenuItemClick(onCreateFarfield || (() => console.log('Create Farfield')))}
+            >
+              <span className="menu-option-label">Create Farfield Domain</span>
             </button>
           </div>
         )}

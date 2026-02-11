@@ -60,6 +60,9 @@ function App() {
   const [espLoadingMessage, setEspLoadingMessage] = useState('')
   const [espLogLines, setEspLogLines] = useState<string[]>([])
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false)
+  const [editorVimMode, setEditorVimMode] = useState(() => {
+    return localStorage.getItem('editorVimMode') === 'true'
+  })
   
   // Text Editor state
   const [textEditorTabs, setTextEditorTabs] = useState<TextEditorTab[]>([])
@@ -1482,6 +1485,7 @@ subtract
                       onCloseTab={handleCloseTextEditorTab}
                       onSaveTab={handleSaveTextEditorTab}
                       onChangeContent={handleTextEditorContentChange}
+                      vimModeEnabled={editorVimMode}
                     />
                   </Panel>
                   <PanelResizeHandle className="resize-handle resize-handle-horizontal" />
@@ -1523,6 +1527,7 @@ subtract
       {showSettingsDialog && (
         <SettingsDialog
           onClose={() => setShowSettingsDialog(false)}
+          onSaveEditorSettings={(settings) => setEditorVimMode(settings.vimMode)}
         />
       )}
 

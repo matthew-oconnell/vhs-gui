@@ -6,6 +6,7 @@ import './SettingsDialog.css'
 
 interface SettingsDialogProps {
   onClose: () => void
+  onSaveEditorSettings?: (settings: { vimMode: boolean }) => void
 }
 
 type ModifierKey = 'shift' | 'ctrl' | 'alt'
@@ -35,7 +36,7 @@ function getBorderColor(fillColor: string): string {
   return `rgba(${match[1]}, ${match[2]}, ${match[3]}, 0.8)`
 }
 
-function SettingsDialog({ onClose }: SettingsDialogProps) {
+function SettingsDialog({ onClose, onSaveEditorSettings }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState('general')
   const { cameraSettings, updateCameraSettings, boxSelectionSettings, updateBoxSelectionSettings } = useAppStore()
   
@@ -93,6 +94,10 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
     const saved = localStorage.getItem('menuFontSize')
     return saved ? Number(saved) : 13
   })
+  const [editorVimMode, setEditorVimMode] = useState(() => {
+    const saved = localStorage.getItem('editorVimMode')
+    return saved === 'true'
+  })
 
   // Apply font sizes immediately as they change
   useEffect(() => {
@@ -122,6 +127,7 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
     localStorage.setItem('uiFontSize', String(uiFontSize))
     localStorage.setItem('treeFontSize', String(treeFontSize))
     localStorage.setItem('menuFontSize', String(menuFontSize))
+    localStorage.setItem('editorVimMode', String(editorVimMode))
     
     // Save camera settings to store
     updateCameraSettings({
@@ -140,6 +146,8 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
       boxSelectVisibleColor,
       boxSelectVisibleBorder
     })
+
+    onSaveEditorSettings?.({ vimMode: editorVimMode })
     
     onClose()
   }
@@ -220,6 +228,17 @@ function SettingsDialog({ onClose }: SettingsDialogProps) {
                   <label htmlFor="word-wrap">
                     <input type="checkbox" id="word-wrap" />
                     Enable word wrap
+                  </label>
+                </div>
+                <div className="settings-item">
+                  <label htmlFor="vim-mode">
+                    <input
+                      type="checkbox"
+                      id="vim-mode"
+                      checked={editorVimMode}
+                      onChange={(e) => setEditorVimMode(e.target.checked)}
+                    />
+                    Enable Vim keybindings
                   </label>
                 </div>
               </div>

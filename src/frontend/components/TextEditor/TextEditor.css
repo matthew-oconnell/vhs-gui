@@ -95,6 +95,13 @@
   gap: 8px;
 }
 
+.text-editor-vim-status {
+  margin-left: 12px;
+  font-size: 11px;
+  color: #9cdcfe;
+  white-space: nowrap;
+}
+
 .text-editor-button {
   display: flex;
   align-items: center;

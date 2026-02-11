@@ -1,8 +1,9 @@
 #!/bin/bash
 # Build script - builds all components and launches the desktop application
 # Components: C++ backend server, Tauri frontend (ESP integrated via Rust FFI)
-# Usage: ./build.sh [--force]
-#   --force    Force a clean rebuild (clears all caches)
+# Usage: ./build.sh [options]
+#   --force       Force a clean rebuild (clears all caches)
+#   --developer   Developer build (debug mode, faster compilation, no packaging)
 
 set -e  # Exit on error
 
@@ -10,10 +11,33 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Parse command line arguments
 FORCE_REBUILD=false
-if [ "$1" == "--force" ] || [ "$1" == "-f" ]; then
-    FORCE_REBUILD=true
+DEVELOPER_MODE=false
+for arg in "$@"; do
+    case "$arg" in
+        --force|-f)
+            FORCE_REBUILD=true
+            ;;
+        --developer|-d|--dev)
+            DEVELOPER_MODE=true
+            ;;
+        *)
+            echo "Unknown option: $arg"
+            echo "Usage: ./build.sh [--force] [--developer]"
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$FORCE_REBUILD" = true ]; then
     echo "======================================"
     echo "FORCE REBUILD MODE"
+    echo "======================================"
+fi
+
+if [ "$DEVELOPER_MODE" = true ]; then
+    echo "======================================"
+    echo "DEVELOPER BUILD MODE"
+    echo "(Debug build, no packaging)"
     echo "======================================"
 fi
 
@@ -138,24 +162,85 @@ echo "Step 3: Building Tauri desktop application..."
 cd "$PROJECT_ROOT/src/frontend"
 
 # Install npm dependencies if needed
+NEEDS_NPM_INSTALL=false
 if [ ! -d "node_modules" ]; then
+    NEEDS_NPM_INSTALL=true
+else
+    if ! npm ls monaco-vim > /dev/null 2>&1; then
+        NEEDS_NPM_INSTALL=true
+    fi
+fi
+
+if [ "$NEEDS_NPM_INSTALL" = true ]; then
     echo "  Installing npm dependencies..."
-    npm install > /dev/null 2>&1
-    echo "  ✅ Dependencies installed"
+    if npm install; then
+        echo "  ✅ Dependencies installed"
+    else
+        echo "  ❌ npm install failed. Please re-run after resolving the error above."
+        exit 1
+    fi
 fi
 
 # Force rebuild if requested
 if [ "$FORCE_REBUILD" = true ]; then
     echo "  🧹 Cleaning build caches..."
     rm -rf dist
-    rm -rf src-tauri/target/release/bundle
+    if [ "$DEVELOPER_MODE" = true ]; then
+        rm -rf src-tauri/target/debug
+    else
+        rm -rf src-tauri/target/release/bundle
+    fi
     echo "  ✨ Caches cleared"
 fi
 
-echo "  Running: npx tauri build"
-npx tauri build
-
-echo "  ✅ Desktop app built: src/frontend/src-tauri/target/release/app"
+# Build based on mode
+if [ "$DEVELOPER_MODE" = true ]; then
+    echo "  Running: npx tauri dev (development mode with hot reload)"
+    echo ""
+    echo "  Note: Developer mode runs the app directly with:"
+    echo "   • Hot reload enabled"
+    echo "   • Dev tools accessible (Shift+Ctrl+I or F12)"
+    echo "   • Faster compilation"
+    echo "   • No packaging"
+    echo ""
+    cd "$PROJECT_ROOT"
+    
+    # Set library paths before running
+    ESP_LIB="$PROJECT_ROOT/third-party/ESP128/EngSketchPad/lib"
+    OCC_LIB="$PROJECT_ROOT/third-party/ESP128/OpenCASCADE-7.8.1/lib"
+    
+    if [ -d "$ESP_LIB" ] && [ -d "$OCC_LIB" ]; then
+        export LD_LIBRARY_PATH="$ESP_LIB:$OCC_LIB:$LD_LIBRARY_PATH"
+        echo "  ℹ️  ESP libraries found - geometry features enabled"
+    fi
+    
+    # Start backend server in background
+    BACKEND_SERVER="$PROJECT_ROOT/src/server/build/vhs_server"
+    if [ -f "$BACKEND_SERVER" ]; then
+        echo "  Starting backend on port 8080..."
+        "$BACKEND_SERVER" > /tmp/vhs-server.log 2>&1 &
+        BACKEND_PID=$!
+        echo "  Backend PID: $BACKEND_PID"
+        sleep 1
+    fi
+    
+    # Run tauri dev (this blocks until app is closed)
+    cd "$PROJECT_ROOT/src/frontend"
+    npx tauri dev
+    
+    # Clean up backend when dev mode exits
+    if [ -n "$BACKEND_PID" ]; then
+        kill $BACKEND_PID 2>/dev/null
+        echo "  Stopped backend server"
+    fi
+    
+    exit 0
+else
+    echo "  Running: npx tauri build"
+    npx tauri build
+    EXECUTABLE_PATH="src/frontend/src-tauri/target/release/app"
+    echo "  ✅ Desktop app built: $EXECUTABLE_PATH"
+fi
 
 cd "$PROJECT_ROOT"
 
@@ -194,7 +279,7 @@ echo ""
 echo "======================================"
 echo "Launching desktop application..."
 echo "======================================"
-EXECUTABLE="$PROJECT_ROOT/src/frontend/src-tauri/target/release/app"
+EXECUTABLE="$PROJECT_ROOT/$EXECUTABLE_PATH"
 
 # Cleanup function to stop servers on exit
 cleanup() {

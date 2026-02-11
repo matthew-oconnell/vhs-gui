@@ -1,5 +1,7 @@
+import { useEffect, useRef } from 'react'
 import Editor from '@monaco-editor/react'
 import { X, Save } from 'lucide-react'
+import { initVimMode, VimMode } from 'monaco-vim'
 import './TextEditor.css'
 
 export interface TextEditorTab {
@@ -17,6 +19,7 @@ interface TextEditorProps {
   onCloseTab: (tabId: string) => void
   onSaveTab: (tabId: string) => void
   onChangeContent: (tabId: string, newContent: string) => void
+  vimModeEnabled: boolean
 }
 
 const getLanguageForFilename = (filename: string) => {
@@ -31,9 +34,82 @@ const TextEditor = ({
   onSelectTab,
   onCloseTab,
   onSaveTab,
-  onChangeContent
+  onChangeContent,
+  vimModeEnabled
 }: TextEditorProps) => {
   const activeTab = tabs.find(tab => tab.id === activeTabId) || tabs[0]
+  const editorRef = useRef<any>(null)
+  const vimModeRef = useRef<any>(null)
+  const vimStatusRef = useRef<HTMLDivElement | null>(null)
+  const activeTabIdRef = useRef<string | null>(null)
+  const onSaveTabRef = useRef(onSaveTab)
+  const onCloseTabRef = useRef(onCloseTab)
+  const vimCommandsReadyRef = useRef(false)
+
+  useEffect(() => {
+    activeTabIdRef.current = activeTab?.id ?? null
+  }, [activeTab?.id])
+
+  useEffect(() => {
+    onSaveTabRef.current = onSaveTab
+    onCloseTabRef.current = onCloseTab
+  }, [onSaveTab, onCloseTab])
+
+  useEffect(() => {
+    if (vimCommandsReadyRef.current) return
+    if (!VimMode?.Vim?.defineEx) return
+
+    const runSave = () => {
+      const tabId = activeTabIdRef.current
+      if (!tabId) return
+      onSaveTabRef.current(tabId)
+    }
+
+    const runClose = () => {
+      const tabId = activeTabIdRef.current
+      if (!tabId) return
+      onCloseTabRef.current(tabId)
+    }
+
+    VimMode.Vim.defineEx('w', 'w', () => {
+      runSave()
+    })
+
+    VimMode.Vim.defineEx('q', 'q', () => {
+      runClose()
+    })
+
+    VimMode.Vim.defineEx('wq', 'wq', () => {
+      runSave()
+      runClose()
+    })
+    vimCommandsReadyRef.current = true
+  }, [])
+
+  useEffect(() => {
+    if (!editorRef.current) return
+
+    if (vimModeEnabled && !vimModeRef.current) {
+      vimModeRef.current = initVimMode(editorRef.current, vimStatusRef.current || undefined)
+    }
+
+    if (!vimModeEnabled && vimModeRef.current) {
+      vimModeRef.current.dispose()
+      vimModeRef.current = null
+      if (vimStatusRef.current) {
+        vimStatusRef.current.textContent = ''
+      }
+    }
+  }, [vimModeEnabled])
+
+  useEffect(() => {
+    return () => {
+      if (vimModeRef.current) {
+        vimModeRef.current.dispose()
+        vimModeRef.current = null
+      }
+    }
+  }, [])
 
   const handleEditorChange = (value: string | undefined) => {
     if (!activeTab || value === undefined) return
@@ -108,6 +184,7 @@ const TextEditor = ({
             </button>
           </div>
         )}
+        {vimModeEnabled && <div ref={vimStatusRef} className="text-editor-vim-status" />}
       </div>
       <div className="text-editor-content">
         {activeTab ? (
@@ -116,6 +193,9 @@ const TextEditor = ({
             language={getLanguageForFilename(activeTab.filename)}
             value={activeTab.content}
             onChange={handleEditorChange}
+            onMount={(editorInstance) => {
+              editorRef.current = editorInstance
+            }}
             theme="vs-dark"
             options={{
               minimap: { enabled: false },

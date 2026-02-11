@@ -31,6 +31,15 @@ import { convertESPRegionsToSurfaces } from './utils/espAdapter'
 import { calculateBoundingBox, BoundingBox } from './utils/geometryUtils'
 import './App.css'
 
+type TextEditorTab = {
+  id: string
+  filename: string
+  content: string
+  savedContent: string
+  path?: string
+  kind: 'csm' | 'text'
+}
+
 function App() {
   const [showProjectSetup, setShowProjectSetup] = useState(false)
   const [showNewProjectWizard, setShowNewProjectWizard] = useState(false)
@@ -53,12 +62,8 @@ function App() {
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false)
   
   // Text Editor state
-  const [textEditorOpen, setTextEditorOpen] = useState(false)
-  const [currentCSMContent, setCurrentCSMContent] = useState<string>('')
-  const [currentCSMFilename, setCurrentCSMFilename] = useState<string>('')
-  
-  // Generic text file editor state
-  const [currentTextFile, setCurrentTextFile] = useState<{ content: string; filename: string; path?: string } | null>(null)
+  const [textEditorTabs, setTextEditorTabs] = useState<TextEditorTab[]>([])
+  const [activeTextEditorTabId, setActiveTextEditorTabId] = useState<string | null>(null)
   
   // Refs for imperative panel control
   const projectFolderPanelRef = useRef<PanelImperativeHandle>(null)
@@ -822,10 +827,6 @@ function App() {
       const storeEnd = performance.now()
       log('Performance', 'info', `Store loading took ${(storeEnd - storeStart).toFixed(2)}ms`)
       
-      // Store CSM content for text editor
-      setCurrentCSMContent(csmContent)
-      setCurrentCSMFilename(file.name)
-      
       log('Geometry', 'success', 'CSM loaded successfully!')
       
     } catch (error) {
@@ -1104,6 +1105,50 @@ subtract
     }
   }
 
+  const textEditorOpen = textEditorTabs.length > 0
+
+  const getTextEditorTabId = (tab: Omit<TextEditorTab, 'id' | 'savedContent'>) => {
+    if (tab.kind === 'csm') return 'csm-editor'
+    if (tab.path) return `path:${tab.path}`
+    return `name:${tab.filename}`
+  }
+
+  const openTextEditorTab = (tab: Omit<TextEditorTab, 'id' | 'savedContent'>) => {
+    const id = getTextEditorTabId(tab)
+    setTextEditorTabs((prev) => {
+      const existing = prev.find(item => item.id === id)
+      if (existing) return prev
+      return [...prev, { ...tab, id, savedContent: tab.content }]
+    })
+    setActiveTextEditorTabId(id)
+  }
+
+  const handleSelectTextEditorTab = (tabId: string) => {
+    setActiveTextEditorTabId(tabId)
+  }
+
+  const handleCloseTextEditorTab = (tabId: string) => {
+    setTextEditorTabs((prev) => {
+      const nextTabs = prev.filter(tab => tab.id !== tabId)
+      if (nextTabs.length === 0) {
+        setActiveTextEditorTabId(null)
+        return nextTabs
+      }
+
+      if (activeTextEditorTabId === tabId) {
+        setActiveTextEditorTabId(nextTabs[nextTabs.length - 1].id)
+      }
+
+      return nextTabs
+    })
+  }
+
+  const handleTextEditorContentChange = (tabId: string, newContent: string) => {
+    setTextEditorTabs((prev) => prev.map(tab => (
+      tab.id === tabId ? { ...tab, content: newContent } : tab
+    )))
+  }
+
   // Text Editor Handlers
   const handleOpenTextEditor = () => {
     const { originalCSMContent, csmFilename } = useAppStore.getState()
@@ -1113,14 +1158,16 @@ subtract
       return
     }
     
-    setCurrentCSMContent(originalCSMContent)
-    setCurrentCSMFilename(csmFilename || 'untitled.csm')
-    setTextEditorOpen(true)
+    openTextEditorTab({
+      filename: csmFilename || 'untitled.csm',
+      content: originalCSMContent,
+      kind: 'csm'
+    })
   }
 
-  const handleTextEditorSave = async (newContent: string) => {
+  const handleCSMTabSave = async (tab: TextEditorTab) => {
     try {
-      log('TextEditor', 'info', 'Saving CSM changes and rebuilding geometry...')
+      log('TextEditor', 'info', `Saving ${tab.filename} and rebuilding geometry...`)
       
       // Check ESP server is available
       const health = await checkESPHealth()
@@ -1131,11 +1178,9 @@ subtract
       }
       
       // Update the content
-      setCurrentCSMContent(newContent)
-      
       // Parse for imports
       const { parseCSMImports } = await import('./utils/csmParser')
-      const imports = parseCSMImports(newContent)
+      const imports = parseCSMImports(tab.content)
       
       // Get project folder handle for auto-loading dependencies
       const { projectFolderHandle } = useAppStore.getState()
@@ -1151,7 +1196,7 @@ subtract
         for (const importPath of imports) {
           let loaded = false
           
-          if (projectFolderHandle) {
+          if (projectFolderHandle && typeof projectFolderHandle !== 'string') {
             try {
               log('Geometry', 'info', `Attempting to auto-load: ${importPath}`)
               const depHandle = await projectFolderHandle.getFileHandle(importPath)
@@ -1196,7 +1241,7 @@ subtract
         setEspLoadingMessage('Rebuilding CSM geometry')
         setEspLogLines([])
         
-        response = await buildCSMWithDepsStreaming(newContent, dependencies, (logLine) => {
+        response = await buildCSMWithDepsStreaming(tab.content, dependencies, (logLine) => {
           const level = detectESPLogLevel(logLine)
           log('ESP', level, logLine)
           setEspLogLines(prev => [...prev, logLine])
@@ -1210,7 +1255,7 @@ subtract
         setEspLoadingMessage('Rebuilding CSM geometry')
         setEspLogLines([])
         
-        response = await buildCSM(newContent)
+        response = await buildCSM(tab.content)
         
         setEspLoading(false)
       }
@@ -1232,7 +1277,7 @@ subtract
       
       // Convert and reload surfaces
       const surfaces = convertESPRegionsToSurfaces(response, { centerAndScale: true })
-      loadESPSurfaces(surfaces, currentCSMFilename, newContent)
+      loadESPSurfaces(surfaces, tab.filename, tab.content)
       
       log('TextEditor', 'success', 'Changes saved and geometry updated!')
       
@@ -1243,23 +1288,18 @@ subtract
     }
   }
 
-  const handleTextEditorClose = () => {
-    setTextEditorOpen(false)
-    setCurrentTextFile(null)
-  }
-
   // Handler for opening any text file in the editor
   const handleOpenTextFile = async (fileHandle: FileSystemFileHandle) => {
     try {
       const file = await fileHandle.getFile()
       const content = await file.text()
-      
-      setCurrentTextFile({
+
+      openTextEditorTab({
         content,
         filename: file.name,
-        path: (fileHandle as any).path // Store path for Tauri mode
+        path: (fileHandle as any).path,
+        kind: 'text'
       })
-      setTextEditorOpen(true)
       
       log('TextEditor', 'info', `Opened ${file.name} in text editor`)
     } catch (error) {
@@ -1270,26 +1310,28 @@ subtract
   }
 
   // Handler for saving generic text files
-  const handleTextFileSave = async (newContent: string) => {
-    if (!currentTextFile) return
-    
+  const handleSaveTextEditorTab = async (tabId: string) => {
+    const tab = textEditorTabs.find(item => item.id === tabId)
+    if (!tab) return
+
     try {
-      log('TextEditor', 'info', `Saving ${currentTextFile.filename}...`)
-      
-      const isTauriMode = '__TAURI_INTERNALS__' in window
-      if (isTauriMode && currentTextFile.path) {
-        // Tauri mode - use Tauri APIs to write file
-        const { writeTextFile } = await import('@tauri-apps/plugin-fs')
-        await writeTextFile(currentTextFile.path, newContent)
-        log('TextEditor', 'success', `Saved ${currentTextFile.filename}!`)
+      if (tab.kind === 'csm') {
+        await handleCSMTabSave(tab)
       } else {
-        // Browser mode - use File System Access API
-        alert('File saving in browser mode is not yet implemented. Please use Tauri desktop version.')
+        log('TextEditor', 'info', `Saving ${tab.filename}...`)
+        const isTauriMode = '__TAURI_INTERNALS__' in window
+        if (isTauriMode && tab.path) {
+          await writeTextFile(tab.path, tab.content)
+          log('TextEditor', 'success', `Saved ${tab.filename}!`)
+        } else {
+          alert('File saving in browser mode is not yet implemented. Please use Tauri desktop version.')
+          return
+        }
       }
-      
-      // Update current content to reflect saved state
-      setCurrentTextFile({ ...currentTextFile, content: newContent })
-      
+
+      setTextEditorTabs((prev) => prev.map(item => (
+        item.id === tabId ? { ...item, savedContent: item.content } : item
+      )))
     } catch (error) {
       console.error('Error saving text file:', error)
       log('TextEditor', 'error', `Failed to save: ${(error as Error).message}`)
@@ -1428,10 +1470,18 @@ subtract
                   {/* Text Editor */}
                   <Panel defaultSize={50} minSize={30}>
                     <TextEditor
-                      content={currentTextFile ? currentTextFile.content : currentCSMContent}
-                      filename={currentTextFile ? currentTextFile.filename : currentCSMFilename}
-                      onSave={currentTextFile ? handleTextFileSave : handleTextEditorSave}
-                      onClose={handleTextEditorClose}
+                      tabs={textEditorTabs.map(tab => ({
+                        id: tab.id,
+                        filename: tab.filename,
+                        content: tab.content,
+                        isDirty: tab.content !== tab.savedContent,
+                        kind: tab.kind
+                      }))}
+                      activeTabId={activeTextEditorTabId}
+                      onSelectTab={handleSelectTextEditorTab}
+                      onCloseTab={handleCloseTextEditorTab}
+                      onSaveTab={handleSaveTextEditorTab}
+                      onChangeContent={handleTextEditorContentChange}
                     />
                   </Panel>
                   <PanelResizeHandle className="resize-handle resize-handle-horizontal" />

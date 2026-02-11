@@ -29,6 +29,12 @@ function getNodeFileType(node: FileTreeNode): string {
   return 'file'
 }
 
+function isTextEditorFile(node: FileTreeNode): boolean {
+  if (!('name' in node)) return false
+  const name = node.name.toLowerCase()
+  return name.endsWith('.json') || name.endsWith('.csm') || name.endsWith('.mapbc')
+}
+
 // Get file type category for context menu actions
 function getFileCategory(node: FileTreeNode): 'config' | 'mesh' | 'cad' | null {
   if ('fileType' in node) {
@@ -247,6 +253,11 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
         node
       })
     }
+
+    const handleDoubleClick = async () => {
+      if (nodeIsDirectory || !isTextEditorFile(node)) return
+      await handleContextMenuAction('open-text-editor', node)
+    }
     
     return (
       <div className="file-tree-node" style={{ paddingLeft: `${depth * 12}px` }}>
@@ -268,6 +279,7 @@ function ProjectFolderPanel({ panelRef, onLoadConfig, onLoadMesh, onLoadCSM, onO
           <div 
             className="file-tree-item file" 
             onContextMenu={handleContextMenu}
+            onDoubleClick={handleDoubleClick}
             title={`Right-click for options`}
           >
             <span className="indent" />

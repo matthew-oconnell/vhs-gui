@@ -5,7 +5,7 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-VERSION="1.0.0"
+VERSION="0.2.0"
 DIST_NAME="vhs-gui-v${VERSION}"
 
 echo "======================================"

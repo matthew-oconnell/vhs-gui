@@ -91,6 +91,7 @@ const TextEditor = ({
 
     if (vimModeEnabled && !vimModeRef.current) {
       vimModeRef.current = initVimMode(editorRef.current, vimStatusRef.current || undefined)
+      return
     }
 
     if (!vimModeEnabled && vimModeRef.current) {
@@ -195,6 +196,9 @@ const TextEditor = ({
             onChange={handleEditorChange}
             onMount={(editorInstance) => {
               editorRef.current = editorInstance
+              if (vimModeEnabled && !vimModeRef.current) {
+                vimModeRef.current = initVimMode(editorInstance, vimStatusRef.current || undefined)
+              }
             }}
             theme="vs-dark"
             options={{

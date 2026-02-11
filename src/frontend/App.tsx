@@ -29,6 +29,7 @@ import { transformLoadedConfig } from './utils/configTransform'
 import { buildCSM, checkESPHealth } from './utils/espApi'
 import { convertESPRegionsToSurfaces } from './utils/espAdapter'
 import { calculateBoundingBox, BoundingBox } from './utils/geometryUtils'
+import { AppSettings, defaultAppSettings, loadAppSettings, saveAppSettings } from './utils/appSettings'
 import './App.css'
 
 type TextEditorTab = {
@@ -60,9 +61,7 @@ function App() {
   const [espLoadingMessage, setEspLoadingMessage] = useState('')
   const [espLogLines, setEspLogLines] = useState<string[]>([])
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState(false)
-  const [editorVimMode, setEditorVimMode] = useState(() => {
-    return localStorage.getItem('editorVimMode') === 'true'
-  })
+  const [appSettings, setAppSettings] = useState<AppSettings>(defaultAppSettings)
   
   // Text Editor state
   const [textEditorTabs, setTextEditorTabs] = useState<TextEditorTab[]>([])
@@ -88,6 +87,13 @@ function App() {
     projectFolderCollapsed
   } = useAppStore()
   const { setCollapsed, isCollapsed, log } = useConsoleStore()
+
+  const applyFontSizes = (settings: AppSettings) => {
+    document.documentElement.style.setProperty('--editor-font-size', `${settings.editorFontSize}px`)
+    document.documentElement.style.setProperty('--ui-font-size', `${settings.uiFontSize}px`)
+    document.documentElement.style.setProperty('--tree-font-size', `${settings.treeFontSize}px`)
+    document.documentElement.style.setProperty('--menu-font-size', `${settings.menuFontSize}px`)
+  }
 
   /**
    * Detect log level from ESP/EGADS message content
@@ -152,6 +158,28 @@ function App() {
     log('DEBUG', 'info', 'Console panel is ready')
     log('ESP', 'info', 'Waiting for ESP operations...')
   }, [log])
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadSettings = async () => {
+      const settings = await loadAppSettings()
+      if (!mounted) return
+      setAppSettings(settings)
+      applyFontSizes(settings)
+    }
+
+    loadSettings()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const handleSaveEditorSettings = async (settings: AppSettings) => {
+    setAppSettings(settings)
+    applyFontSizes(settings)
+    await saveAppSettings(settings)
+  }
 
   const handleNew = () => {
     setShowNewProjectWizard(true)
@@ -1485,7 +1513,7 @@ subtract
                       onCloseTab={handleCloseTextEditorTab}
                       onSaveTab={handleSaveTextEditorTab}
                       onChangeContent={handleTextEditorContentChange}
-                      vimModeEnabled={editorVimMode}
+                      vimModeEnabled={appSettings.editorVimMode}
                     />
                   </Panel>
                   <PanelResizeHandle className="resize-handle resize-handle-horizontal" />
@@ -1527,7 +1555,8 @@ subtract
       {showSettingsDialog && (
         <SettingsDialog
           onClose={() => setShowSettingsDialog(false)}
-          onSaveEditorSettings={(settings) => setEditorVimMode(settings.vimMode)}
+          initialSettings={appSettings}
+          onSaveEditorSettings={handleSaveEditorSettings}
         />
       )}
 

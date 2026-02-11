@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useAppStore } from '../../store/appStore'
 import { KNOWN_CATEGORIES, getFeatureFlags, toggleCategory } from '../../utils/featureFlags'
 import { getTagsByCategory } from '../../utils/featureTagLoader'
+import { AppSettings, defaultAppSettings } from '../../utils/appSettings'
 import './SettingsDialog.css'
 
 interface SettingsDialogProps {
   onClose: () => void
-  onSaveEditorSettings?: (settings: { vimMode: boolean }) => void
+  initialSettings?: AppSettings
+  onSaveEditorSettings?: (settings: AppSettings) => void
 }
 
 type ModifierKey = 'shift' | 'ctrl' | 'alt'
@@ -36,7 +38,7 @@ function getBorderColor(fillColor: string): string {
   return `rgba(${match[1]}, ${match[2]}, ${match[3]}, 0.8)`
 }
 
-function SettingsDialog({ onClose, onSaveEditorSettings }: SettingsDialogProps) {
+function SettingsDialog({ onClose, initialSettings, onSaveEditorSettings }: SettingsDialogProps) {
   const [activeTab, setActiveTab] = useState('general')
   const { cameraSettings, updateCameraSettings, boxSelectionSettings, updateBoxSelectionSettings } = useAppStore()
   
@@ -78,26 +80,12 @@ function SettingsDialog({ onClose, onSaveEditorSettings }: SettingsDialogProps) 
   const [boxSelectVisibleColor, setBoxSelectVisibleColor] = useState(boxSelectionSettings.boxSelectVisibleColor)
   const [boxSelectVisibleBorder, setBoxSelectVisibleBorder] = useState(boxSelectionSettings.boxSelectVisibleBorder)
   
-  const [editorFontSize, setEditorFontSize] = useState(() => {
-    const saved = localStorage.getItem('editorFontSize')
-    return saved ? Number(saved) : 14
-  })
-  const [uiFontSize, setUiFontSize] = useState(() => {
-    const saved = localStorage.getItem('uiFontSize')
-    return saved ? Number(saved) : 13
-  })
-  const [treeFontSize, setTreeFontSize] = useState(() => {
-    const saved = localStorage.getItem('treeFontSize')
-    return saved ? Number(saved) : 13
-  })
-  const [menuFontSize, setMenuFontSize] = useState(() => {
-    const saved = localStorage.getItem('menuFontSize')
-    return saved ? Number(saved) : 13
-  })
-  const [editorVimMode, setEditorVimMode] = useState(() => {
-    const saved = localStorage.getItem('editorVimMode')
-    return saved === 'true'
-  })
+  const resolvedSettings = initialSettings ?? defaultAppSettings
+  const [editorFontSize, setEditorFontSize] = useState(resolvedSettings.editorFontSize)
+  const [uiFontSize, setUiFontSize] = useState(resolvedSettings.uiFontSize)
+  const [treeFontSize, setTreeFontSize] = useState(resolvedSettings.treeFontSize)
+  const [menuFontSize, setMenuFontSize] = useState(resolvedSettings.menuFontSize)
+  const [editorVimMode, setEditorVimMode] = useState(resolvedSettings.editorVimMode)
 
   // Apply font sizes immediately as they change
   useEffect(() => {
@@ -116,6 +104,20 @@ function SettingsDialog({ onClose, onSaveEditorSettings }: SettingsDialogProps) 
     document.documentElement.style.setProperty('--menu-font-size', `${menuFontSize}px`)
   }, [menuFontSize])
 
+  useEffect(() => {
+    setEditorFontSize(resolvedSettings.editorFontSize)
+    setUiFontSize(resolvedSettings.uiFontSize)
+    setTreeFontSize(resolvedSettings.treeFontSize)
+    setMenuFontSize(resolvedSettings.menuFontSize)
+    setEditorVimMode(resolvedSettings.editorVimMode)
+  }, [
+    resolvedSettings.editorFontSize,
+    resolvedSettings.uiFontSize,
+    resolvedSettings.treeFontSize,
+    resolvedSettings.menuFontSize,
+    resolvedSettings.editorVimMode
+  ])
+
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
       onClose()
@@ -123,11 +125,13 @@ function SettingsDialog({ onClose, onSaveEditorSettings }: SettingsDialogProps) 
   }
 
   const handleSave = () => {
-    localStorage.setItem('editorFontSize', String(editorFontSize))
-    localStorage.setItem('uiFontSize', String(uiFontSize))
-    localStorage.setItem('treeFontSize', String(treeFontSize))
-    localStorage.setItem('menuFontSize', String(menuFontSize))
-    localStorage.setItem('editorVimMode', String(editorVimMode))
+    const updatedSettings: AppSettings = {
+      editorVimMode,
+      editorFontSize,
+      uiFontSize,
+      treeFontSize,
+      menuFontSize
+    }
     
     // Save camera settings to store
     updateCameraSettings({
@@ -147,7 +151,7 @@ function SettingsDialog({ onClose, onSaveEditorSettings }: SettingsDialogProps) 
       boxSelectVisibleBorder
     })
 
-    onSaveEditorSettings?.({ vimMode: editorVimMode })
+    onSaveEditorSettings?.(updatedSettings)
     
     onClose()
   }

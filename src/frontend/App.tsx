@@ -22,8 +22,10 @@ import LoadingOverlay from './components/LoadingOverlay/LoadingOverlay'
 import { useAppStore } from './store/appStore'
 import { useConsoleStore } from './store/consoleStore'
 import { pickMeshFile, parseMeshFile } from './utils/meshParser'
-import { saveJsonFile, promptForDirectoryAccess, openCadFile, openCsmFile, openProjectFolder as pickProjectFolder, findProjectConfigInDirectory, readJsonConfigFromPath, normalizeDirectoryPath } from './utils/fileUtils'
-import { validateAgainstSchema, ValidationErrorItem } from './utils/schemaValidator'
+import { isTauri, saveJsonFile, promptForDirectoryAccess, openCadFile, openCsmFile, openProjectFolder as pickProjectFolder, findProjectConfigInDirectory, readJsonConfigFromPath, normalizeDirectoryPath, openJsonFileWithDirectory, readProjectFile } from './utils/fileUtils'
+import { parseCSMImports } from './utils/csmParser'
+import { processLoadedConfig } from './utils/configLoader'
+import { validateAgainstSchema, formatValidationErrors, ValidationErrorItem } from './utils/schemaValidator'
 import { loadMeshFromDirectory } from './utils/meshLoader'
 import { transformLoadedConfig } from './utils/configTransform'
 import { buildCSM, checkESPHealth } from './utils/espApi'
@@ -226,9 +228,6 @@ function App() {
       configDirectoryHandle?: FileSystemDirectoryHandle
     }
   ) => {
-    const { processLoadedConfig } = await import('./utils/configLoader')
-    const { readProjectFile } = await import('./utils/fileUtils')
-
     const rootKey = useAppStore.getState().rootSolverKey || 'HyperSolve'
     const projectFolder = useAppStore.getState().projectFolderHandle
     const isTauriMode = '__TAURI_INTERNALS__' in window
@@ -350,7 +349,6 @@ function App() {
   const handleOpen = async () => {
     try {
       // Open file picker and load JSON with directory info
-      const { openJsonFileWithDirectory } = await import('./utils/fileUtils')
       const result = await openJsonFileWithDirectory()
       
       // If user cancelled, do nothing
@@ -472,10 +470,7 @@ function App() {
       if (!valid && errors) {
         console.warn('Validation errors found:', errors)
         console.warn('Number of errors:', errors.length)
-        const formattedErrors: ValidationErrorItem[] = errors.map(err => ({
-          message: err.message || 'Unknown error',
-          path: err.instancePath || undefined
-        }))
+        const formattedErrors = formatValidationErrors(errors, schema)
         setValidationErrors(formattedErrors)
         setShowValidationErrors(true)
         return
@@ -793,8 +788,6 @@ function App() {
       
       // Get file path for Tauri command
       // In Tauri, we need the actual file path, not content
-      const { isTauri } = await import('./utils/fileUtils')
-      
       let filePath: string
       if (isTauri()) {
         // In Tauri, use the file's path property
@@ -811,7 +804,6 @@ function App() {
       
       // Check for import/restore statements (for future dependency support)
       const csmContent = await file.text()
-      const { parseCSMImports } = await import('./utils/csmParser')
       const imports = parseCSMImports(csmContent)
       
       if (imports.length > 0) {
@@ -1210,7 +1202,6 @@ subtract
       
       // Update the content
       // Parse for imports
-      const { parseCSMImports } = await import('./utils/csmParser')
       const imports = parseCSMImports(tab.content)
       
       // Get project folder handle for auto-loading dependencies

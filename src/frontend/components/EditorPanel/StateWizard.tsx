@@ -12,7 +12,7 @@ import {
 } from '../../utils/thermodynamicsUtils'
 import './StateWizard.css'
 
-type StateMode = 'static' | 'total' | 'densities' | 'advanced' | null
+type StateMode = 'static' | 'total' | 'densities' | 'mach-density' | 'advanced' | null
 
 // Wizard state for persistence
 export interface SavedWizardState {
@@ -25,6 +25,7 @@ export interface SavedWizardState {
   totalPressure: string
   speed: string
   angleOfAttack: string
+  density: string
   angleOfYaw: string
   massFractions: Record<string, number>
 }
@@ -65,6 +66,9 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
   
   // Densities fields
   const [speed, setSpeed] = useState(savedState?.speed ?? '')
+
+  // Mach-density fields
+  const [density, setDensity] = useState(savedState?.density ?? '')
   
   // Optional fields
   const [angleOfAttack, setAngleOfAttack] = useState(savedState?.angleOfAttack ?? '0')
@@ -122,6 +126,7 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
         totalTemperature,
         totalPressure,
         speed,
+        density,
         angleOfAttack,
         angleOfYaw,
         massFractions
@@ -183,6 +188,14 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
           speed: parseFloat(speed),
           temperature: parseFloat(temperature)
         }
+      } else if (mode === 'mach-density') {
+        log('DEBUG', 'info', '[StateWizard] Creating mach-density state')
+        newState = {
+          ...baseState,
+          'mach number': parseFloat(machNumber),
+          temperature: parseFloat(temperature),
+          density: parseFloat(density)
+        }
       } else if (mode === 'advanced') {
         log('DEBUG', 'info', '[StateWizard] Creating advanced state')
         newState = {
@@ -216,7 +229,7 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
     if (!stateName) return false
     
     // Validate mass fractions if any have been defined
-    if (Object.keys(massFractions).length > 0 && (mode === 'static' || mode === 'total' || mode === 'advanced')) {
+    if (Object.keys(massFractions).length > 0 && (mode === 'static' || mode === 'total' || mode === 'mach-density' || mode === 'advanced')) {
       const species = getSpeciesList(configData)
       const validation = validateMassFractions(massFractions, species)
       if (!validation.valid) {
@@ -230,6 +243,8 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
       return machNumber && totalTemperature && totalPressure
     } else if (mode === 'densities') {
       return machNumber && speed && temperature
+    } else if (mode === 'mach-density') {
+      return machNumber && temperature && density
     } else if (mode === 'advanced') {
       return true // Advanced mode is always valid
     }
@@ -343,6 +358,13 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
                   <div className="option-title">State from Mach and Densities</div>
                   <div className="option-description">
                     Define using Mach number, speed, and temperature
+                  </div>
+                </div>
+
+                <div className="wizard-option" onClick={() => setMode('mach-density')}>
+                  <div className="option-title">State from Mach, Temperature, and Density</div>
+                  <div className="option-description">
+                    Define using Mach number, temperature, and density
                   </div>
                 </div>
 
@@ -483,6 +505,47 @@ export default function StateWizard({ onClose, onCreate, onOpenThermodynamics, s
                       placeholder="e.g., 288.15"
                     />
                   </div>
+                </>
+              )}
+
+              {mode === 'mach-density' && (
+                <>
+                  <div className="state-form-group">
+                    <label className="state-form-label">Mach Number *</label>
+                    <input
+                      type="number"
+                      className="state-form-input"
+                      value={machNumber}
+                      onChange={(e) => setMachNumber(e.target.value)}
+                      placeholder="e.g., 2.0"
+                      step="0.01"
+                    />
+                  </div>
+
+                  <div className="state-form-group">
+                    <label className="state-form-label">Temperature (K) *</label>
+                    <input
+                      type="number"
+                      className="state-form-input"
+                      value={temperature}
+                      onChange={(e) => setTemperature(e.target.value)}
+                      placeholder="e.g., 288.15"
+                    />
+                  </div>
+
+                  <div className="state-form-group">
+                    <label className="state-form-label">Density (kg/m³) *</label>
+                    <input
+                      type="number"
+                      className="state-form-input"
+                      value={density}
+                      onChange={(e) => setDensity(e.target.value)}
+                      placeholder="e.g., 1.225"
+                      step="0.001"
+                    />
+                  </div>
+
+                  {renderMassFractionsSection()}
                 </>
               )}
 

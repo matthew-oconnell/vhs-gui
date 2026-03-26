@@ -260,7 +260,7 @@ function SettingsDialog({ onClose, initialSettings, onSaveEditorSettings }: Sett
                         type="range"
                         id="rotate-speed"
                         min="0.5"
-                        max="3.0"
+                        max="6.0"
                         step="0.1"
                         value={rotateSpeed}
                         onChange={(e) => setRotateSpeed(Number(e.target.value))}
@@ -269,7 +269,7 @@ function SettingsDialog({ onClose, initialSettings, onSaveEditorSettings }: Sett
                       <input
                         type="number"
                         min="0.5"
-                        max="3.0"
+                        max="6.0"
                         step="0.1"
                         value={rotateSpeed}
                         onChange={(e) => setRotateSpeed(Number(e.target.value))}
@@ -314,7 +314,7 @@ function SettingsDialog({ onClose, initialSettings, onSaveEditorSettings }: Sett
                         type="range"
                         id="pan-speed"
                         min="0.3"
-                        max="2.0"
+                        max="4.0"
                         step="0.1"
                         value={panSpeed}
                         onChange={(e) => setPanSpeed(Number(e.target.value))}
@@ -323,7 +323,7 @@ function SettingsDialog({ onClose, initialSettings, onSaveEditorSettings }: Sett
                       <input
                         type="number"
                         min="0.3"
-                        max="2.0"
+                        max="4.0"
                         step="0.1"
                         value={panSpeed}
                         onChange={(e) => setPanSpeed(Number(e.target.value))}

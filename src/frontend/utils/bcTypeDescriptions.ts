@@ -40,7 +40,7 @@ export async function loadBCTypeInfo(): Promise<Record<string, BCTypeInfo>> {
     const typeInfo: Record<string, BCTypeInfo> = {}
 
     // Get BC definition names from the Boundary Condition anyOf
-    const bcDefinitions = schema.definitions?.['Boundary Condition']?.anyOf?.map((ref: any) =>
+    const bcDefinitions = schema.definitions?.['Boundary Conditions']?.anyOf?.map((ref: any) =>
       ref.$ref.replace('#/definitions/', '')
     ) || []
 

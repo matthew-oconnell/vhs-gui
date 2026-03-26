@@ -15,7 +15,10 @@ const INIT_REGION_TYPES = [
   'super ellipse frustum',
   'converging diverging nozzle',
   'injector',
-  'boundary layer'
+  'boundary layer',
+  'planetary entry',
+  'stagnation flow',
+  'snap'
 ]
 
 // Type descriptions for user guidance
@@ -26,7 +29,10 @@ const INIT_REGION_TYPE_DESCRIPTIONS: Record<string, string> = {
   'super ellipse frustum': 'Define a super ellipse frustum region with isentropic initialization',
   'converging diverging nozzle': 'Define a converging-diverging nozzle region with isentropic initialization',
   'injector': 'Initialize cells within a specified distance of mesh boundary tags (Vulcan only)',
-  'boundary layer': 'Linearly blend no-slip surface boundary conditions with flowfield initialization'
+  'boundary layer': 'Linearly blend no-slip surface boundary conditions with flowfield initialization',
+  'planetary entry': 'Initializes flow assuming planetary entry conditions around a vehicle',
+  'stagnation flow': 'Initializes flow assuming stagnation flow conditions around a vehicle',
+  'snap': 'Initializes solution from a snap file without updating iteration history'
 }
 
 interface InitializationRegionDialogProps {
@@ -95,6 +101,9 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
   
   // Boundary Layer fields
   const [blThickness, setBlThickness] = useState(0.001)
+
+  // Snap fields
+  const [snapFilename, setSnapFilename] = useState('')
 
   // Get available states from configData
   const getAvailableStates = (): string[] => {
@@ -168,8 +177,14 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
 
   const handleCreate = () => {
     // Validation
-    if (regionType !== 'boundary layer' && (!stateName || stateName === '__CREATE_NEW__')) {
+    const typesWithoutState = ['boundary layer', 'planetary entry', 'stagnation flow', 'snap']
+    if (!typesWithoutState.includes(regionType) && (!stateName || stateName === '__CREATE_NEW__')) {
       alert('Please select or create a state')
+      return
+    }
+
+    if (regionType === 'snap' && !snapFilename.trim()) {
+      alert('Please enter a snap filename')
       return
     }
 
@@ -252,6 +267,15 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
       case 'boundary layer':
         newRegion.thickness = blThickness
         break
+
+      case 'planetary entry':
+      case 'stagnation flow':
+        // No additional fields needed — only the type is required
+        break
+
+      case 'snap':
+        newRegion.filename = snapFilename.trim()
+        break
     }
 
     // Add initialization region to the config
@@ -306,8 +330,8 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
             )}
           </div>
 
-          {/* State selector (not for boundary layer) */}
-          {regionType !== 'boundary layer' && (
+          {/* State selector (not for types that don't need a state) */}
+          {!['boundary layer', 'planetary entry', 'stagnation flow', 'snap'].includes(regionType) && (
             <div className="form-group">
               <label className="form-label">State *</label>
               <select
@@ -822,6 +846,23 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
               </div>
             </div>
           )}
+
+          {/* Snap-specific fields */}
+          {regionType === 'snap' && (
+            <div className="form-group">
+              <label className="form-label">Filename *</label>
+              <input
+                type="text"
+                className="form-input"
+                value={snapFilename}
+                onChange={(e) => setSnapFilename(e.target.value)}
+                placeholder="path/to/snap/file"
+              />
+              <div className="help-text">
+                Path to the snap file to initialize from
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="modal-footer">
@@ -831,7 +872,7 @@ export default function InitializationRegionDialog({ isOpen, onClose }: Initiali
           <button 
             className="button button-primary" 
             onClick={handleCreate}
-            disabled={regionType !== 'boundary layer' && availableStates.length === 0}
+            disabled={!['boundary layer', 'planetary entry', 'stagnation flow', 'snap'].includes(regionType) && availableStates.length === 0}
           >
             Create Initialization Region
           </button>

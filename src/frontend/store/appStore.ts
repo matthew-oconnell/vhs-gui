@@ -376,10 +376,11 @@ export const useAppStore = create<AppState>((set) => ({
   },
   
   // Camera settings with defaults matching Paraview behavior
+  // macOS trackpad/mouse reports smaller deltas, so we need higher speeds
   cameraSettings: {
-    rotateSpeed: 1.5,
+    rotateSpeed: navigator.platform?.includes('Mac') ? 4.0 : 1.5,
     zoomSpeed: 1.2,
-    panSpeed: 0.8,
+    panSpeed: navigator.platform?.includes('Mac') ? 2.0 : 0.8,
     invertZoom: true, // Pulling back zooms in (Paraview-like)
     multiSelectModifier: 'shift' as const, // Default modifier for multi-selection
     selectionMode: 'tag' as const, // MIGRATION: Changed from 'face' to 'tag' - individual tag selection

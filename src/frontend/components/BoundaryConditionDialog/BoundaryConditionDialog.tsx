@@ -38,6 +38,7 @@ const BC_TYPES = [
   // === CURRENT (non-deprecated) - from schema ===
   'axisymmetric pole',
   'constant temperature',
+  'extrapolation',
   'fixed inflow',                           // Replaces deprecated: dirichlet, dirichlet profile
   'fixed subsonic inflow',
   'freestream em',
@@ -54,16 +55,16 @@ const BC_TYPES = [
   'strong particle wall',
   'subsonic inflow',                        // Replaces deprecated: subsonic inflow total
   'subsonic outflow',                       // Replaces deprecated: back pressure
-  'supersonic outflow',                     // Replaces deprecated: extrapolation
+  'supersonic outflow',
   'symmetry',
   'tangent flow',
   'weak constant intensity',
   'weak radiative equilibrium temperature',
-  
+  'zero azimuthal velocity',
+
   // === DEPRECATED (still in schema for backwards compatibility) ===
   'dirichlet',                              // → use 'fixed inflow'
   'dirichlet profile',                      // → use 'fixed inflow' with profile option
-  'extrapolation',                          // → use 'supersonic outflow'
   'no slip',                                // → use 'no slip wall'
   'wall matching',                          // → use 'no slip wall' with wall matching:true
   'back pressure',                          // → use 'subsonic outflow'
@@ -82,6 +83,7 @@ const BC_TYPE_CATEGORIES = {
   'Outflow': [
     'subsonic outflow',
     'supersonic outflow',
+    'extrapolation',
   ],
   'Wall': [
     'no slip wall',
@@ -93,6 +95,7 @@ const BC_TYPE_CATEGORIES = {
     'symmetry',
     'tangent flow',
     'axisymmetric pole',
+    'zero azimuthal velocity',
   ],
   'Advanced': [
     'strong dirichlet',

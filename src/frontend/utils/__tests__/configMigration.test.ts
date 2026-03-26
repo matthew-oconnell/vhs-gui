@@ -501,11 +501,11 @@ describe('migrateBCType', () => {
     expect(migrated['wall matching']).toBe(true)
   })
 
-  it('migrates extrapolation to supersonic outflow', () => {
+  it('does not migrate extrapolation (no longer deprecated)', () => {
     const bc = { type: 'extrapolation', 'mesh boundary tags': 4 }
     const migrated = migrateBCType(bc)
-    
-    expect(migrated.type).toBe('supersonic outflow')
+
+    expect(migrated.type).toBe('extrapolation')
   })
 
   it('migrates back pressure to subsonic outflow', () => {

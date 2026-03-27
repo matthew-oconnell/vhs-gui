@@ -1,4 +1,4 @@
-import { Maximize2, RotateCw, RotateCcw, Square, EyeOff, Palette, Mouse, Box } from 'lucide-react'
+import { Maximize2, RotateCw, RotateCcw, Square, EyeOff, Palette, Mouse, Box, Crosshair } from 'lucide-react'
 import { useAppStore, ColorMode } from '../../store/appStore'
 import './ViewportToolbar.css'
 
@@ -16,11 +16,12 @@ export function ViewportToolbar() {
     toggleHideAssignedTags,
     cameraSettings,
     setSelectionMode,
-    setCameraProjection
+    setCameraProjection,
+    setPickingRotationCenter
   } = useAppStore()
   
   const { colorMode, hideAssignedTags } = globalRenderSettings
-  const { selectionMode, projectionMode } = cameraSettings
+  const { selectionMode, projectionMode, pickingRotationCenter } = cameraSettings
 
   const handleColorModeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setColorMode(e.target.value as ColorMode)
@@ -100,16 +101,24 @@ export function ViewportToolbar() {
       {/* Row 2: Camera Controls */}
       <div className="toolbar-row">
         <div className="toolbar-group">
-          <button 
-            className="toolbar-button" 
+          <button
+            className="toolbar-button"
             onClick={handleFitToView}
             title="Fit camera to visible tags"
           >
             <Maximize2 size={14} />
             <span>Fit</span>
           </button>
+          <button
+            className={`toolbar-button ${pickingRotationCenter ? 'active' : ''}`}
+            onClick={() => setPickingRotationCenter(!pickingRotationCenter)}
+            title={pickingRotationCenter ? 'Cancel picking rotation center' : 'Pick rotation center on model'}
+          >
+            <Crosshair size={14} />
+            <span>Center</span>
+          </button>
         </div>
-        
+
         <div className="toolbar-separator" />
         
         <div className="toolbar-group">

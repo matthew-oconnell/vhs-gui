@@ -45,6 +45,8 @@ export interface CameraSettings {
   multiSelectModifier: 'shift' | 'ctrl' | 'alt'
   selectionMode: 'tag' | 'group'  // MIGRATION: Changed from 'face' to 'tag'
   projectionMode: 'perspective' | 'orthographic'
+  pickingRotationCenter: boolean
+  rotationCenter: [number, number, number]
 }
 
 export interface OverlayPosition {
@@ -117,6 +119,8 @@ interface AppState {
   updateCameraSettings: (settings: Partial<CameraSettings>) => void
   setSelectionMode: (mode: 'tag' | 'group') => void  // MIGRATION: Changed from 'face' to 'tag'
   setCameraProjection: (mode: 'perspective' | 'orthographic') => void
+  setPickingRotationCenter: (picking: boolean) => void
+  setRotationCenter: (center: [number, number, number]) => void
   overlayPosition: OverlayPosition
   setOverlayPosition: (position: OverlayPosition) => void
   tagVisibility: Record<string, boolean>
@@ -383,7 +387,9 @@ export const useAppStore = create<AppState>((set) => ({
     invertZoom: true, // Pulling back zooms in (Paraview-like)
     multiSelectModifier: 'shift' as const, // Default modifier for multi-selection
     selectionMode: 'tag' as const, // MIGRATION: Changed from 'face' to 'tag' - individual tag selection
-    projectionMode: 'perspective' as const // Default to perspective camera
+    projectionMode: 'perspective' as const, // Default to perspective camera
+    pickingRotationCenter: false,
+    rotationCenter: [0, 0, 0] as [number, number, number]
   },
   
   updateCameraSettings: (settings) => set((state) => ({
@@ -395,7 +401,13 @@ export const useAppStore = create<AppState>((set) => ({
   setCameraProjection: (mode) => set((state) => ({
     cameraSettings: { ...state.cameraSettings, projectionMode: mode }
   })),
-  
+  setPickingRotationCenter: (picking) => set((state) => ({
+    cameraSettings: { ...state.cameraSettings, pickingRotationCenter: picking }
+  })),
+  setRotationCenter: (center) => set((state) => ({
+    cameraSettings: { ...state.cameraSettings, rotationCenter: center }
+  })),
+
   // Box selection settings with defaults
   boxSelectionSettings: {
     boxSelectAllModifier: 'shift' as const,

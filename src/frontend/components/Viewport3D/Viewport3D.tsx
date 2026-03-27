@@ -1,5 +1,6 @@
 import { Canvas, useThree } from '@react-three/fiber'
-import { TrackballControls, Grid, PerspectiveCamera, OrthographicCamera } from '@react-three/drei'
+import { Grid, PerspectiveCamera, OrthographicCamera } from '@react-three/drei'
+import { CustomCameraControls } from './CustomCameraControls'
 import { Box as BoxIcon, Maximize2, Camera } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { useConsoleStore } from '../../store/consoleStore'
@@ -130,7 +131,17 @@ function ClickableSurface({
   
   const handleClick = (e: any) => {
     e.stopPropagation()
-    
+
+    // If picking rotation center, use the intersection point and exit pick mode
+    if (cameraSettings.pickingRotationCenter) {
+      const point = e.point
+      if (point) {
+        useAppStore.getState().setRotationCenter([point.x, point.y, point.z])
+      }
+      useAppStore.getState().setPickingRotationCenter(false)
+      return
+    }
+
     // Check if modifier key is pressed for multi-selection
     const modifierKey = cameraSettings.multiSelectModifier
     const isModifierPressed = 
@@ -1350,25 +1361,8 @@ function Scene({ onSurfaceContextMenu }: { onSurfaceContextMenu: (e: any, surfac
         }}
       />
 
-      {/* Camera controls - Trackball style like Paraview */}
-      <TrackballControls 
-        ref={controlsRef}
-        makeDefault
-        enableDamping={true}
-        dampingFactor={0.05}
-        rotateSpeed={cameraSettings.rotateSpeed}
-        zoomSpeed={cameraSettings.invertZoom ? -cameraSettings.zoomSpeed : cameraSettings.zoomSpeed}
-        panSpeed={cameraSettings.panSpeed}
-        staticMoving={false}
-        dynamicDampingFactor={0.2}
-        minDistance={0.01}
-        maxDistance={100}
-        mouseButtons={{
-          LEFT: THREE.MOUSE.ROTATE,
-          MIDDLE: THREE.MOUSE.PAN,
-          RIGHT: THREE.MOUSE.DOLLY
-        }}
-      />
+      {/* Camera controls - fixed rotation center, pan doesn't move it */}
+      <CustomCameraControls ref={controlsRef} />
     </>
   )
 }
@@ -1392,7 +1386,9 @@ function Viewport3D() {
     selectedInitRegion,
     selectedViz,
     boxSelectionSettings,
-    boxSelectionState
+    boxSelectionState,
+    cameraSettings,
+    setPickingRotationCenter
   } = useAppStore()
   const [isDragging, setIsDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
@@ -1689,11 +1685,17 @@ function Viewport3D() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Cancel rotation center picking
+        if (cameraSettings.pickingRotationCenter) {
+          setPickingRotationCenter(false)
+          return
+        }
+
         // Don't deselect if any dialog is open
         if (showBCDialog || showAlreadyAssignedDialog || showConfirmDeletionDialog || contextMenu) {
           return
         }
-        
+
         // Deselect tag if one is selected
         if (selectedTag) {
           setSelectedTag(null)
@@ -1728,10 +1730,31 @@ function Viewport3D() {
         <Canvas
           shadows
           onContextMenu={(e) => e.preventDefault()}
+          style={cameraSettings.pickingRotationCenter ? { cursor: 'crosshair' } : undefined}
         >
           <Scene onSurfaceContextMenu={handleSurfaceContextMenu} />
         </Canvas>
         
+        {/* Picking rotation center hint */}
+        {cameraSettings.pickingRotationCenter && (
+          <div style={{
+            position: 'absolute',
+            bottom: 48,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: 'rgba(14, 99, 156, 0.9)',
+            color: '#fff',
+            padding: '6px 16px',
+            borderRadius: 4,
+            fontSize: 12,
+            zIndex: 20,
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap'
+          }}>
+            Click on model to set rotation center — Esc to cancel
+          </div>
+        )}
+
         {/* Box Selection Overlay */}
         <SelectionBox containerRef={viewportContentRef} />
         

@@ -67,6 +67,16 @@ export interface ConfigData {
   'restart in filename'?: string
   'restart out filename'?: string
   
+  // Templates
+  templates?: string[]
+
+  // Axisymmetric settings
+  axisymmetric?: boolean
+  'axisymmetric wedge angle'?: number
+
+  // Restart/initialization
+  'initialize solution from restart in'?: boolean
+
   // Advanced settings (now at root level)
   sequence?: Array<any>
   combustion?: any

@@ -44,7 +44,6 @@ describe('bcTypeDescriptions', () => {
       expect(info['dirichlet']?.deprecated).toBe(true)
       expect(info['no slip']?.deprecated).toBe(true)
       expect(info['back pressure']?.deprecated).toBe(true)
-      expect(info['extrapolation']?.deprecated).toBe(true)
       expect(info['subsonic inflow total']?.deprecated).toBe(true)
       expect(info['dirichlet profile']?.deprecated).toBe(true)
       expect(info['wall matching']?.deprecated).toBe(true)
@@ -59,6 +58,7 @@ describe('bcTypeDescriptions', () => {
       expect(info['no slip wall']?.deprecated).toBeFalsy()
       expect(info['subsonic outflow']?.deprecated).toBeFalsy()
       expect(info['supersonic outflow']?.deprecated).toBeFalsy()
+      expect(info['extrapolation']?.deprecated).toBeFalsy()
       expect(info['subsonic inflow']?.deprecated).toBeFalsy()
     })
   })
@@ -73,7 +73,6 @@ describe('bcTypeDescriptions', () => {
       expect(isBCTypeDeprecated('dirichlet')).toBe(true)
       expect(isBCTypeDeprecated('no slip')).toBe(true)
       expect(isBCTypeDeprecated('back pressure')).toBe(true)
-      expect(isBCTypeDeprecated('extrapolation')).toBe(true)
     })
 
     it('returns false for current types', () => {

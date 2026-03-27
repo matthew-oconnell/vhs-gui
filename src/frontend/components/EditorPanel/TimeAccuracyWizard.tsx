@@ -23,7 +23,7 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
   const [subiterationTolerance, setSubiterationTolerance] = useState(1e-3)
   
   // Common settings
-  const [startingCfl, setStartingCfl] = useState('1.0')
+  const [startingCfl, setStartingCfl] = useState('auto')
   const [cflMin, setCflMin] = useState('1e-3')
   const [cflMax, setCflMax] = useState('1e6')
   const [steps, setSteps] = useState(1000)
@@ -39,7 +39,7 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
       order,
       subiterations,
       subiterationTolerance,
-      startingCfl: parseFloat(startingCfl) || 1.0,
+      startingCfl: startingCfl === 'auto' ? 'auto' : (parseFloat(startingCfl) || 1.0),
       cflMin: parseFloat(cflMin) || 1e-3,
       cflMax: parseFloat(cflMax) || 1e6,
       steps
@@ -136,7 +136,7 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
                   type="text"
                   value={startingCfl}
                   onChange={(e) => setStartingCfl(e.target.value)}
-                  placeholder="e.g., 1.0 or 1.0e-3"
+                  placeholder="e.g., auto, 1.0, or 1.0e-3"
                 />
               </div>
 
@@ -247,7 +247,7 @@ export default function TimeAccuracyWizard({ onClose }: TimeAccuracyWizardProps)
                   type="text"
                   value={startingCfl}
                   onChange={(e) => setStartingCfl(e.target.value)}
-                  placeholder="e.g., 1.0 or 1.0e-3"
+                  placeholder="e.g., auto, 1.0, or 1.0e-3"
                 />
               </div>
 

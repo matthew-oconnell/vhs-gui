@@ -34,8 +34,8 @@ export function parseReactionFile(content: string): ReactionFileParseResult {
       continue
     }
     
-    // Skip header line
-    if (trimmed.includes('REACTION REACTANT SIDE PRODUCT SIDE')) {
+    // Skip header line (normalize whitespace for comparison)
+    if (trimmed.replace(/\s+/g, ' ').includes('REACTION REACTANT SIDE PRODUCT SIDE')) {
       continue
     }
     

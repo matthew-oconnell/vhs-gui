@@ -115,7 +115,6 @@ export const migrateConfigToFlatStructure = (config: any): any => {
 const BC_TYPE_MIGRATIONS: Record<string, string> = {
   'dirichlet': 'fixed inflow',
   'dirichlet profile': 'fixed inflow', // Note: also needs 'profile' option set
-  'extrapolation': 'supersonic outflow',
   'no slip': 'no slip wall',
   'wall matching': 'no slip wall', // Note: also needs 'wall matching':true set
   'back pressure': 'subsonic outflow',

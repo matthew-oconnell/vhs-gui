@@ -121,6 +121,22 @@ FORWARD REACTION MODEL 0.0`
     expect(result.species).toContain('OH')
   })
 
+  it('handles header line with extra whitespace (reac_mod.edc format)', () => {
+    const fileContent = `******* Marinov et al. 3 species / 1 reaction hydrogen kinetic model *******
+******* 8th Int. Symp. on Transport Properties, 1995, UCRL-JC-120677 *******
+REACTION MECHANISM EQUATION LIST
+REACTION      REACTANT SIDE       PRODUCT SIDE
+    1         H2 + 0.5 O2    =>   H2O
+FORWARD REACTION MODEL         0.0     (0=Arrhenius, 1=Global)`
+
+    const result = parseReactionFile(fileContent)
+
+    expect(result.species).toContain('H2')
+    expect(result.species).toContain('O2')
+    expect(result.species).toContain('H2O')
+    expect(result.species).toHaveLength(3)
+  })
+
   it('removes M from species list as it is a third body', () => {
     const fileContent = `REACTION MECHANISM EQUATION LIST
 REACTION REACTANT SIDE PRODUCT SIDE
